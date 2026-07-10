@@ -51,6 +51,29 @@ MYSQL_ROOT_PASSWORD='change_this_password' \
 curl -fsSL https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/deploy.sh | bash
 ```
 
+### 更新程序
+
+已经部署过之后，后续更新只需要执行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/update.sh | bash
+```
+
+如果部署目录不是默认的 `/opt/iot-platform`，更新时指定目录：
+
+```bash
+INSTALL_DIR=/你的部署目录 \
+curl -fsSL https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/update.sh | bash
+```
+
+更新脚本会自动：
+
+1. 拉取 GitHub 最新代码
+2. 保留现有 `.env` 和 MySQL 数据卷
+3. 重新 build 应用镜像
+4. 重启应用容器
+5. 清理悬空镜像
+
 ### 常用 Docker 命令
 
 ```bash
