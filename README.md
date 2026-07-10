@@ -19,7 +19,36 @@
 - Docker / Docker Compose
 - 前端为静态 HTML/CSS/JS
 
-## Docker 一键部署
+## 宿主机一键部署（Node.js + PM2）
+
+适合直接连接服务器/宝塔已有 MySQL，部署方式和本仓库开发服务器一致：应用直接运行在宿主机，数据库安装页填写宿主机 MySQL 地址。
+
+推荐国内 CDN 下载脚本：
+
+```bash
+curl -fsSL --connect-timeout 10 --max-time 30 https://cdn.jsdelivr.net/gh/mubaiqq/iot-platform@main/scripts/deploy-host.sh -o /tmp/iot-deploy-host.sh
+bash /tmp/iot-deploy-host.sh
+```
+
+默认访问：
+
+```text
+http://服务器IP:3000
+```
+
+首次打开会进入安装向导。如果 MySQL 就在同一台服务器/宝塔里，数据库 Host 通常填写：
+
+```text
+127.0.0.1
+```
+
+也可以自定义端口/目录：
+
+```bash
+APP_PORT=32180 INSTALL_DIR=/opt/iot-platform bash /tmp/iot-deploy-host.sh
+```
+
+## Docker 一键部署（内置 MySQL 容器）
 
 服务器上执行：
 
@@ -42,10 +71,12 @@ http://服务器IP:32180
 
 登录后请立即修改默认密码，并进入后台配置天气 API、大模型 API、MQTT 等参数。
 
-首次打开页面会进入安装向导，请填写已有 MySQL 数据库信息。Docker 容器连接宿主机 MySQL 时，数据库地址通常填写：
+Docker 部署内置 MySQL 容器并自动配置数据库，正常不需要再填写数据库信息。
+
+如果改用宿主机部署，首次打开页面会进入安装向导，请填写宿主机 MySQL 数据库信息。同机 MySQL 地址通常填写：
 
 ```text
-host.docker.internal
+127.0.0.1
 ```
 
 ### 自定义端口/目录
@@ -56,9 +87,16 @@ INSTALL_DIR=/opt/iot-platform \
 curl -fsSL https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/deploy.sh | bash
 ```
 
-### Docker 拉取 MySQL 很慢怎么办
+### Docker 镜像拉取很慢怎么办
 
-新版一键部署已经不再拉取 MySQL/MariaDB 镜像，只启动应用容器。数据库使用你服务器已有的 MySQL，首次访问安装页面填写地址、端口、账号、密码和数据库名即可。
+Docker 部署默认内置 MySQL 容器，并在一键脚本里写入国内镜像变量：
+
+```env
+NODE_IMAGE=docker.m.daocloud.io/library/node:20-alpine
+MYSQL_IMAGE=docker.m.daocloud.io/library/mysql:8.4.4
+```
+
+如果你不想使用 Docker，可以改用上面的“宿主机一键部署”。
 
 ### 更新程序
 
