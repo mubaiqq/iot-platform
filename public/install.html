@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>安装向导 - 木白云 IoT</title>
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css" media="print" onload="this.media='all'">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}body{min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:linear-gradient(180deg,#f8fbff,#f5f6fa);color:#172033;display:flex;align-items:center;justify-content:center;padding:18px}button,input{font:inherit;font-size:16px}.card{width:100%;max-width:440px;background:rgba(255,255,255,.88);border:1px solid #e9eef5;border-radius:24px;padding:24px;box-shadow:0 18px 46px rgba(15,23,42,.08)}.logo{width:48px;height:48px;border-radius:16px;background:#eff6ff;color:#2563eb;display:flex;align-items:center;justify-content:center;margin-bottom:16px}.logo i{font-size:20px}h1{font-size:24px;letter-spacing:-.03em;margin-bottom:6px}.desc{font-size:13px;line-height:1.6;color:#64748b;margin-bottom:20px}.form-group{margin-bottom:14px}label{display:block;font-size:12px;font-weight:800;color:#475569;margin-bottom:7px}.input{width:100%;height:42px;border:1px solid #e2e8f0;border-radius:13px;background:#fff;padding:0 13px;color:#172033;outline:none}.input:focus{border-color:#93c5fd;box-shadow:0 0 0 4px rgba(59,130,246,.10)}.grid{display:grid;grid-template-columns:1fr 110px;gap:10px}.btn{width:100%;height:44px;border:0;border-radius:14px;background:#2563eb;color:#fff;font-weight:850;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px}.btn:disabled{opacity:.72;cursor:not-allowed}.btn.success{background:#059669}.btn.error{background:#dc2626}.tip{font-size:12px;color:#94a3b8;line-height:1.6;margin-top:14px;background:#f8fafc;border:1px solid #eef2f7;border-radius:14px;padding:10px 12px}.toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);background:#111827;color:#fff;border-radius:999px;padding:10px 15px;font-size:13px;font-weight:750;opacity:0;pointer-events:none;transition:.2s}.toast.show{opacity:1;top:24px}@media(max-width:480px){.card{padding:20px;border-radius:20px}.grid{grid-template-columns:1fr 96px}h1{font-size:22px}}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo"><i class="fas fa-seedling"></i></div>
+  <h1>数据库安装</h1>
+  <p class="desc">当前 Docker 部署不再拉取 MySQL 镜像。请填写已有 MySQL 数据库信息，系统会自动创建数据库表和默认管理员。</p>
+  <form id="installForm">
+    <div class="grid">
+      <div class="form-group"><label>数据库地址</label><input class="input" name="host" value="host.docker.internal" placeholder="例如 host.docker.internal" required></div>
+      <div class="form-group"><label>端口</label><input class="input" name="port" value="3306" required></div>
+    </div>
+    <div class="form-group"><label>数据库名</label><input class="input" name="database" value="iot_platform" required></div>
+    <div class="form-group"><label>用户名</label><input class="input" name="user" value="root" required></div>
+    <div class="form-group"><label>密码</label><input class="input" name="password" type="password" placeholder="无密码可留空"></div>
+    <button class="btn" id="submitBtn" type="submit"><i class="fas fa-check"></i> 开始安装</button>
+  </form>
+  <div class="tip">Docker 部署连接宿主机 MySQL 时推荐填 host.docker.internal；非 Docker 本地运行可填 127.0.0.1。默认管理员：admin / admin123。</div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const form=document.getElementById('installForm');
+const btn=document.getElementById('submitBtn');
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2400)}
+fetch('/api/install/status').then(r=>r.json()).then(d=>{if(d.installed){location.href='/login';}}).catch(()=>{});
+form.addEventListener('submit',async(e)=>{
+  e.preventDefault();
+  btn.disabled=true;btn.className='btn';btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> 正在安装...';
+  const data=Object.fromEntries(new FormData(form).entries());
+  try{
+    const res=await fetch('/api/install',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    const json=await res.json();
+    if(json.success){
+      btn.className='btn success';btn.innerHTML='<i class="fas fa-check"></i> 安装成功';toast('安装成功，即将跳转');
+      setTimeout(()=>location.href='/login',1200);
+    }else{
+      btn.className='btn error';btn.innerHTML='<i class="fas fa-xmark"></i> 安装失败';toast(json.error||'安装失败');
+      setTimeout(()=>{btn.disabled=false;btn.className='btn';btn.innerHTML='<i class="fas fa-check"></i> 开始安装';},1800);
+    }
+  }catch(err){
+    btn.className='btn error';btn.innerHTML='<i class="fas fa-xmark"></i> 连接失败';toast(err.message||'连接失败');
+    setTimeout(()=>{btn.disabled=false;btn.className='btn';btn.innerHTML='<i class="fas fa-check"></i> 开始安装';},1800);
+  }
+});
+</script>
+</body>
+</html>

@@ -16,18 +16,120 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
 
-// Database pool
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '3306', 10),
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || undefined,
-  database: process.env.DB_NAME || 'iot_platform',
-  waitForConnections: true,
-  connectionLimit: 10
-});
+// ========== Database install/config ==========
+const DB_CONFIG_PATH = process.env.DB_CONFIG_PATH || path.join(__dirname, 'data', 'db-config.json');
+const SCHEMA_PATH = path.join(__dirname, 'docker/mysql/init/001-schema.sql');
+let pool = null;
+let dbReady = false;
+
+function getEnvDbConfig() {
+  if (!process.env.DB_HOST) return null;
+  return {
+    host: process.env.DB_HOST,
+    port: parseInt(process.env.DB_PORT || '3306', 10),
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'iot_platform'
+  };
+}
+
+function readSavedDbConfig() {
+  try {
+    if (!fs.existsSync(DB_CONFIG_PATH)) return null;
+    return JSON.parse(fs.readFileSync(DB_CONFIG_PATH, 'utf8'));
+  } catch (e) {
+    console.error('[安装] 读取数据库配置失败:', e.message);
+    return null;
+  }
+}
+
+function getDbConfig() {
+  return getEnvDbConfig() || readSavedDbConfig();
+}
+
+function createDbPool(cfg) {
+  return mysql.createPool({
+    host: cfg.host,
+    port: parseInt(cfg.port || '3306', 10),
+    user: cfg.user || 'root',
+    password: cfg.password || undefined,
+    database: cfg.database || 'iot_platform',
+    waitForConnections: true,
+    connectionLimit: 10
+  });
+}
+
+async function initDatabasePool() {
+  const cfg = getDbConfig();
+  if (!cfg) {
+    dbReady = false;
+    return false;
+  }
+  const nextPool = createDbPool(cfg);
+  await nextPool.query('SELECT 1');
+  if (pool) { try { await pool.end(); } catch (e) {} }
+  pool = nextPool;
+  dbReady = true;
+  return true;
+}
+
+function splitSqlStatements(sql) {
+  return sql
+    .replace(/--.*$/gm, '')
+    .split(';')
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+async function installDatabase(cfg) {
+  const database = cfg.database || 'iot_platform';
+  const server = await mysql.createConnection({
+    host: cfg.host,
+    port: parseInt(cfg.port || '3306', 10),
+    user: cfg.user || 'root',
+    password: cfg.password || undefined,
+    multipleStatements: false
+  });
+  try {
+    await server.query('CREATE DATABASE IF NOT EXISTS `'+database.replace(/`/g, '``')+'` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+  } catch (e) {
+    console.warn('[安装] 自动创建数据库失败，将尝试使用已存在数据库:', e.message);
+  } finally {
+    await server.end();
+  }
+
+  const installPool = createDbPool({ ...cfg, database });
+  try {
+    const sql = fs.readFileSync(SCHEMA_PATH, 'utf8');
+    for (const stmt of splitSqlStatements(sql)) {
+      await installPool.query(stmt);
+    }
+  } finally {
+    await installPool.end();
+  }
+
+  fs.mkdirSync(path.dirname(DB_CONFIG_PATH), { recursive: true });
+  fs.writeFileSync(DB_CONFIG_PATH, JSON.stringify({
+    host: cfg.host,
+    port: parseInt(cfg.port || '3306', 10),
+    user: cfg.user || 'root',
+    password: cfg.password || '',
+    database
+  }, null, 2));
+
+  await initDatabasePool();
+  return true;
+}
+
+function requireInstalled(req, res, next) {
+  if (dbReady || req.path === '/install' || req.path === '/api/install' || req.path === '/api/install/status') return next();
+  if (req.path.startsWith('/api/')) return res.status(503).json({ success: false, need_install: true, error: '请先完成数据库安装' });
+  return res.redirect('/install');
+}
+
+app.use(requireInstalled);
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ========== Security Helpers ==========
 function generateToken() {
@@ -68,6 +170,30 @@ function requireAdmin(req, res, next) {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: '无权限' });
   next();
 }
+
+
+// ========== Install API/Page ==========
+app.get('/install', (req, res) => res.sendFile(path.join(__dirname, 'public', 'install.html')));
+
+app.get('/api/install/status', (req, res) => {
+  res.json({ installed: !!dbReady });
+});
+
+app.post('/api/install', async (req, res) => {
+  try {
+    if (dbReady) return res.json({ success: true, message: '已安装' });
+    const { host, port, user, password, database } = req.body;
+    if (!host || !user || !database) {
+      return res.status(400).json({ success: false, error: '请填写数据库地址、用户名和数据库名' });
+    }
+    await installDatabase({ host: String(host).trim(), port: port || 3306, user: String(user).trim(), password: password || '', database: String(database).trim() });
+    try { initGlobalMqtt(pool); } catch (e) { console.error('[MQTT] 安装后初始化失败:', e.message); }
+    res.json({ success: true, message: '安装完成' });
+  } catch (e) {
+    console.error('[安装] 失败:', e);
+    res.status(500).json({ success: false, error: e.message || '安装失败' });
+  }
+});
 
 // ========== Captcha API ==========
 app.get('/api/captcha', (req, res) => {
@@ -1980,14 +2106,25 @@ app.get('/api/esp32/sensor-firmware', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public/esp32_sensor_firmware.ino'));
 });
 
-// 初始化全局MQTT连接
-initGlobalMqtt(pool);
+async function startServer() {
+  try {
+    if (await initDatabasePool()) {
+      console.log('[数据库] 已连接');
+      initGlobalMqtt(pool);
+      pool.query('DELETE FROM login_tokens WHERE created_at < DATE_SUB(NOW(), INTERVAL 365 DAY)').then(([r]) => {
+        if (r.affectedRows > 0) console.log('[清理] 已清理 ' + r.affectedRows + ' 条过期token');
+      }).catch(() => {});
+    } else {
+      console.log('[安装] 未检测到数据库配置，请访问 /install 完成安装');
+    }
+  } catch (e) {
+    dbReady = false;
+    console.error('[数据库] 连接失败，请访问 /install 重新配置:', e.message);
+  }
 
-// 清理过期token（超过365天的）
-pool.query('DELETE FROM login_tokens WHERE created_at < DATE_SUB(NOW(), INTERVAL 365 DAY)').then(([r]) => {
-  if (r.affectedRows > 0) console.log('[清理] 已清理 ' + r.affectedRows + ' 条过期token');
-}).catch(() => {});
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`木白云iot平台已启动: http://localhost:${PORT}`);
+  });
+}
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`木白云iot平台已启动: http://localhost:${PORT}`);
-});
+startServer();

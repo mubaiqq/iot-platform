@@ -4,9 +4,6 @@ set -euo pipefail
 REPO_URL="${REPO_URL:-https://github.com/mubaiqq/iot-platform.git}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/iot-platform}"
 APP_PORT="${APP_PORT:-32180}"
-MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-iot_platform_root_password}"
-DB_NAME="${DB_NAME:-iot_platform}"
-MYSQL_IMAGE="${MYSQL_IMAGE:-mariadb:11.4}"
 
 if [ "$(id -u)" -eq 0 ]; then
   SUDO=""
@@ -53,10 +50,7 @@ write_env() {
   cd "$INSTALL_DIR"
   if [ ! -f .env ]; then
     cat > .env <<EOF
-MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-DB_NAME=${DB_NAME}
 APP_PORT=${APP_PORT}
-MYSQL_IMAGE=${MYSQL_IMAGE}
 EOF
     echo "[deploy] 已生成 .env"
   else
@@ -67,7 +61,7 @@ EOF
 start_stack() {
   cd "$INSTALL_DIR"
   echo "[deploy] 构建并启动 Docker 服务..."
-  echo "[deploy] 数据库镜像: ${MYSQL_IMAGE}（默认使用 MariaDB，加快首次部署；如需官方 MySQL 可设置 MYSQL_IMAGE=mysql:8.0）"
+  echo "[deploy] 不再拉取 MySQL 镜像；启动后请访问安装页面填写已有 MySQL 信息。"
   $SUDO docker compose up -d --build
   echo "[deploy] 等待服务启动..."
   sleep 5
@@ -78,6 +72,7 @@ print_result() {
   echo
   echo "部署完成"
   echo "访问地址: http://服务器IP:${APP_PORT}"
+  echo "首次安装: 打开上面的地址，填写本地/远程 MySQL 信息后完成初始化。"
   echo "默认管理员: admin"
   echo "默认密码: admin123"
   echo "请登录后立即修改默认密码，并在后台配置天气/API/大模型等参数。"

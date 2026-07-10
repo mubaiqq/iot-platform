@@ -42,29 +42,23 @@ http://服务器IP:32180
 
 登录后请立即修改默认密码，并进入后台配置天气 API、大模型 API、MQTT 等参数。
 
-### 自定义端口/目录/数据库密码
+首次打开页面会进入安装向导，请填写已有 MySQL 数据库信息。Docker 容器连接宿主机 MySQL 时，数据库地址通常填写：
+
+```text
+host.docker.internal
+```
+
+### 自定义端口/目录
 
 ```bash
 APP_PORT=18080 \
 INSTALL_DIR=/opt/iot-platform \
-MYSQL_ROOT_PASSWORD='change_this_password' \
 curl -fsSL https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/deploy.sh | bash
 ```
 
 ### Docker 拉取 MySQL 很慢怎么办
 
-一键部署默认使用体积更小、兼容 MySQL 协议的 MariaDB 镜像：
-
-```text
-MYSQL_IMAGE=mariadb:11.4
-```
-
-如果你明确需要官方 MySQL 8.0，可以这样部署，但在国内/部分服务器上首次拉取会明显更慢：
-
-```bash
-MYSQL_IMAGE=mysql:8.0 \
-curl -fsSL https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/deploy.sh | bash
-```
+新版一键部署已经不再拉取 MySQL/MariaDB 镜像，只启动应用容器。数据库使用你服务器已有的 MySQL，首次访问安装页面填写地址、端口、账号、密码和数据库名即可。
 
 ### 更新程序
 
@@ -84,7 +78,7 @@ curl -fsSL https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/u
 更新脚本会自动：
 
 1. 拉取 GitHub 最新代码
-2. 保留现有 `.env` 和 MySQL 数据卷
+2. 保留现有 `.env` 和数据库配置文件
 3. 重新 build 应用镜像
 4. 重启应用容器
 5. 清理悬空镜像
@@ -135,6 +129,6 @@ DEVELOPMENT.md
 ## 注意
 
 - 本仓库不包含 `node_modules/`、`backups/`、`.env`、上传文件等运行时内容。
-- Docker 首次启动会自动初始化数据库结构和默认管理员。
+- Docker 首次启动会进入安装页面；填写 MySQL 信息后自动初始化数据库结构和默认管理员。
 - 管理员全局 API Key / 用户自定义 API Key 均存数据库，不应提交到 GitHub。
 - 如需 Nginx / HTTPS，请自行反代到容器映射端口，默认是 `32180`。

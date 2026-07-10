@@ -2,6 +2,7 @@ node_modules
 backups
 uploads
 public/uploads
+data
 .git
 .env
 .env.*
