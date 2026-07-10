@@ -1,7 +1,7 @@
 // ============================================
-// 木白云IoT - ESP32 固件 v2.1
+// 木白云IoT - ESP32 固件 v2.1.1
 // 功能：AP配网 + MQTT通信 + 浇水控制 + 计划任务 + 旧设备GPIO16兼容
-// v2.1：兼容旧控制器接线(GPIO16，高电平触发)，增加继电器串口测试命令
+// v2.1.1：兼容旧控制器接线(GPIO16，高电平触发)，增加继电器串口测试命令和 water=false 安全停泵
 // ============================================
 
 #include <WiFi.h>
@@ -47,6 +47,7 @@ void reportWateringResult(int duration, bool isSchedule);
 void publishWateringStarted(int duration, bool isSchedule);
 void handleSafetyTimers();
 void publishStatusEvent(const char* event, bool success, const char* reason);
+bool requestAIWatering(int duration, bool isRetry);
 int getCurrentMinuteOfDay();
 int parseTimeToMinute(const char* hm);
 void setupWatchdog();
@@ -68,6 +69,7 @@ String wifiPass = "";
 String mqttHost = MQTT_SERVER;
 bool isConfigured = false;
 bool isWatering = false;
+unsigned long wateringStartTime = 0;
 unsigned long wateringEndTime = 0;
 unsigned long lastHeartbeat = 0;
 int heartbeatCount = 0;
@@ -164,6 +166,11 @@ int parseTimeToMinute(const char* hm) {
 }
 
 void handleSafetyTimers() {
+  if (isWatering && wateringStartTime > 0 && millis() - wateringStartTime >= (unsigned long)MAX_WATERING_SECONDS * 1000UL) {
+    Serial.println("[安全] 达到最大浇水时长600秒，强制关闭继电器");
+    stopWatering();
+    return;
+  }
   if (isWatering && (long)(millis() - wateringEndTime) >= 0) {
     stopWatering();
   }
@@ -513,8 +520,8 @@ void flushPendingReports() {
 }
 
 // ========== 发送智能浇水请求 ==========
-void requestAIWatering(int duration, bool isRetry) {
-  if (!mqtt.connected()) return;
+bool requestAIWatering(int duration, bool isRetry) {
+  if (!mqtt.connected()) return false;
   if (!isRetry) aiRequestId = String((uint32_t)esp_random(), HEX);
   DynamicJsonDocument doc(256);
   doc["device_code"] = deviceCode;
@@ -525,12 +532,17 @@ void requestAIWatering(int duration, bool isRetry) {
   String out;
   serializeJson(doc, out);
   String topic = "device/" + deviceCode + "/watering_request";
-  mqtt.publish(topic.c_str(), out.c_str(), false);
+  bool ok = mqtt.publish(topic.c_str(), out.c_str(), false);
+  if (!ok) {
+    Serial.println("[智能] AI浇水请求发布失败，不进入等待状态");
+    return false;
+  }
   waitingForAI = true;
   aiWaitStartTime = millis();
   aiPendingDuration = duration;
   int waitSec = isRetry ? (AI_WAIT_RETRY/1000) : (AI_WAIT_FIRST/1000);
   Serial.println("[智能] " + String(isRetry?"重试":"首次") + "请求AI浇水, 等待" + String(waitSec) + "秒 (第" + String(aiRetryCount+1) + "次)");
+  return true;
 }
 
 // ========== 上报AI请求失败日志 ==========
@@ -582,9 +594,11 @@ void checkSchedules() {
 
     // 到达计划时间！
     Serial.println("[计划] #" + String(i+1) + " 到达时间 " + now + ", fixed=" + (schedules[i].fixedWatering?"是":"否"));
-    executedToday[i] = true; // 标记已执行，防止重复
 
-    if (isWatering) {
+    if (isWatering || waitingForAI) {
+      // 用户要求：手动浇水中触发计划任务时直接跳过；AI等待中也避免覆盖旧请求
+      executedToday[i] = true;
+      Serial.println("[计划] 当前忙碌，跳过本次计划任务");
       break;
     }
 
@@ -592,11 +606,18 @@ void checkSchedules() {
       // 固定浇水：直接执行
       nextWateringRequestId = String((uint32_t)esp_random(), HEX);
       nextWateringSource = "schedule_fixed";
-      startWatering(schedules[i].duration, true);
+      if (startWatering(schedules[i].duration, true)) {
+        executedToday[i] = true;
+      } else {
+        nextWateringRequestId = "";
+        nextWateringSource = "";
+      }
     } else {
       // 智能浇水：请求AI判断
       aiRetryCount = 0;
-      requestAIWatering(schedules[i].duration, false);
+      if (requestAIWatering(schedules[i].duration, false)) {
+        executedToday[i] = true;
+      }
     }
     // 一次只触发一个任务，避免同时浇水
     break;
@@ -617,19 +638,36 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
   // 处理浇水指令 {water:true, duration:30}
   if (doc.containsKey("water")) {
+    bool incomingWater = doc["water"].as<bool>();
+
     if (waitingForAI && doc.containsKey("request_id")) {
       String replyId = doc["request_id"].as<String>();
       if (replyId != aiRequestId) {
         Serial.println("[AI] 忽略过期或不匹配的AI回复: " + replyId);
         return;
       }
+    } else if (waitingForAI && !incomingWater) {
+      // 没有 request_id 的 water:false 不能取消正在等待的AI请求，避免旧消息/手动停止误取消计划AI
+      Serial.println("[AI] 忽略无request_id的water=false，当前正在等待AI request_id=" + aiRequestId);
+      setRelayOff();
+      return;
     }
-    if (doc["water"].as<bool>()) {
+
+    if (incomingWater) {
       int duration = doc["duration"].as<int>();
       if (duration < 1) duration = 30;
       if (duration > MAX_WATERING_SECONDS) duration = MAX_WATERING_SECONDS;
-      bool isSchedule = waitingForAI; // 智能浇水的AI回复也算计划
-      if (waitingForAI) waitingForAI = false;
+      bool isSchedule = waitingForAI && doc.containsKey("request_id"); // 只有带匹配 request_id 的AI回复才算计划
+      if (isSchedule) waitingForAI = false;
+
+      // 用户要求：计划任务浇水中收到手动浇水时不回复ACK，让网页端超时失败
+      if (isWatering) {
+        Serial.println("[浇水] 正在浇水中，忽略新的浇水指令且不回复ACK");
+        nextWateringRequestId = "";
+        nextWateringSource = "";
+        return;
+      }
+
       if (doc.containsKey("request_id")) {
         nextWateringRequestId = doc["request_id"].as<String>();
       } else {
@@ -639,7 +677,11 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       if (nextWateringRequestId.length() == 0) nextWateringRequestId = String((uint32_t)esp_random(), HEX);
       nextWateringSource = isSchedule ? "schedule_ai" : "manual";
       bool started = startWatering(duration, isSchedule);
-      if (!started) return;
+      if (!started) {
+        nextWateringRequestId = "";
+        nextWateringSource = "";
+        return;
+      }
 
       // 回复确认
       String statusTopic = "device/" + deviceCode + "/status";
@@ -654,12 +696,28 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       bool ackOk = mqtt.publish(statusTopic.c_str(), ack.c_str());
       Serial.println(String("[status] watering_ack publish ") + (ackOk ? "ok: " : "failed: ") + ack);
     } else {
-      // AI判断不需要浇水
-      Serial.println("[AI] 无需浇水: " + (doc.containsKey("reason") ? doc["reason"].as<String>() : "无原因"));
+      // water:false 同时作为“停止/不浇水”安全指令：无论来自AI还是手动停止，都先确保继电器关闭
+      Serial.println("[MQTT] 收到停止/不浇水指令: " + (doc.containsKey("reason") ? doc["reason"].as<String>() : "无原因"));
+      if (isWatering) {
+        Serial.println("[安全] water=false，立即停止当前浇水");
+        stopWatering();
+      } else {
+        setRelayOff();
+      }
       if (waitingForAI) {
         waitingForAI = false;
         Serial.println("[智能] AI拒绝浇水，计划任务结束");
       }
+
+      String statusTopic = "device/" + deviceCode + "/status";
+      DynamicJsonDocument ackDoc(160);
+      ackDoc["event"] = "watering_ack";
+      ackDoc["success"] = true;
+      ackDoc["water"] = false;
+      if (doc.containsKey("request_id")) ackDoc["request_id"] = doc["request_id"].as<String>();
+      String ack;
+      serializeJson(ackDoc, ack);
+      mqtt.publish(statusTopic.c_str(), ack.c_str());
     }
     return;
   }
@@ -737,6 +795,7 @@ bool startWatering(int seconds, bool isSchedule) {
   currentWateringSource = source;
   nextWateringRequestId = "";
   nextWateringSource = "";
+  wateringStartTime = millis();
   wateringEndTime = millis() + (unsigned long)seconds * 1000;
   publishWateringStarted(seconds, isSchedule);
   return true;
@@ -758,6 +817,7 @@ void stopWatering() {
   currentWateringIsSchedule = false;
   currentWateringRequestId = "";
   currentWateringSource = "";
+  wateringStartTime = 0;
 
   if (waitingForAI) {
     waitingForAI = false;
@@ -835,6 +895,7 @@ void factoryReset() {
   Serial.println("[factory] clearing NVS and restarting...");
   setRelayOff();
   isWatering = false;
+  wateringStartTime = 0;
   mqtt.disconnect();
   WiFi.disconnect(true, true);
   prefs.begin("iot", false);
@@ -855,10 +916,15 @@ void handleSerialCommands() {
       if (serialCommand == "FACTORY_RESET") {
         factoryReset();
       } else if (serialCommand == "RELAY_ON") {
-        setRelayOn();
-        Serial.println("[serial] relay on: GPIO" + String(RELAY_PIN) + " level=" + String(RELAY_ACTIVE_LEVEL == HIGH ? "HIGH" : "LOW"));
+        // 安全起见，RELAY_ON 不再裸开继电器，而是走 30 秒倒计时，防止忘记关闭导致一直浇水
+        nextWateringRequestId = String((uint32_t)esp_random(), HEX);
+        nextWateringSource = "serial_test";
+        if (startWatering(30, false)) {
+          Serial.println("[serial] relay safe on: GPIO" + String(RELAY_PIN) + " 30s countdown");
+        }
       } else if (serialCommand == "RELAY_OFF") {
-        setRelayOff();
+        if (isWatering) stopWatering();
+        else setRelayOff();
         Serial.println("[serial] relay off: GPIO" + String(RELAY_PIN) + " level=" + String(RELAY_INACTIVE_LEVEL == HIGH ? "HIGH" : "LOW"));
       } else if (serialCommand == "RELAY_TEST") {
         Serial.println("[serial] relay test: ON 3s then OFF, GPIO" + String(RELAY_PIN));
@@ -880,12 +946,13 @@ void handleSerialCommands() {
 // ========== 主程序 ==========
 void setup() {
   Serial.begin(115200);
-  setupWatchdog();
-  Serial.println("\n========== 木白云IoT v2.1 ==========");
-  Serial.println("[serial] send FACTORY_RESET to clear config and restart");
-  Serial.println("[serial] relay commands: RELAY_ON / RELAY_OFF / RELAY_TEST");
+  // 最高优先级：启动后立即把继电器脚置为关闭电平，避免复位/启动阶段误动作
   pinMode(RELAY_PIN, OUTPUT);
   setRelayOff();
+  setupWatchdog();
+  Serial.println("\n========== 木白云IoT v2.1.1 ==========");
+  Serial.println("[serial] send FACTORY_RESET to clear config and restart");
+  Serial.println("[serial] relay commands: RELAY_ON / RELAY_OFF / RELAY_TEST");
   Serial.println("[relay] GPIO" + String(RELAY_PIN) + ", ON=" + String(RELAY_ACTIVE_LEVEL == HIGH ? "HIGH" : "LOW") + ", OFF=" + String(RELAY_INACTIVE_LEVEL == HIGH ? "HIGH" : "LOW"));
 
   prefs.begin("iot", true);
