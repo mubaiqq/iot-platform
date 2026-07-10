@@ -4,7 +4,7 @@ set -euo pipefail
 REPO_URL="${REPO_URL:-https://github.com/mubaiqq/iot-platform.git}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/iot-platform}"
 APP_NAME="${APP_NAME:-iot-platform}"
-APP_PORT="${APP_PORT:-3000}"
+APP_PORT="${APP_PORT:-32180}"
 
 if [ "$(id -u)" -eq 0 ]; then
   SUDO=""

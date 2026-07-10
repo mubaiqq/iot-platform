@@ -33,7 +33,7 @@ bash /tmp/iot-deploy-host.sh
 默认访问：
 
 ```text
-http://服务器IP:3000
+http://服务器IP:32180
 ```
 
 首次打开会进入安装向导。如果 MySQL 就在同一台服务器/宝塔里，数据库 Host 通常填写：
@@ -45,7 +45,7 @@ http://服务器IP:3000
 也可以自定义端口/目录：
 
 ```bash
-APP_PORT=32180 INSTALL_DIR=/opt/iot-platform bash /tmp/iot-deploy-host.sh
+APP_PORT=18080 INSTALL_DIR=/opt/iot-platform bash /tmp/iot-deploy-host.sh
 ```
 
 ## Docker 一键部署（内置 MySQL 容器）

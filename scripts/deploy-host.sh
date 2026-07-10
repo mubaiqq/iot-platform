@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO_URL="${REPO_URL:-https://github.com/mubaiqq/iot-platform.git}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/iot-platform}"
-APP_PORT="${APP_PORT:-3000}"
+APP_PORT="${APP_PORT:-32180}"
 APP_NAME="${APP_NAME:-iot-platform}"
 NODE_MAJOR="${NODE_MAJOR:-20}"
 
