@@ -17,10 +17,27 @@ need_cmd() {
 }
 
 update_source_from_tarball() {
-  local tmpdir tarball
+  local tmpdir tarball url ok
   tmpdir="$(mktemp -d)"
   tarball="$tmpdir/source.tar.gz"
-  curl -fL --connect-timeout 15 --max-time 120 "https://github.com/mubaiqq/iot-platform/archive/refs/heads/main.tar.gz" -o "$tarball"
+  ok=0
+  for url in \
+    "https://gh-proxy.com/https://github.com/mubaiqq/iot-platform/archive/refs/heads/main.tar.gz" \
+    "https://gh.llkk.cc/https://github.com/mubaiqq/iot-platform/archive/refs/heads/main.tar.gz" \
+    "https://github.com/mubaiqq/iot-platform/archive/refs/heads/main.tar.gz" \
+    "https://codeload.github.com/mubaiqq/iot-platform/tar.gz/refs/heads/main"; do
+    echo "[host-update] 下载源码包: $url"
+    if curl -fL --connect-timeout 10 --max-time 45 "$url" -o "$tarball" && [ -s "$tarball" ]; then
+      ok=1
+      break
+    fi
+    echo "[host-update] 当前源码包地址下载失败，尝试下一个..."
+  done
+  if [ "$ok" != "1" ]; then
+    echo "[host-update] 源码包下载失败，请稍后重试或检查服务器访问 GitHub/CDN 网络。" >&2
+    rm -rf "$tmpdir"
+    exit 1
+  fi
   tar -xzf "$tarball" -C "$tmpdir"
   if need_cmd rsync; then
     $SUDO rsync -a --delete \
