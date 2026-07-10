@@ -18,7 +18,7 @@ need_cmd() {
 install_base_tools() {
   if need_cmd apt-get; then
     $SUDO apt-get update
-    $SUDO apt-get install -y git curl ca-certificates
+    $SUDO apt-get install -y git curl ca-certificates rsync
   fi
 }
 
@@ -36,14 +36,44 @@ install_docker() {
 prepare_source() {
   if [ -d "$INSTALL_DIR/.git" ]; then
     echo "[deploy] 更新源码: $INSTALL_DIR"
-    $SUDO git -C "$INSTALL_DIR" fetch origin main
-    $SUDO git -C "$INSTALL_DIR" reset --hard origin/main
+    echo "[deploy] 若 git fetch 长时间无输出，通常是 GitHub 网络阻塞；将自动超时并改用源码包更新。"
+    if timeout 45s $SUDO git -C "$INSTALL_DIR" fetch --depth=1 origin main; then
+      $SUDO git -C "$INSTALL_DIR" reset --hard FETCH_HEAD
+    else
+      echo "[deploy] git fetch 超时/失败，改用 GitHub 源码包下载..."
+      update_source_from_tarball
+    fi
   else
     echo "[deploy] 克隆源码到: $INSTALL_DIR"
     $SUDO mkdir -p "$(dirname "$INSTALL_DIR")"
-    $SUDO git clone "$REPO_URL" "$INSTALL_DIR"
+    if ! timeout 90s $SUDO git clone --depth=1 "$REPO_URL" "$INSTALL_DIR"; then
+      echo "[deploy] git clone 超时/失败，改用 GitHub 源码包下载..."
+      $SUDO mkdir -p "$INSTALL_DIR"
+      update_source_from_tarball
+    fi
   fi
   $SUDO chown -R "$(id -u):$(id -g)" "$INSTALL_DIR" 2>/dev/null || true
+}
+
+update_source_from_tarball() {
+  local tmpdir tarball
+  tmpdir="$(mktemp -d)"
+  tarball="$tmpdir/source.tar.gz"
+  curl -fL --connect-timeout 15 --max-time 120 "https://github.com/mubaiqq/iot-platform/archive/refs/heads/main.tar.gz" -o "$tarball"
+  tar -xzf "$tarball" -C "$tmpdir"
+  $SUDO mkdir -p "$INSTALL_DIR"
+  if need_cmd rsync; then
+    $SUDO rsync -a --delete \
+      --exclude='.git' \
+      --exclude='.env' \
+      --exclude='data/' \
+      --exclude='node_modules/' \
+      --exclude='backups/' \
+      "$tmpdir"/iot-platform-main/ "$INSTALL_DIR"/
+  else
+    $SUDO cp -a "$tmpdir"/iot-platform-main/. "$INSTALL_DIR"/
+  fi
+  rm -rf "$tmpdir"
 }
 
 write_env() {
