@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO_URL="${REPO_URL:-https://github.com/mubaiqq/iot-platform.git}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/iot-platform}"
-APP_PORT="${APP_PORT:-3000}"
+APP_PORT="${APP_PORT:-32180}"
 MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-iot_platform_root_password}"
 DB_NAME="${DB_NAME:-iot_platform}"
 

@@ -30,7 +30,7 @@ curl -fsSL https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/d
 默认访问：
 
 ```text
-http://服务器IP:3000
+http://服务器IP:32180
 ```
 
 默认管理员：
@@ -45,7 +45,7 @@ http://服务器IP:3000
 ### 自定义端口/目录/数据库密码
 
 ```bash
-APP_PORT=8080 \
+APP_PORT=18080 \
 INSTALL_DIR=/opt/iot-platform \
 MYSQL_ROOT_PASSWORD='change_this_password' \
 curl -fsSL https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/deploy.sh | bash
@@ -89,4 +89,4 @@ DB_HOST=127.0.0.1 DB_USER=root DB_PASSWORD=xxx DB_NAME=iot_platform node app.js
 - 本仓库不包含 `node_modules/`、`backups/`、`.env`、上传文件等运行时内容。
 - Docker 首次启动会自动初始化数据库结构和默认管理员。
 - 管理员全局 API Key / 用户自定义 API Key 均存数据库，不应提交到 GitHub。
-- 如需 Nginx / HTTPS，请自行反代到容器映射端口，默认是 `3000`。
+- 如需 Nginx / HTTPS，请自行反代到容器映射端口，默认是 `32180`。
