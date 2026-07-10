@@ -11,6 +11,9 @@ logs/
 .env.*
 !.env.example
 
+# Docker runtime data
+mysql_data/
+
 # Backups and temporary files
 backups/
 *.bak

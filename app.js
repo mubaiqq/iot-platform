@@ -10,7 +10,7 @@ const svgCaptcha = require('svg-captcha');
 const { initGlobalMqtt, publishToDevice, waitForDeviceAck } = require('./mqtt_handler');
 
 const app = express();
-const PORT = 3000;
+const PORT = parseInt(process.env.PORT || '3000', 10);
 
 // Middleware
 app.use(express.json());
@@ -20,9 +20,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Database pool
 const pool = mysql.createPool({
-  host: 'localhost',
-  user: 'root',
-  database: 'iot_platform',
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '3306', 10),
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || undefined,
+  database: process.env.DB_NAME || 'iot_platform',
   waitForConnections: true,
   connectionLimit: 10
 });

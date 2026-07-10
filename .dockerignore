@@ -1,0 +1,13 @@
+node_modules
+backups
+uploads
+public/uploads
+.git
+.env
+.env.*
+*.bak
+*.bak_*
+*.log
+*.zip
+.cache
+.DS_Store
