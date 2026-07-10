@@ -137,6 +137,19 @@ EOF
   fi
 }
 
+setup_pm2_startup() {
+  echo "[host-deploy] 配置 PM2 开机自启..."
+  if [ "$(id -u)" -eq 0 ]; then
+    pm2 startup systemd -u root --hp /root >/tmp/iot-pm2-startup.log 2>&1 || true
+  else
+    pm2 startup systemd -u "$(whoami)" --hp "$HOME" >/tmp/iot-pm2-startup.log 2>&1 || true
+  fi
+  # pm2 startup may print a command for unusual environments; show it if systemd service is not active.
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl enable pm2-$(whoami) >/dev/null 2>&1 || true
+  fi
+}
+
 start_app() {
   cd "$INSTALL_DIR"
   echo "[host-deploy] 检查语法..."
@@ -149,6 +162,7 @@ start_app() {
   fi
   PORT="$APP_PORT" DB_CONFIG_PATH="$INSTALL_DIR/data/db-config.json" pm2 start app.js --name "$APP_NAME" --cwd "$INSTALL_DIR" --update-env
   pm2 save
+  setup_pm2_startup
 
   echo "[host-deploy] 等待服务启动..."
   sleep 3
@@ -169,6 +183,8 @@ print_result() {
   echo "  pm2 status ${APP_NAME}"
   echo "  pm2 logs ${APP_NAME} --lines 50"
   echo "  pm2 restart ${APP_NAME} --update-env"
+  echo "  pm2 save"
+  echo "  pm2 startup systemd -u root --hp /root"
   echo "  cd ${INSTALL_DIR} && node -c app.js && node -c mqtt_handler.js"
 }
 

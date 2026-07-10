@@ -292,7 +292,20 @@ ports:
 
 ### 9.1 标准更新命令
 
-已部署服务器后续更新执行：
+宿主机 PM2 部署后续更新执行：
+
+```bash
+curl -fsSL --connect-timeout 10 --max-time 30 https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/update-host.sh -o /tmp/iot-update-host.sh
+bash /tmp/iot-update-host.sh
+```
+
+如果部署目录不是 `/opt/iot-platform`：
+
+```bash
+INSTALL_DIR=/你的部署目录 bash /tmp/iot-update-host.sh
+```
+
+Docker 部署后续更新执行：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/update.sh | bash
@@ -306,6 +319,14 @@ curl -fsSL https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/u
 ```
 
 ### 9.2 更新脚本行为
+
+`update-host.sh` 会：
+
+1. `git fetch origin main`（失败时自动尝试源码包镜像）
+2. 保留服务器现有 `.env`、`data/`、`node_modules/`、`backups/`
+3. 安装/更新 npm 生产依赖
+4. `node -c app.js && node -c mqtt_handler.js`
+5. 使用 PM2 重启 `iot-platform` 并 `pm2 save`
 
 `update.sh` 会：
 
@@ -323,6 +344,8 @@ curl -fsSL https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/u
 ```bash
 node -c app.js
 node -c mqtt_handler.js
+bash -n scripts/deploy-host.sh
+bash -n scripts/update-host.sh
 bash -n scripts/deploy.sh
 bash -n scripts/update.sh
 ```

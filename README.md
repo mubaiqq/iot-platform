@@ -98,9 +98,37 @@ MYSQL_IMAGE=docker.m.daocloud.io/library/mysql:8.4.4
 
 如果你不想使用 Docker，可以改用上面的“宿主机一键部署”。
 
-### 更新程序
+### 宿主机部署：开机自启 / 进程守护
 
-已经部署过之后，后续更新只需要执行：
+宿主机部署使用 PM2 守护进程。部署脚本会自动执行 `pm2 save` 并尝试配置 systemd 开机自启。手动检查/补配命令：
+
+```bash
+pm2 status iot-platform
+pm2 save
+pm2 startup systemd -u root --hp /root
+systemctl status pm2-root --no-pager
+```
+
+如果不是 root 用户部署，把 `root` 和 `/root` 换成对应用户和家目录。
+
+### 宿主机部署：更新程序
+
+宿主机部署后续更新执行：
+
+```bash
+curl -fsSL --connect-timeout 10 --max-time 30 https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/update-host.sh -o /tmp/iot-update-host.sh
+bash /tmp/iot-update-host.sh
+```
+
+如果部署目录不是默认的 `/opt/iot-platform`：
+
+```bash
+INSTALL_DIR=/你的部署目录 bash /tmp/iot-update-host.sh
+```
+
+### Docker 部署：更新程序
+
+Docker 部署后续更新执行：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/update.sh | bash
@@ -120,6 +148,14 @@ curl -fsSL https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/u
 3. 重新 build 应用镜像
 4. 重启应用容器
 5. 清理悬空镜像
+
+宿主机部署更新脚本 `update-host.sh` 会：
+
+1. 拉取 GitHub 最新代码（失败时自动尝试源码包镜像）
+2. 保留 `.env`、`data/`、`node_modules/`、`backups/`
+3. 安装/更新 npm 生产依赖
+4. 执行 `node -c app.js` 和 `node -c mqtt_handler.js`
+5. 使用 PM2 重启 `iot-platform` 并 `pm2 save`
 
 ### 常用 Docker 命令
 
