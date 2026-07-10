@@ -6,6 +6,7 @@ INSTALL_DIR="${INSTALL_DIR:-/opt/iot-platform}"
 APP_PORT="${APP_PORT:-32180}"
 MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-iot_platform_root_password}"
 DB_NAME="${DB_NAME:-iot_platform}"
+MYSQL_IMAGE="${MYSQL_IMAGE:-mariadb:11.4}"
 
 if [ "$(id -u)" -eq 0 ]; then
   SUDO=""
@@ -55,6 +56,7 @@ write_env() {
 MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
 DB_NAME=${DB_NAME}
 APP_PORT=${APP_PORT}
+MYSQL_IMAGE=${MYSQL_IMAGE}
 EOF
     echo "[deploy] 已生成 .env"
   else
@@ -65,6 +67,7 @@ EOF
 start_stack() {
   cd "$INSTALL_DIR"
   echo "[deploy] 构建并启动 Docker 服务..."
+  echo "[deploy] 数据库镜像: ${MYSQL_IMAGE}（默认使用 MariaDB，加快首次部署；如需官方 MySQL 可设置 MYSQL_IMAGE=mysql:8.0）"
   $SUDO docker compose up -d --build
   echo "[deploy] 等待服务启动..."
   sleep 5

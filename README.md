@@ -14,7 +14,7 @@
 ## 技术栈
 
 - Node.js / Express
-- MySQL
+- MySQL / MariaDB
 - MQTT.js
 - Docker / Docker Compose
 - 前端为静态 HTML/CSS/JS
@@ -48,6 +48,21 @@ http://服务器IP:32180
 APP_PORT=18080 \
 INSTALL_DIR=/opt/iot-platform \
 MYSQL_ROOT_PASSWORD='change_this_password' \
+curl -fsSL https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/deploy.sh | bash
+```
+
+### Docker 拉取 MySQL 很慢怎么办
+
+一键部署默认使用体积更小、兼容 MySQL 协议的 MariaDB 镜像：
+
+```text
+MYSQL_IMAGE=mariadb:11.4
+```
+
+如果你明确需要官方 MySQL 8.0，可以这样部署，但在国内/部分服务器上首次拉取会明显更慢：
+
+```bash
+MYSQL_IMAGE=mysql:8.0 \
 curl -fsSL https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/deploy.sh | bash
 ```
 

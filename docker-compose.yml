@@ -1,8 +1,6 @@
-version: "3.8"
-
 services:
   mysql:
-    image: mysql:8.0
+    image: ${MYSQL_IMAGE:-mariadb:11.4}
     container_name: iot-platform-mysql
     restart: unless-stopped
     environment:
