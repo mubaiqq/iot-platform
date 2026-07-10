@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f5f6fa;color:#1e293b;padding:16px}
+.empty{text-align:center;padding:40px 0;color:#94a3b8}
+.empty i{font-size:32px;margin-bottom:10px;display:block;opacity:.4}
+.empty p{font-size:13px}
+
+/* 日志列表 */
+.log-list{display:flex;flex-direction:column;gap:10px}
+.log-item{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;transition:all .2s}
+.log-item:hover{border-color:#93c5fd}
+.log-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.log-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px}
+.log-icon.water{background:#dbeafe;color:#3b82f6}
+.log-icon.success{background:#dcfce7;color:#16a34a}
+.log-icon.error{background:#fef2f2;color:#dc2626}
+.log-icon.info{background:#f1f5f9;color:#64748b}
+.log-title{font-size:14px;font-weight:600;color:#1e293b}
+.log-time{font-size:11px;color:#94a3b8;margin-left:auto}
+.log-content{font-size:13px;color:#475569;line-height:1.6;margin-bottom:10px}
+.log-actions{display:flex;gap:8px}
+
+/* 按钮 */
+.btn-sm{padding:6px 12px;border:none;border-radius:6px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;display:flex;align-items:center;gap:4px}
+.btn-result{background:#dbeafe;color:#3b82f6}
+.btn-result:hover{background:#bfdbfe}
+.btn-detail{background:#f1f5f9;color:#64748b}
+.btn-detail:hover{background:#e2e8f0}
+
+/* 弹窗 */
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.modal.show{display:flex}
+.modal-content{background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:80vh;display:flex;flex-direction:column}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid #e2e8f0}
+.modal-header h3{font-size:16px;font-weight:600}
+.modal-close{width:32px;height:32px;border:none;background:#f1f5f9;border-radius:8px;cursor:pointer;font-size:16px;color:#64748b;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{background:#e2e8f0}
+.modal-body{flex:1;overflow-y:auto;padding:16px}
+
+/* 结果卡片 */
+.result-card{display:flex;align-items:center;gap:12px;padding:12px;background:#f8fafc;border-radius:8px;margin-bottom:16px}
+.result-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px}
+.result-icon.water{background:#dbeafe;color:#3b82f6}
+.result-icon.no-water{background:#fef9c3;color:#ca8a04}
+.result-text{flex:1}
+.result-text .label{font-size:11px;color:#64748b}
+.result-text .value{font-size:16px;font-weight:600;color:#1e293b}
+.result-text .reason{font-size:12px;color:#64748b;margin-top:2px}
+
+/* 详情区块 */
+.detail-section{margin-bottom:16px}
+.detail-title{font-size:12px;font-weight:600;color:#334155;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.detail-title i{color:#3b82f6;font-size:11px}
+.detail-content{font-size:12px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;line-height:1.7;font-family:monospace;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto}
+
+/* 执行完成标签 */
+.exec-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:500;padding:3px 8px;border-radius:5px;background:#dcfce7;color:#16a34a;margin-left:8px}
+
+/* Toast */
+#toast{position:fixed;top:10px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:8px 18px;border-radius:8px;font-size:12px;font-weight:500;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+#toast.show{opacity:1}
+#toast.success{background:#059669}
+#toast.error{background:#dc2626}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+
+<!-- 详情弹窗 -->
+<div class="modal" id="detailModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="modalTitle">详情</h3>
+      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<div id="content">
+  <div class="empty" id="emptyState">
+    <i class="fas fa-inbox"></i>
+    <p>暂无操作日志</p>
+  </div>
+</div>
+
+<script>
+const DATA = __POST_DATA__;
+const deviceId = DATA.device.id;
+const content = document.getElementById('content');
+
+// 加载日志
+async function loadLogs() {
+  try {
+    const res = await fetch('/api/device-logs?device_id=' + deviceId);
+    const data = await res.json();
+    
+    if (!data.logs || data.logs.length === 0) {
+      content.innerHTML = `
+        <div class="empty">
+          <i class="fas fa-inbox"></i>
+          <p>暂无操作日志</p>
+        </div>
+      `;
+      return;
+    }
+    
+    let html = '<div class="log-list">';
+    
+    data.logs.forEach((log, index) => {
+      const result = typeof log.result === 'string' ? JSON.parse(log.result) : (log.result || {});
+      const isError = result.error || result.success === false;
+      const isWatering = log.log_type === 'watering_judge';
+      
+      let iconClass = 'info';
+      let icon = 'fa-circle-info';
+      let title = '系统日志';
+      
+      if (isWatering) {
+        iconClass = isError ? 'error' : 'water';
+        icon = isError ? 'fa-triangle-exclamation' : 'fa-droplet';
+        title = '浇水判断';
+        if (!isError) {
+          iconClass = result.should_water ? 'water' : 'success';
+        }
+      }
+      
+      const time = new Date(log.created_at).toLocaleString('zh-CN', {
+        month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+      });
+      
+      // 简短内容
+      let shortContent = log.content || '无内容';
+      if (shortContent.length > 50) {
+        shortContent = shortContent.substring(0, 50) + '...';
+      }
+      
+      html += `
+        <div class="log-item">
+          <div class="log-header">
+            <div class="log-icon ${iconClass}">
+              <i class="fas ${icon}"></i>
+            </div>
+            <div class="log-title">
+              ${title}
+              ${isWatering && !isError ? `<span style="font-size:11px;color:${result.should_water ? '#3b82f6' : '#16a34a'};margin-left:4px">${result.should_water ? '💧需要浇水' : '☀️无需浇水'}</span>` : ''}
+              ${isError ? '<span style="font-size:11px;color:#dc2626;margin-left:4px">❌失败</span>' : ''}
+            </div>
+            ${log.executed_at ? '<span class="exec-tag"><i class="fas fa-check-circle"></i>执行完成 ' + new Date(log.executed_at).toLocaleString('zh-CN', {hour:'2-digit',minute:'2-digit',second:'2-digit'}) + '</span>' : ''}
+            <div class="log-time">${time}</div>
+          </div>
+          <div class="log-content">${shortContent}${log.executed_duration ? ' · 执行时长 ' + log.executed_duration + '秒' : ''}</div>
+          <div class="log-actions">
+            ${isWatering && !isError ? `<button class="btn-sm btn-result" onclick="showResult(${index})"><i class="fas fa-brain"></i> AI判断结果</button>` : ''}
+            <button class="btn-sm btn-detail" onclick="showDetail(${index})"><i class="fas fa-code"></i> 详细</button>
+          </div>
+        </div>
+      `;
+    });
+    
+    html += '</div>';
+    content.innerHTML = html;
+    
+    // 存储日志数据供弹窗使用
+    window._logs = data.logs;
+    
+  } catch (e) {
+    console.error('加载日志失败:', e);
+    content.innerHTML = `
+      <div class="empty">
+        <i class="fas fa-exclamation-circle"></i>
+        <p>加载失败: ${e.message}</p>
+      </div>
+    `;
+  }
+}
+
+// 显示AI判断结果
+function showResult(index) {
+  const log = window._logs[index];
+  const result = typeof log.result === 'string' ? JSON.parse(log.result) : (log.result || {});
+  
+  const html = `
+    <div class="result-card">
+      <div class="result-icon ${result.should_water ? 'water' : 'no-water'}">
+        <i class="fas ${result.should_water ? 'fa-droplet' : 'fa-sun'}"></i>
+      </div>
+      <div class="result-text">
+        <div class="label">AI判断结果</div>
+        <div class="value">${result.should_water ? '💧 需要浇水' : '☀️ 无需浇水'}</div>
+        <div class="reason">${result.reason || '无原因说明'}</div>
+      </div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-title"><i class="fas fa-info-circle"></i> 判断依据</div>
+      <div class="detail-content">判断时间：${new Date(log.created_at).toLocaleString('zh-CN')}
+设备：${log.device_name || '--'}
+判断结果：${result.should_water ? '需要浇水' : '无需浇水'}
+原因：${result.reason || '无'}</div>
+    </div>
+  `;
+  
+  showModal('AI判断结果', html);
+}
+
+// 显示详细信息
+function showDetail(index) {
+  const log = window._logs[index];
+  const result = typeof log.result === 'string' ? JSON.parse(log.result) : (log.result || {});
+  
+  const html = `
+    <div class="detail-section">
+      <div class="detail-title"><i class="fas fa-file-alt"></i> 完整提示词</div>
+      <div class="detail-content">${log.prompt_content || result.prompt_content || '无记录'}</div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-title"><i class="fas fa-robot"></i> AI响应</div>
+      <div class="detail-content">${result.ai_response || log.ai_response || JSON.stringify(result, null, 2)}</div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-title"><i class="fas fa-database"></i> 原始数据</div>
+      <div class="detail-content">${JSON.stringify({
+        id: log.id,
+        device_id: log.device_id,
+        log_type: log.log_type,
+        content: log.content,
+        created_at: log.created_at
+      }, null, 2)}</div>
+    </div>
+  `;
+  
+  showModal('详细信息', html);
+}
+
+// 显示弹窗
+function showModal(title, bodyHtml) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = bodyHtml;
+  document.getElementById('detailModal').classList.add('show');
+}
+
+// 关闭弹窗
+function closeModal() {
+  document.getElementById('detailModal').classList.remove('show');
+}
+
+// Toast
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type ? ' ' + type : '');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.className = '', 2500);
+}
+
+// ESC关闭弹窗
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
+});
+
+// 初始加载
+loadLogs();
+
+// 每10秒自动刷新
+setInterval(loadLogs, 10000);
+</script>
+</body>
+</html>

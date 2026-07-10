@@ -1,0 +1,207 @@
+     1|<!DOCTYPE html>
+     2|<html lang="zh">
+     3|<head>
+     4|1|     1|<meta charset="utf-8">
+     5|     2|     2|<title>木白云后台</title>
+     6|     3|     3|<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+     7|     4|     4|<meta name="renderer" content="webkit">
+     8|     5|     5|<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+     9|     6|     6|<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    10|     7|     7|<link rel="stylesheet" href="compat.css?v=1780365577">
+    11|     8|     8|<link rel="stylesheet" href="assets/admin.css?v=1780365577">
+    12|     9|     9|
+    13|</head>
+    14|<body>
+    15|
+    16|<div class="layout">
+    17|  1|  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    18|     2|
+    19|     3|  <aside class="sidebar" id="sidebar">
+    20|     4|    <div class="sidebar-logo">
+    21|     5|      <div class="logo-icon"><i class="fas fa-shield-alt"></i></div>
+    22|     6|      <span class="logo-text">木白云</span>
+    23|     7|    </div>
+    24|     8|    <nav class="sidebar-nav" id="sidebarNav">
+    25|     9|      <div class="nav-group"><div class="nav-items">
+    26|    10|        <div class="nav-item active" data-page="welcome" data-title="首页" data-icon="fa-house" data-closable="0">
+    27|    11|          <i class="fas fa-house"></i><span>首页</span>
+    28|    12|        </div>
+    29|    13|      </div></div>
+    30|    14|
+    31|    15|      <div class="nav-group collapsed">
+    32|    16|        <div class="nav-group-title" onclick="toggleGroup(this)">
+    33|    17|          <i class="fas fa-users"></i><span>用户管理</span><i class="fas fa-chevron-down chevron"></i>
+    34|    18|        </div>
+    35|    19|        <div class="nav-items">
+    36|    20|          <div class="nav-item" data-page="user_list" data-title="用户列表" data-icon="fa-user"><i class="fas fa-user"></i><span>用户列表</span></div>
+    37|    21|          <div class="nav-item" data-page="tjyh" data-title="添加用户" data-icon="fa-user-plus"><i class="fas fa-user-plus"></i><span>添加用户</span></div>
+    38|    22|          <div class="nav-item" data-page="ql" data-title="清理无效用户" data-icon="fa-broom"><i class="fas fa-broom"></i><span>清理无效用户</span></div>
+    39|    23|        </div>
+    40|    24|      </div>
+    41|    25|
+    42|    26|      <div class="nav-group collapsed">
+    43|    27|        <div class="nav-group-title" onclick="toggleGroup(this)">
+    44|    28|          <i class="fas fa-shopping-cart"></i><span>订单管理</span><i class="fas fa-chevron-down chevron"></i>
+    45|    29|        </div>
+    46|    30|        <div class="nav-items">
+    47|    31|          <div class="nav-item" data-page="order_list" data-title="订单列表" data-icon="fa-receipt"><i class="fas fa-receipt"></i><span>订单列表</span></div>
+    48|    32|        </div>
+    49|    33|      </div>
+    50|    34|
+    51|    35|      <div class="nav-group collapsed">
+    52|    36|        <div class="nav-group-title" onclick="toggleGroup(this)">
+    53|    37|          <i class="fas fa-globe"></i><span>域名管理</span><i class="fas fa-chevron-down chevron"></i>
+    54|    38|        </div>
+    55|    39|        <div class="nav-items">
+    56|    40|          <div class="nav-item" data-page="ymlist" data-title="域名列表" data-icon="fa-list"><i class="fas fa-list"></i><span>域名列表</span></div>
+    57|    41|          <div class="nav-item" data-page="add_domain" data-title="添加域名" data-icon="fa-plus"><i class="fas fa-plus"></i><span>添加域名</span></div>
+    58|    42|          <div class="nav-item" data-page="ymcl" data-title="域名操作" data-icon="fa-wrench"><i class="fas fa-wrench"></i><span>域名操作</span></div>
+    59|    43|        </div>
+    60|    44|      </div>
+    61|    45|
+    62|    46|      <div class="nav-group collapsed">
+    63|    47|        <div class="nav-group-title" onclick="toggleGroup(this)">
+    64|    48|          <i class="fas fa-cog"></i><span>系统设置</span><i class="fas fa-chevron-down chevron"></i>
+    65|    49|        </div>
+    66|    50|        <div class="nav-items">
+    67|    51|          <div class="nav-item" data-page="site" data-title="站点设置" data-icon="fa-gears"><i class="fas fa-gears"></i><span>站点设置</span></div>
+    68|    52|          <div class="nav-item" data-page="account" data-title="账号设置" data-icon="fa-user-shield"><i class="fas fa-user-shield"></i><span>账号设置</span></div>
+    69|    53|          <div class="nav-item" data-page="payment_settings" data-title="支付设置" data-icon="fa-credit-card"><i class="fas fa-credit-card"></i><span>支付设置</span></div>
+    70|    54|          <div class="nav-item" data-page="template" data-title="模板管理" data-icon="fa-palette"><i class="fas fa-palette"></i><span>模板管理</span></div>
+    71|    55|        </div>
+    72|    56|      </div>
+    73|    57|
+    74|    58|      <div class="nav-group"><div class="nav-items">
+    75|    59|        <div class="nav-item" data-page="about" data-title="关于" data-icon="fa-circle-info"><i class="fas fa-circle-info"></i><span>关于</span></div>
+    76|    60|      </div></div>
+    77|    61|    </nav>
+    78|    62|  </aside>
+    79|    63|
+    80|
+    81|  <div class="main">
+    82|    1|    <header class="header">
+    83|     2|      <button class="btn-toggle" id="btnToggle"><i class="fas fa-bars"></i></button>
+    84|     3|      <button class="header-btn" onclick="window.open('/','_blank')" title="访问前台"><i class="fas fa-house"></i></button>
+    85|     4|      <div class="header-right">
+    86|     5|        <button class="header-btn" onclick="refreshCurrent()" title="刷新"><i class="fas fa-rotate-right"></i></button>
+    87|     6|        <button class="header-btn" onclick="clearCache()" title="清理缓存"><i class="fas fa-trash-can"></i></button>
+    88|     7|        <button class="header-btn fullscreen-btn" onclick="toggleFullscreen()" title="全屏"><i class="fas fa-expand"></i></button>
+    89|     8|        <button class="header-btn" onclick="toggleThemePanel()" title="主题设置"><i class="fas fa-palette"></i></button>
+    90|     9|        <div class="user-menu">
+    91|    10|          <button class="user-btn" onclick="toggleUserMenu(event)">
+    92|    11|            <div class="user-avatar"><i class="fas fa-user-shield"></i></div>
+    93|    12|            <span>Admin</span>
+    94|    13|            <i class="fas fa-chevron-down" style="font-size:9px;color:#b0b8c8"></i>
+    95|    14|          </button>
+    96|    15|          <div class="user-dropdown" id="userDropdown">
+    97|    16|            <a href="/logout" target="_top"><i class="fas fa-right-from-bracket"></i>退出登录</a>
+    98|    17|          </div>
+    99|    18|        </div>
+   100|    19|      </div>
+   101|    20|    </header>
+   102|    21|
+   103|    22|    <div class="tab-bar">
+   104|    23|      <div class="tab-list" id="tabList"></div>
+   105|    24|      <div class="tab-bar-right">
+   106|    25|        <div class="tab-dropdown-wrap">
+   107|    26|          <button class="tab-bar-btn" id="tabDropBtn" title="标签操作"><i class="fas fa-chevron-down"></i></button>
+   108|    27|          <div class="tab-dropdown" id="tabDropMenu">
+   109|    28|            <a href="javascript:;" onclick="closeTab(activeTab);closeDropMenu()"><i class="fas fa-xmark"></i>关闭当前</a>
+   110|    29|            <a href="javascript:;" onclick="closeOtherTabs();closeDropMenu()"><i class="fas fa-xmark"></i>关闭其他</a>
+   111|    30|            <a href="javascript:;" onclick="closeAllTabs();closeDropMenu()"><i class="fas fa-trash"></i>关闭全部</a>
+   112|    31|          </div>
+   113|    32|        </div>
+   114|    33|      </div>
+   115|    34|    </div>
+   116|    35|
+   117|    36|    <div class="content" id="contentArea"></div>
+   118|    37|
+   119|  </div>
+   120|</div>
+   121|
+   122|1|<div class="toast" id="toast"></div>
+   123|     2|
+   124|     3|<!-- Confirm Dialog -->
+   125|     4|<div class="confirm-overlay" id="confirmOverlay">
+   126|     5|  <div class="confirm-box" id="confirmBox">
+   127|     6|    <div class="confirm-icon" id="confirmIcon"><i class="fas fa-question"></i></div>
+   128|     7|    <h3 class="confirm-title" id="confirmTitle"></h3>
+   129|     8|    <p class="confirm-msg" id="confirmMsg"></p>
+   130|     9|    <div class="confirm-actions">
+   131|    10|      <button class="confirm-btn confirm-cancel" id="confirmCancel">取消</button>
+   132|    11|      <button class="confirm-btn confirm-ok" id="confirmOk">确定</button>
+   133|    12|    </div>
+   134|    13|  </div>
+   135|    14|</div>
+   136|    15|
+   137|    16|<!-- Modal -->
+   138|    17|<div class="modal-overlay" id="modalOverlay">
+   139|    18|  <div class="modal-box" id="modalBox">
+   140|    19|    <div class="modal-header">
+   141|    20|      <div class="modal-title" id="modalTitle"></div>
+   142|    21|      <button class="modal-fullscreen icon-desktop" id="modalFullscreen" title="全屏"><i class="fas fa-expand"></i></button>
+   143|    22|      <button class="modal-close" id="modalClose"><i class="fas fa-chevron-down icon-mobile"></i><i class="fas fa-xmark icon-desktop"></i></button>
+   144|    23|    </div>
+   145|    24|    <div class="modal-body">
+   146|    25|      <iframe class="modal-iframe" id="modalIframe"></iframe>
+   147|    26|      <div class="modal-loading" id="modalLoading">
+   148|    27|        <div class="modal-spinner"></div>
+   149|    28|        <span>加载中...</span>
+   150|    29|      </div>
+   151|    30|    </div>
+   152|    31|  </div>
+   153|    32|</div>
+   154|    33|
+   155|    34|<div class="tab-context-menu" id="tabContextMenu">
+   156|    35|  <a href="javascript:;" onclick="closeTab(contextTabId)">关闭当前</a>
+   157|    36|  <a href="javascript:;" onclick="closeOtherTabs()">关闭其他</a>
+   158|    37|  <a href="javascript:;" onclick="closeAllTabs()">关闭全部</a>
+   159|    38|</div>
+   160|    39|
+   161|    40|<!-- Theme Panel -->
+   162|    41|<div class="theme-overlay" id="themeOverlay" onclick="toggleThemePanel()"></div>
+   163|    42|<div class="theme-panel" id="themePanel">
+   164|    43|  <div class="theme-panel-hd">
+   165|    44|    <h3><i class="fas fa-palette"></i> 主题设置</h3>
+   166|    45|    <button class="theme-panel-close" onclick="toggleThemePanel()"><i class="fas fa-xmark"></i></button>
+   167|    46|  </div>
+   168|    47|  <div class="theme-panel-body">
+   169|    48|    <div class="theme-sec">
+   170|    49|      <div class="theme-sec-title">主题模式</div>
+   171|    50|      <div class="theme-mode-grid">
+   172|    51|        <button class="theme-mode-btn active" data-mode="light" onclick="setThemeMode('light')">
+   173|    52|          <i class="mi fas fa-sun"></i><span class="ml">浅色</span>
+   174|    53|        </button>
+   175|    54|        <button class="theme-mode-btn" data-mode="dark" onclick="setThemeMode('dark')">
+   176|    55|          <i class="mi fas fa-moon"></i><span class="ml">深色</span>
+   177|    56|        </button>
+   178|    57|      </div>
+   179|    58|    </div>
+   180|    59|    <div class="theme-sec">
+   181|    60|      <div class="theme-sec-title">头部颜色</div>
+   182|    61|      <div class="color-grid">
+   183|    62|        <button class="color-btn active" style="background:#fff" data-header-color="default" onclick="setHeaderColor('default')"></button>
+   184|    63|        <button class="color-btn" style="background:#1e40af" data-header-color="blue" onclick="setHeaderColor('blue')"></button>
+   185|    64|        <button class="color-btn" style="background:#1e293b" data-header-color="dark" onclick="setHeaderColor('dark')"></button>
+   186|    65|        <button class="color-btn" style="background:#7c3aed" data-header-color="purple" onclick="setHeaderColor('purple')"></button>
+   187|    66|        <button class="color-btn" style="background:#059669" data-header-color="green" onclick="setHeaderColor('green')"></button>
+   188|    67|      </div>
+   189|    68|    </div>
+   190|    69|    <div class="theme-sec">
+   191|    70|      <div class="theme-sec-title">侧栏颜色</div>
+   192|    71|      <div class="color-grid">
+   193|    72|        <button class="color-btn active" style="background:#fff" data-sidebar-color="default" onclick="setSidebarColor('default')"></button>
+   194|    73|        <button class="color-btn" style="background:#1e293b" data-sidebar-color="blue" onclick="setSidebarColor('blue')"></button>
+   195|    74|        <button class="color-btn" style="background:#0f172a" data-sidebar-color="dark" onclick="setSidebarColor('dark')"></button>
+   196|    75|        <button class="color-btn" style="background:#374151" data-sidebar-color="gray" onclick="setSidebarColor('gray')"></button>
+   197|    76|      </div>
+   198|    77|    </div>
+   199|    78|    <button class="theme-reset-btn" onclick="resetTheme()"><i class="fas fa-rotate-left"></i> 恢复默认设置</button>
+   200|    79|  </div>
+   201|    80|</div>
+   202|    81|
+   203|
+   204|<script src="assets/admin.js?v=1780365577"></script>
+   205|</body>
+   206|</html>
+   207|

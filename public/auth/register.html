@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>注册 - 木白云iot</title>
+  <link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: #f5f6fa;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .auth-container { width: 100%; max-width: 420px; }
+    .auth-header { text-align: center; margin-bottom: 32px; }
+    .auth-logo { display: inline-flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .logo-icon {
+      width: 48px; height: 48px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      border-radius: 14px; display: flex; align-items: center;
+      justify-content: center; color: #fff; font-size: 22px;
+    }
+    .logo-text { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .auth-header p { font-size: 14px; color: #64748b; }
+    .auth-card {
+      background: #fff; border-radius: 16px; padding: 32px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06); border: 1px solid #eef0f4;
+    }
+    .form-group { margin-bottom: 18px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+    .form-input {
+      width: 100%; padding: 12px 14px; border: 1.5px solid #e2e8f0;
+      border-radius: 10px; font-size: 14px; font-family: inherit;
+      transition: all 0.2s; background: #fff; color: #1e293b;
+    }
+    .form-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    .form-input::placeholder { color: #94a3b8; }
+    .input-wrap { position: relative; }
+    .password-toggle {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 16px;
+    }
+    .password-toggle:hover { color: #475569; }
+    .captcha-row { display: flex; gap: 10px; align-items: flex-end; }
+    .captcha-row .form-input { flex: 1; }
+    .captcha-img {
+      height: 44px; border-radius: 10px; cursor: pointer;
+      border: 1.5px solid #e2e8f0; background: #f5f6fa;
+    }
+    .captcha-img:hover { border-color: #3b82f6; }
+    .btn {
+      width: 100%; padding: 12px; border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .btn-primary { background: #3b82f6; color: #fff; }
+    .btn-primary:hover { background: #2563eb; box-shadow: 0 4px 12px rgba(59,130,246,0.25); }
+    .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; box-shadow: none; }
+    .auth-footer { text-align: center; margin-top: 24px; font-size: 13px; color: #64748b; }
+    .auth-footer a { color: #3b82f6; text-decoration: none; font-weight: 600; }
+    .auth-footer a:hover { text-decoration: underline; }
+    .error-msg {
+      background: #fef2f2; border: 1px solid #fecaca; color: #dc2626;
+      padding: 10px 14px; border-radius: 10px; font-size: 13px;
+      margin-bottom: 16px; display: none; align-items: center; gap: 8px;
+    }
+    .error-msg.show { display: flex; }
+    .success-msg {
+      background: #ecfdf5; border: 1px solid #a7f3d0; color: #059669;
+      padding: 10px 14px; border-radius: 10px; font-size: 13px;
+      margin-bottom: 16px; display: none; align-items: center; gap: 8px;
+    }
+    .success-msg.show { display: flex; }
+    .password-strength { height: 4px; border-radius: 2px; margin-top: 6px; background: #e2e8f0; }
+    .password-strength-bar { height: 100%; border-radius: 2px; transition: all 0.3s; }
+    .strength-weak { width: 33%; background: #ef4444; }
+    .strength-medium { width: 66%; background: #f59e0b; }
+    .strength-strong { width: 100%; background: #10b981; }
+    .form-hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+  @media(max-width:768px){input,select,textarea{font-size:16px!important}}
+</style>
+</head>
+<body>
+
+<div class="auth-container">
+  <div class="auth-header">
+    <div class="auth-logo">
+      <div class="logo-icon"><i class="fas fa-cloud"></i></div>
+      <span class="logo-text">木白云iot</span>
+    </div>
+    <p>创建您的物联网平台账号</p>
+  </div>
+  
+  <div class="auth-card">
+    <div class="error-msg" id="errorMsg">
+      <i class="fas fa-exclamation-circle"></i>
+      <span id="errorText"></span>
+    </div>
+    <div class="success-msg" id="successMsg">
+      <i class="fas fa-check-circle"></i>
+      <span id="successText"></span>
+    </div>
+    
+    <form id="registerForm">
+      <div class="form-group">
+        <label class="form-label">用户名</label>
+        <input type="text" class="form-input" id="username" placeholder="3-20位字母数字下划线" required>
+        <div class="form-hint">用于登录和显示，注册后不可修改</div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">邮箱</label>
+        <input type="email" class="form-input" id="email" placeholder="your@email.com" required>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">密码</label>
+        <div class="input-wrap">
+          <input type="password" class="form-input" id="password" placeholder="至少6位" required oninput="checkStrength()">
+          <button type="button" class="password-toggle" onclick="togglePassword('password', this)">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+        <div class="password-strength"><div class="password-strength-bar" id="strengthBar"></div></div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">确认密码</label>
+        <div class="input-wrap">
+          <input type="password" class="form-input" id="password2" placeholder="再次输入密码" required>
+          <button type="button" class="password-toggle" onclick="togglePassword('password2', this)">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+      </div>
+      
+      <div class="form-group" id="captchaGroup" style="display:none">
+        <label class="form-label">验证码</label>
+        <div class="captcha-row">
+          <input type="text" class="form-input" id="captcha" placeholder="输入验证码" maxlength="4">
+          <img class="captcha-img" id="captchaImg" src="/api/captcha" onclick="refreshCaptcha()" title="点击刷新">
+        </div>
+      </div>
+      
+      <button type="submit" class="btn btn-primary" id="submitBtn">
+        <i class="fas fa-user-plus"></i> 注册
+      </button>
+    </form>
+    
+    <div class="auth-footer">
+      已有账号？<a href="/login">立即登录</a>
+    </div>
+  </div>
+</div>
+
+<script>
+// Check if captcha is enabled
+async function checkCaptchaEnabled() {
+  try {
+    const res = await fetch('/api/settings/register_captcha');
+    const data = await res.json();
+    if (data.value === '1') {
+      document.getElementById('captchaGroup').style.display = 'block';
+    }
+  } catch (e) {}
+}
+
+function refreshCaptcha() {
+  document.getElementById('captchaImg').src = '/api/captcha?' + Date.now();
+}
+
+function togglePassword(id, btn) {
+  const input = document.getElementById(id);
+  const icon = btn.querySelector('i');
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.className = 'fas fa-eye-slash';
+  } else {
+    input.type = 'password';
+    icon.className = 'fas fa-eye';
+  }
+}
+
+function checkStrength() {
+  const pwd = document.getElementById('password').value;
+  const bar = document.getElementById('strengthBar');
+  bar.className = 'password-strength-bar';
+  if (pwd.length >= 8 && /[A-Z]/.test(pwd) && /[0-9]/.test(pwd)) {
+    bar.classList.add('strength-strong');
+  } else if (pwd.length >= 6) {
+    bar.classList.add('strength-medium');
+  } else if (pwd.length > 0) {
+    bar.classList.add('strength-weak');
+  }
+}
+
+function showError(msg) {
+  document.getElementById('errorMsg').classList.add('show');
+  document.getElementById('errorText').textContent = msg;
+  document.getElementById('successMsg').classList.remove('show');
+}
+
+function showSuccess(msg) {
+  document.getElementById('successMsg').classList.add('show');
+  document.getElementById('successText').textContent = msg;
+  document.getElementById('errorMsg').classList.remove('show');
+}
+
+function hideMessages() {
+  document.getElementById('errorMsg').classList.remove('show');
+  document.getElementById('successMsg').classList.remove('show');
+}
+
+document.getElementById('registerForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  hideMessages();
+  
+  const username = document.getElementById('username').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const password2 = document.getElementById('password2').value;
+  const captcha = document.getElementById('captcha')?.value?.trim() || '';
+  
+  if (!username || !email || !password || !password2) {
+    showError('请填写完整信息');
+    return;
+  }
+  
+  if (username.length < 3 || username.length > 20) {
+    showError('用户名长度3-20位');
+    return;
+  }
+  
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+    showError('用户名只能包含字母、数字、下划线');
+    return;
+  }
+  
+  if (!email.includes('@')) {
+    showError('邮箱格式错误');
+    return;
+  }
+  
+  if (password.length < 6) {
+    showError('密码至少6位');
+    return;
+  }
+  
+  if (password !== password2) {
+    showError('两次密码不一致');
+    return;
+  }
+  
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 注册中...';
+  
+  try {
+    const res = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, email, password, captcha })
+    });
+    
+    const data = await res.json();
+    
+    if (data.success) {
+      btn.innerHTML = '<i class="fas fa-check-circle"></i> 注册成功';
+      btn.style.background = '#059669';
+      setTimeout(() => { window.location.href = '/user/'; }, 800);
+    } else {
+      showError(data.error || '注册失败');
+      refreshCaptcha();
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-user-plus"></i> 注册';
+    }
+  } catch (err) {
+    showError('网络错误，请重试');
+    refreshCaptcha();
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-user-plus"></i> 注册';
+  }
+});
+
+checkCaptchaEnabled();
+</script>
+</body>
+</html>

@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MQTT 设备模拟器</title>
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f5f6fa;color:#1e293b;min-height:100vh;padding:20px}
+.container{max-width:640px;margin:0 auto}
+h2{font-size:20px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+h2 i{color:#3b82f6}
+
+.card{background:#fff;border-radius:14px;border:1px solid #eef0f4;padding:18px;margin-bottom:14px}
+.card-title{font-size:13px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:7px;color:#334155}
+.card-title i{color:#3b82f6;font-size:12px}
+
+/* Device code display */
+.device-code-box{display:flex;align-items:center;gap:10px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.device-code-box .code{font-size:18px;font-weight:700;font-family:monospace;color:#1e293b;flex:1;letter-spacing:1px}
+.device-code-box .type-tag{font-size:10px;font-weight:600;padding:3px 8px;border-radius:6px;flex-shrink:0}
+.type-tag.controller{background:#eff6ff;color:#3b82f6}
+.type-tag.sensor{background:#ecfdf5;color:#059669}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Status */
+.status-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;font-size:12px;font-weight:500;margin-bottom:14px}
+.status-bar.online{background:#ecfdf5;color:#059669;border:1px solid #a7f3d0}
+.status-bar.offline{background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0}
+.status-bar.running{background:#eff6ff;color:#3b82f6;border:1px solid #bfdbfe}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.status-bar.online .status-dot{background:#059669;box-shadow:0 0 6px rgba(5,150,105,.4)}
+.status-bar.offline .status-dot{background:#cbd5e1}
+.status-bar.running .status-dot{background:#3b82f6;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.status-bar .spacer{flex:1}
+.status-bar .counter{font-family:monospace;font-size:11px}
+
+/* Toggle */
+.toggle-wrap{display:flex;align-items:center;justify-content:space-between;padding:10px 0}
+.toggle-wrap+.toggle-wrap{border-top:1px solid #f1f5f9}
+.toggle-label{display:flex;flex-direction:column;gap:1px}
+.toggle-label .title{font-size:13px;font-weight:500}
+.toggle-label .desc{font-size:11px;color:#94a3b8}
+.switch{position:relative;width:44px;height:26px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.switch .slider{position:absolute;inset:0;background:#d1d5db;border-radius:26px;cursor:pointer;transition:.25s}
+.switch .slider::before{content:'';position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.switch input:checked+.slider{background:#3b82f6}
+.switch input:checked+.slider::before{transform:translateX(18px)}
+
+/* Sensor config */
+.sensor-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.sensor-item{display:flex;flex-direction:column;gap:4px}
+.sensor-item label{font-size:11px;color:#64748b;font-weight:500}
+.sensor-item input{height:34px;border:1.5px solid #e2e8f0;border-radius:8px;padding:0 10px;font-size:13px;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s}
+.sensor-item input:focus{border-color:#3b82f6}
+
+/* Buttons */
+.btn{border:none;border-radius:8px;padding:8px 16px;font-weight:600;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-primary{background:#3b82f6;color:#fff}
+.btn-primary:hover{background:#2563eb}
+.btn-danger{background:#ef4444;color:#fff}
+.btn-danger:hover{background:#dc2626}
+.btn-ghost{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0}
+.btn-ghost:hover{background:#e2e8f0}
+.btn-success{background:#059669;color:#fff}
+.btn-success:hover{background:#047857}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-sm{padding:7px 12px;font-size:11px;border-radius:7px}
+.btn-block{width:100%;justify-content:center}
+
+/* Log */
+.log-box{max-height:240px;overflow-y:auto;border:1px solid #eef0f4;border-radius:10px;font-family:monospace;font-size:11px;line-height:1.6;padding:8px 12px;background:#fafbfc;color:#475569}
+.log-box::-webkit-scrollbar{width:4px}
+.log-box::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px}
+.log-line{padding:2px 0}
+.log-line .time{color:#94a3b8}
+.log-line .ok{color:#059669}
+.log-line .err{color:#ef4444}
+.log-line .info{color:#3b82f6}
+
+/* Toast */
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%) translateY(-20px);background:#1e293b;color:#fff;padding:10px 20px;border-radius:10px;font-size:12px;font-weight:500;z-index:9999;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.15)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.success{background:#059669}
+.toast.error{background:#dc2626}
+
+@media(max-width:480px){
+  body{padding:12px}
+  .sensor-grid{grid-template-columns:1fr}
+  .sensor-item input{font-size:16px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h2><i class="fas fa-microchip"></i> 设备模拟器</h2>
+
+  <!-- Device Code -->
+  <div class="card">
+    <div class="card-title"><i class="fas fa-barcode"></i> 设备标识</div>
+    <div class="device-code-box">
+      <span class="code" id="deviceCode">--</span>
+      <span class="type-tag" id="typeTag">--</span>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost btn-sm" onclick="copyCode()"><i class="fas fa-copy"></i> 复制</button>
+      <button class="btn btn-danger btn-sm" onclick="resetCode()"><i class="fas fa-rotate-left"></i> 重置设备码</button>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar offline" id="statusBar">
+    <span class="status-dot"></span>
+    <span id="statusText">未启动</span>
+    <span class="spacer"></span>
+    <span class="counter" id="hbCounter">心跳: 0</span>
+  </div>
+
+  <!-- Heartbeat Control -->
+  <div class="card">
+    <div class="card-title"><i class="fas fa-heart-pulse"></i> 心跳控制</div>
+    <div class="toggle-wrap">
+      <div class="toggle-label">
+        <span class="title">自动心跳</span>
+        <span class="desc">每30秒发送一次心跳到服务器</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="hbToggle" onchange="toggleHeartbeat(this.checked)">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="toggle-wrap">
+      <div class="toggle-label">
+        <span class="title">MQTT 连接</span>
+        <span class="desc">连接到 MQTT Broker 并上报数据</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="mqttToggle" onchange="toggleMqtt(this.checked)">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div style="margin-top:10px">
+      <button class="btn btn-primary btn-sm btn-block" onclick="sendHeartbeat()"><i class="fas fa-paper-plane"></i> 手动发送一次心跳</button>
+    </div>
+  </div>
+
+  <!-- Watering Judge -->
+  <div class="card">
+    <div class="card-title"><i class="fas fa-seedling"></i> 浇水判断</div>
+    <p style="font-size:12px;color:#94a3b8;margin-bottom:12px">请求AI根据天气判断是否需要浇水，结果将保存到设备日志并生成浇水指令</p>
+    <button class="btn btn-success btn-sm btn-block" id="wateringBtn" onclick="requestWateringJudge()"><i class="fas fa-droplet"></i> 请求浇水判断</button>
+    <div id="wateringStatus" style="margin-top:10px;font-size:11px;color:#64748b;display:none"></div>
+  </div>
+
+  <!-- Sensor Data Config -->
+  <div class="card">
+    <div class="card-title"><i class="fas fa-chart-line"></i> 模拟传感器数据</div>
+    <div class="toggle-wrap" style="padding-top:0">
+      <div class="toggle-label">
+        <span class="title">随机波动</span>
+        <span class="desc">每次心跳数据随机小幅变化</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="randomToggle" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="sensor-grid">
+      <div class="sensor-item">
+        <label><i class="fas fa-droplet" style="color:#3b82f6"></i> 土壤湿度 (%)</label>
+        <input type="number" id="sSoil" value="65" min="0" max="100">
+      </div>
+      <div class="sensor-item">
+        <label><i class="fas fa-temperature-half" style="color:#ef4444"></i> 温度 (°C)</label>
+        <input type="number" id="sTemp" value="25" min="-20" max="60">
+      </div>
+      <div class="sensor-item">
+        <label><i class="fas fa-wind" style="color:#06b6d4"></i> 空气湿度 (%)</label>
+        <input type="number" id="sHumid" value="55" min="0" max="100">
+      </div>
+      <div class="sensor-item">
+        <label><i class="fas fa-sun" style="color:#f59e0b"></i> 光照 (lux)</label>
+        <input type="number" id="sLight" value="800" min="0" max="100000">
+      </div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="card">
+    <div class="card-title">
+      <i class="fas fa-terminal"></i> 运行日志
+      <span style="margin-left:auto">
+        <button class="btn btn-ghost btn-sm" onclick="clearLog()"><i class="fas fa-trash-can"></i></button>
+      </span>
+    </div>
+    <div class="log-box" id="logBox"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ========== Device Code ==========
+const LS_KEY = 'mubaiyun_device_code';
+let deviceCode = localStorage.getItem(LS_KEY);
+let sessionId = null;
+let eventSource = null;
+let hbTimer = null;
+let hbCount = 0;
+let mqttClient = null;
+let mqttConnected = false;
+let mqttBrokerUrl = '';
+
+
+function genCode() {
+  const prefix = Math.random() > 0.5 ? 'K' : 'C';
+  const num = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return prefix + num;
+}
+
+function initCode() {
+  if (!deviceCode) {
+    deviceCode = genCode();
+    localStorage.setItem(LS_KEY, deviceCode);
+  }
+  updateCodeDisplay();
+}
+
+function updateCodeDisplay() {
+  document.getElementById('deviceCode').textContent = deviceCode;
+  const tag = document.getElementById('typeTag');
+  if (deviceCode.startsWith('K')) {
+    tag.textContent = '控制器';
+    tag.className = 'type-tag controller';
+  } else {
+    tag.textContent = '传感器';
+    tag.className = 'type-tag sensor';
+  }
+}
+
+function copyCode() {
+  navigator.clipboard.writeText(deviceCode).then(() => showToast('已复制', 'success'));
+}
+
+function resetCode() {
+  if (!confirm('重置设备码？当前设备码将失效。')) return;
+  deviceCode = genCode();
+  localStorage.setItem(LS_KEY, deviceCode);
+  updateCodeDisplay();
+  addLog('info', '设备码已重置: ' + deviceCode);
+  showToast('设备码已重置', 'success');
+}
+
+// ========== Toast ==========
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.className = 'toast', 2500);
+}
+
+// ========== Log ==========
+function addLog(type, msg) {
+  const box = document.getElementById('logBox');
+  const now = new Date();
+  const time = now.toTimeString().slice(0, 8);
+  const cls = type === 'ok' ? 'ok' : type === 'err' ? 'err' : type === 'info' ? 'info' : '';
+  box.innerHTML += `<div class="log-line"><span class="time">${time}</span> <span class="${cls}">${msg}</span></div>`;
+  box.scrollTop = box.scrollHeight;
+  // Keep last 100 lines
+  const lines = box.querySelectorAll('.log-line');
+  if (lines.length > 100) lines[0].remove();
+}
+function clearLog() { document.getElementById('logBox').innerHTML = ''; }
+
+// ========== Heartbeat ==========
+function getSensorData() {
+  const random = document.getElementById('randomToggle').checked;
+  const jitter = (base, range) => {
+    const v = parseFloat(base) || 0;
+    return Math.round((v + (Math.random() - 0.5) * range) * 10) / 10;
+  };
+  return {
+    soil_moisture: jitter(document.getElementById('sSoil').value, random ? 5 : 0),
+    temperature: jitter(document.getElementById('sTemp').value, random ? 2 : 0),
+    air_humidity: jitter(document.getElementById('sHumid').value, random ? 4 : 0),
+    light: Math.round(jitter(document.getElementById('sLight').value, random ? 100 : 0))
+  };
+}
+
+async function sendHeartbeat() {
+  // 检查MQTT连接
+  if (!mqttClient || !mqttConnected) {
+    addLog('err', '✗ 请先连接MQTT');
+    return false;
+  }
+  
+  const sensor = getSensorData();
+  const payload = {
+    device_code: deviceCode,
+    timestamp: new Date().toISOString(),
+    sensor_data: sensor
+  };
+  
+  // 通过MQTT发送心跳
+  const topic = 'device/' + deviceCode + '/heartbeat';
+  mqttClient.publish(topic, JSON.stringify(payload), { qos: 0 }, (err) => {
+    if (err) {
+      addLog('err', '✗ 心跳发送失败: ' + err.message);
+    } else {
+      hbCount++;
+      document.getElementById('hbCounter').textContent = '心跳: ' + hbCount;
+      addLog('ok', `♥ 心跳 #${hbCount} | 土壤:${sensor.soil_moisture}% 温度:${sensor.temperature}°C 湿度:${sensor.air_humidity}% 光照:${sensor.light}lux`);
+    }
+  });
+  return true;
+}
+
+function toggleHeartbeat(on) {
+  if (on) {
+    // 检查MQTT连接
+    if (!mqttClient || !mqttConnected) {
+      addLog('err', '✗ 请先连接MQTT再启动心跳');
+      document.getElementById('hbToggle').checked = false;
+      return;
+    }
+    hbCount = 0;
+    addLog('info', '▶ 自动心跳已启动 (30秒/次)');
+    setStatus('running', '心跳运行中');
+    sendHeartbeat(); // immediate first
+    hbTimer = setInterval(sendHeartbeat, 30000);
+  } else {
+    if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
+    addLog('info', '■ 自动心跳已停止');
+    setStatus('offline', '已停止');
+  }
+}
+
+// ========== MQTT ==========
+async function toggleMqtt(on) {
+  if (on) {
+    addLog('info', '正在连接 MQTT...');
+    try {
+      // 先获取MQTT配置
+      const configRes = await fetch('/api/mqtt/user-config');
+      const configData = await configRes.json();
+      if (!configData.success) {
+        addLog('err', '✗ ' + configData.error);
+        document.getElementById('mqttToggle').checked = false;
+        return;
+      }
+      
+      const cfg = configData.config;
+      
+      // 直连EMQX Cloud MQTT broker（带TLS）
+      mqttBrokerUrl = 'wss://mqtt.mcoud.cn/mqtt';
+      
+      // 使用前端MQTT客户端直接连接
+      const options = {
+        clientId: (cfg.mqtt_client_id || 'mubaiyun_device') + '_' + deviceCode + '_' + Math.random().toString(16).slice(2, 6),
+        clean: cfg.mqtt_clean_session !== '0',
+        keepalive: parseInt(cfg.mqtt_keepalive) || 60,
+        reconnectPeriod: 3000,
+        connectTimeout: 10000
+      };
+      if (cfg.mqtt_username) options.username = cfg.mqtt_username;
+      if (cfg.mqtt_password) options.password = cfg.mqtt_password;
+      
+      mqttClient = mqtt.connect(mqttBrokerUrl, options);
+      
+      mqttClient.on('connect', () => {
+        mqttConnected = true;
+        addLog('ok', '✓ MQTT 已连接: ' + mqttBrokerUrl);
+        showToast('MQTT 已连接', 'success');
+        
+        // 订阅设备命令主题
+        const cmdTopic = 'device/' + deviceCode + '/command';
+        mqttClient.subscribe(cmdTopic, { qos: 0 }, (err) => {
+          if (err) {
+            addLog('err', '✗ 订阅失败: ' + err.message);
+          } else {
+            addLog('info', '已订阅: ' + cmdTopic);
+          }
+        });
+      });
+      
+      mqttClient.on('message', (topic, message) => {
+        try {
+          const payload = JSON.parse(message.toString());
+          addLog('info', '← 收到 [' + topic + ']: ' + JSON.stringify(payload).slice(0, 150));
+          
+          // 处理浇水指令（简化格式: {water:true/false, duration:X}）
+          if (payload.water === true) {
+            handleWatering(payload);
+          } else if (payload.water === false) {
+            // AI判断不需要浇水
+            addLog('info', '☀️ AI判断: 无需浇水 - ' + (payload.reason || ''));
+          }
+          
+          // 处理计划任务
+          if (payload.command === 'schedule') {
+            handleSchedule(payload);
+          }
+          
+          // 兼容旧格式
+          if (payload.command === 'watering') {
+            handleWatering(payload);
+          }
+          if (payload.command === 'watering_result') {
+            handleWateringResult(payload);
+          }
+          if (payload.command === 'manual_watering') {
+            handleWatering({duration: payload.duration || 30});
+          }
+        } catch (e) {
+          addLog('info', '← 收到 [' + topic + ']: ' + message.toString().slice(0, 150));
+        }
+      });
+      
+      mqttClient.on('error', (err) => {
+        addLog('err', '✗ MQTT 错误: ' + err.message);
+        mqttConnected = false;
+      });
+      
+      mqttClient.on('close', () => {
+        mqttConnected = false;
+        addLog('info', '■ MQTT 连接已关闭');
+      });
+      
+    } catch(e) {
+      addLog('err', '✗ 连接错误: ' + e.message);
+      document.getElementById('mqttToggle').checked = false;
+    }
+  } else {
+    if (mqttClient) {
+      mqttClient.end();
+      mqttClient = null;
+    }
+    mqttConnected = false;
+    addLog('info', '■ MQTT 已断开');
+  }
+}
+
+// ========== Status ==========
+function setStatus(state, text) {
+  const bar = document.getElementById('statusBar');
+  bar.className = 'status-bar ' + state;
+  document.getElementById('statusText').textContent = text;
+}
+
+// ========== Watering Judge ==========
+async function requestWateringJudge() {
+  const btn = document.getElementById('wateringBtn');
+  const status = document.getElementById('wateringStatus');
+  
+  // 检查MQTT连接
+  if (!mqttClient || !mqttConnected) {
+    addLog('err', '✗ 请先连接MQTT');
+    showToast('请先连接MQTT', 'error');
+    return;
+  }
+  
+  addLog('info', '🌱 请求浇水判断...');
+  
+  // 通过MQTT发送浇水请求（测试页也带 request_id，和真实控制器流程一致）
+  const topic = 'device/' + deviceCode + '/watering_request';
+  const requestId = Date.now().toString(36) + Math.random().toString(16).slice(2, 6);
+  const payload = {
+    request_id: requestId,
+    request_type: 'test',
+    duration: 30,
+    timestamp: new Date().toISOString()
+  };
+  
+  mqttClient.publish(topic, JSON.stringify(payload), { qos: 0 }, (err) => {
+    if (err) {
+      addLog('err', '✗ 请求发送失败: ' + err.message);
+      showToast('请求发送失败', 'error');
+      return;
+    }
+    addLog('ok', '✓ 浇水判断请求已发送');
+    showToast('请求已发送', 'success');
+  });
+}
+
+// 处理浇水判断结果
+function handleWateringResult(payload) {
+  if (payload.success) {
+    const emoji = payload.should_water ? '💧' : '☀️';
+    addLog('ok', emoji + ' 判断结果: ' + (payload.should_water ? '需要浇水' : '无需浇水') + ' | ' + payload.reason);
+  } else {
+    addLog('err', '✗ 浇水判断失败: ' + (payload.error || '未知错误'));
+  }
+}
+
+// 处理浇水指令
+function handleWatering(payload) {
+  const duration = Math.max(1, Math.min(600, parseInt(payload.duration) || 30));
+  const requestId = payload.request_id || '';
+  const source = payload.request_type === 'test' ? 'test' : 'manual';
+  addLog('ok', '💧 收到浇水指令 - 浇水 ' + duration + '秒');
+  
+  // 回复确认给云端
+  if (mqttConnected && mqttClient) {
+    const statusTopic = 'device/' + deviceCode + '/status';
+    mqttClient.publish(statusTopic, JSON.stringify({
+      event: 'watering_ack',
+      success: true,
+      water: true,
+      duration: duration,
+      request_id: requestId
+    }), {qos: 1});
+    addLog('info', '→ 已回复确认');
+  }
+  
+  // 模拟浇水过程
+  let remaining = duration;
+  const timer = setInterval(() => {
+    if (remaining <= 0) {
+      clearInterval(timer);
+      addLog('ok', '✅ 浇水完成 (' + duration + '秒)');
+      
+      // 发送执行结果给服务器
+      if (mqttConnected && mqttClient) {
+        const completeTopic = 'device/' + deviceCode + '/watering_complete';
+        mqttClient.publish(completeTopic, JSON.stringify({
+          request_id: requestId,
+          timestamp: new Date().toISOString(),
+          duration: duration,
+          source: source
+        }), {qos: 1});
+        addLog('info', '→ 已发送执行结果 [' + completeTopic + ']');
+      }
+    } else {
+      if (remaining % 10 === 0 || remaining <= 5) {
+        addLog('info', '💧 浇水中... 剩余 ' + remaining + '秒');
+      }
+      remaining--;
+    }
+  }, 1000);
+}
+
+// 处理计划任务
+function handleSchedule(payload) {
+  const tasks = payload.tasks || [];
+  addLog('ok', '📋 收到计划任务 - 共 ' + tasks.length + ' 组');
+  
+  tasks.forEach((task, i) => {
+    const status = task.enabled ? '✅启用' : '⏸禁用';
+    const mode = task.fixed_watering ? '固定浇水' : 'AI智能';
+    addLog('info', '  #' + (i+1) + ' ' + task.time + ' | ' + task.duration + '秒 | ' + status + ' | ' + mode);
+  });
+  
+  // 回复确认给云端
+  if (mqttConnected && mqttClient) {
+    const statusTopic = 'device/' + deviceCode + '/status';
+    mqttClient.publish(statusTopic, JSON.stringify({
+      event: 'schedule_ack',
+      success: true,
+      count: tasks.length,
+      device_code: deviceCode,
+      timestamp: new Date().toISOString()
+    }), {qos: 1});
+    addLog('info', '→ 已回复确认 [' + statusTopic + ']');
+  }
+}
+
+// ========== Init ==========
+initCode();
+addLog('info', '设备模拟器就绪 | 设备码: ' + deviceCode);
+</script>
+</body>
+</html>

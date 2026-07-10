@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;color:#172033;padding:18px;font-size:14px}
+.hero{display:flex;align-items:center;gap:12px;background:#f6f8fb;border-radius:16px;padding:14px;margin-bottom:16px}
+.hero-icon{width:44px;height:44px;border-radius:15px;background:#f4f0ff;color:#7c3aed;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}.hero-title{font-size:15px;font-weight:800;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hero-sub{font-size:11px;color:#96a0af;font-weight:700;margin-top:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.section-title{font-size:12px;font-weight:800;color:#94a3b8;letter-spacing:.08em;margin:18px 2px 10px}.form-group{margin-bottom:14px}.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.form-group label{display:block;font-size:12px;font-weight:700;color:#64748b;margin-bottom:7px}.input-wrap{position:relative}.input-wrap i{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:13px;color:#94a3b8}
+input{width:100%;height:42px;border:1px solid #e5eaf2;border-radius:12px;padding:0 12px 0 36px;font-size:16px;font-family:inherit;outline:none;background:#fbfcfe;transition:border-color .18s,background .18s}input:focus{border-color:#7c3aed;background:#fff}input.no-icon{padding-left:12px}.hint{font-size:12px;color:#94a3b8;line-height:1.6;margin-top:7px}.hint code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#f6f8fb;border-radius:6px;padding:1px 5px;color:#64748b}.btn{width:100%;height:42px;border:none;border-radius:12px;background:#3478f6;color:#fff;font-size:14px;font-weight:800;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .18s,transform .18s;margin-top:18px}.btn:active{transform:scale(.98)}.btn:disabled{opacity:.75;cursor:not-allowed}.btn.success{background:#16a34a}.btn.error{background:#dc2626}
+#toast{position:fixed;top:12px;left:50%;transform:translateX(-50%) translateY(-12px);background:#172033;color:#fff;padding:9px 16px;border-radius:10px;font-size:12px;font-weight:700;opacity:0;transition:all .25s;pointer-events:none;z-index:99;white-space:nowrap}#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}#toast.success{background:#16a34a}#toast.error{background:#dc2626}@media(max-width:420px){body{padding:14px}.form-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+<div class="hero"><div class="hero-icon"><i class="fas fa-satellite-dish"></i></div><div style="min-width:0;flex:1"><div class="hero-title" id="title">传感器设置</div><div class="hero-sub" id="code"></div></div></div>
+<div class="section-title">基础信息</div>
+<div class="form-group"><label>设备名称</label><div class="input-wrap"><i class="fas fa-pen"></i><input id="nameInput" type="text" maxlength="30" placeholder="给传感器取个名字"></div><div class="hint">名称会显示在工作台、设备列表和详情页中。</div></div>
+<div class="section-title">上报与休眠</div>
+<div class="form-group"><label>休眠时间（秒）</label><div class="input-wrap"><i class="fas fa-moon"></i><input id="sleepInput" type="number" min="30" step="1" inputmode="numeric" placeholder="最少 30 秒"></div><div class="hint">设备每次上报后休眠的时间，最少 30 秒。</div></div>
+<div class="section-title">土壤湿度校准</div>
+<div class="form-row">
+  <div class="form-group"><label>干燥 ADC</label><input class="no-icon" id="dryInput" type="number" step="1" inputmode="numeric" placeholder="DEFAULT_DRY_ADC"></div>
+  <div class="form-group"><label>湿润 ADC</label><input class="no-icon" id="wetInput" type="number" step="1" inputmode="numeric" placeholder="DEFAULT_WET_ADC"></div>
+</div>
+<div class="hint">默认值：干燥 <code>2320.0</code>，湿润 <code>475.0</code>，对应固件参数：<code>g_dry_adc</code> 和 <code>g_wet_adc</code>。</div>
+<button class="btn" id="saveBtn" onclick="save()"><i class="fas fa-check"></i> 保存设置</button>
+<script>
+const DATA=__POST_DATA__;
+const d=DATA.device;
+const s=d.settings||{};
+const sensorCfg=s.sensor_config||{};
+document.getElementById('title').textContent=d.device_name||'传感器设置';
+document.getElementById('code').textContent=d.device_code||'';
+document.getElementById('nameInput').value=d.device_name||'';
+document.getElementById('sleepInput').value=sensorCfg.sleep_seconds||s.sleep_seconds||30;
+const DEFAULT_DRY_ADC=2320.0;
+const DEFAULT_WET_ADC=475.0;
+document.getElementById('dryInput').value=(sensorCfg.dry_adc!==undefined&&sensorCfg.dry_adc!==null?sensorCfg.dry_adc:(s.dry_adc!==undefined&&s.dry_adc!==null?s.dry_adc:DEFAULT_DRY_ADC));
+document.getElementById('wetInput').value=(sensorCfg.wet_adc!==undefined&&sensorCfg.wet_adc!==null?sensorCfg.wet_adc:(s.wet_adc!==undefined&&s.wet_adc!==null?s.wet_adc:DEFAULT_WET_ADC));
+function showToast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='show '+(type||'');clearTimeout(t._tid);t._tid=setTimeout(()=>t.className='',2200)}
+function numOrNull(id){const v=document.getElementById(id).value.trim();return v===''?null:Number(v)}
+async function save(){
+  const btn=document.getElementById('saveBtn');
+  const name=document.getElementById('nameInput').value.trim()||'传感器';
+  const sleep=Number(document.getElementById('sleepInput').value||30);
+  const dry=numOrNull('dryInput');
+  const wet=numOrNull('wetInput');
+  if(!Number.isFinite(sleep)||sleep<30){showToast('休眠时间最少 30 秒','error');return;}
+  if(dry!==null&&(!Number.isFinite(dry)||dry<0)){showToast('干燥 ADC 参数不正确','error');return;}
+  if(wet!==null&&(!Number.isFinite(wet)||wet<0)){showToast('湿润 ADC 参数不正确','error');return;}
+  btn.disabled=true;btn.className='btn';btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> 保存中...';
+  const settings={...s,sensor_config:{...(s.sensor_config||{}),sleep_seconds:Math.round(sleep),dry_adc:dry,wet_adc:wet}};
+  try{
+    const res=await fetch('/api/devices/'+d.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_name:name,settings})});
+    const data=await res.json();
+    if(!data.success)throw new Error(data.error||'保存失败');
+    btn.className='btn success';btn.innerHTML='<i class="fas fa-check"></i> 保存成功';showToast('保存成功','success');
+    try{parent.__deviceListDirty=true;if(parent.refreshDeviceViews)parent.refreshDeviceViews();localStorage.setItem('iot_devices_changed',String(Date.now()));}catch(e){}
+    setTimeout(()=>{try{parent.closeModal();parent.document.querySelector('iframe.active')?.contentWindow?.loadDevice();}catch(e){}},700);
+  }catch(e){btn.disabled=false;btn.className='btn error';btn.innerHTML='<i class="fas fa-xmark"></i> 保存失败';showToast(e.message,'error');setTimeout(()=>{btn.className='btn';btn.innerHTML='<i class="fas fa-check"></i> 保存设置'},1800)}
+}
+</script>
+</body>
+</html>

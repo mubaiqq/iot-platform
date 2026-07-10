@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>账号设置</title>
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,sans-serif;background:#f5f6fa;color:#1e293b;padding:20px 18px 80px;min-height:100vh}
+.page-header{margin-bottom:20px}
+.page-header h1{font-size:18px;font-weight:700;color:#1e293b;margin-bottom:3px}
+.page-header p{font-size:12px;color:#8892a4}
+
+.card{background:#fff;border-radius:14px;border:1px solid #eef0f4;padding:24px;margin-bottom:16px}
+.card-title{font-size:15px;font-weight:700;color:#1e293b;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.card-title i{color:#3b82f6;font-size:14px}
+
+.form-group{margin-bottom:18px}
+.form-label{display:block;font-size:13px;font-weight:600;color:#475569;margin-bottom:6px}
+.form-hint{font-size:11px;color:#94a3b8;margin-top:4px}
+.form-input{
+  width:100%;padding:12px 14px;border:1.5px solid #e2e8f0;
+  border-radius:10px;font-size:14px;font-family:inherit;
+  transition:all .2s;color:#1e293b;background:#fff;
+}
+.form-input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.1)}
+.form-input::placeholder{color:#94a3b8}
+.input-wrap{position:relative}
+.password-toggle{
+  position:absolute;right:12px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;
+}
+.password-toggle:hover{color:#475569}
+
+.btn{
+  padding:12px 28px;border:none;border-radius:10px;
+  font-size:14px;font-weight:600;font-family:inherit;
+  cursor:pointer;transition:all .2s;
+}
+.btn-primary{background:#3b82f6;color:#fff}
+.btn-primary:hover{background:#2563eb;box-shadow:0 4px 12px rgba(59,130,246,.25)}
+.btn-primary:disabled{background:#94a3b8;cursor:not-allowed}
+
+.info-row{
+  display:flex;align-items:center;padding:12px 0;
+  border-bottom:1px solid #f5f6fa;
+}
+.info-row:last-child{border-bottom:none}
+.info-label{width:100px;font-size:13px;color:#8892a4;flex-shrink:0}
+.info-value{font-size:14px;font-weight:600;color:#1e293b}
+.badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;
+}
+.badge-admin{background:#fef3c7;color:#d97706}
+.badge-vip{background:#ecfdf5;color:#059669}
+
+.toast-msg{
+  position:fixed;top:20px;left:50%;transform:translateX(-50%);
+  padding:12px 24px;border-radius:10px;font-size:13px;font-weight:500;
+  z-index:9999;display:none;align-items:center;gap:8px;
+  box-shadow:0 6px 20px rgba(0,0,0,.1);
+}
+.toast-msg.show{display:flex}
+.toast-msg.success{background:#ecfdf5;color:#059669;border:1px solid #a7f3d0}
+.toast-msg.error{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+
+.password-strength{height:4px;border-radius:2px;margin-top:6px;background:#e2e8f0}
+.password-strength-bar{height:100%;border-radius:2px;transition:all .3s}
+.strength-weak{width:33%;background:#ef4444}
+.strength-medium{width:66%;background:#f59e0b}
+.strength-strong{width:100%;background:#10b981}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1><i class="fas fa-user-shield" style="color:#3b82f6;margin-right:8px"></i>账号设置</h1>
+  <p>管理后台 · 账号安全</p>
+</div>
+
+<div class="toast-msg" id="toastMsg">
+  <i class="fas fa-check-circle"></i>
+  <span id="toastText"></span>
+</div>
+
+<!-- Account Info -->
+<div class="card">
+  <div class="card-title"><i class="fas fa-circle-info"></i> 账号信息</div>
+  <div class="info-row">
+    <span class="info-label">用户名</span>
+    <span class="info-value" id="infoUsername">-</span>
+  </div>
+  <div class="info-row">
+    <span class="info-label">邮箱</span>
+    <span class="info-value" id="infoEmail">-</span>
+  </div>
+  <div class="info-row">
+    <span class="info-label">角色</span>
+    <span class="info-value"><span class="badge badge-admin" id="infoRole">-</span></span>
+  </div>
+  <div class="info-row">
+    <span class="info-label">注册时间</span>
+    <span class="info-value" id="infoCreated">-</span>
+  </div>
+</div>
+
+<!-- Change Username -->
+<div class="card">
+  <div class="card-title"><i class="fas fa-user-pen"></i> 修改用户名</div>
+  <form id="usernameForm">
+    <div class="form-group">
+      <label class="form-label">当前用户名</label>
+      <input type="text" class="form-input" id="currentUsername" disabled style="background:#f8fafc">
+    </div>
+    <div class="form-group">
+      <label class="form-label">新用户名</label>
+      <input type="text" class="form-input" id="newUsername" placeholder="3-20位字母数字下划线">
+      <div class="form-hint">修改后需要重新登录</div>
+    </div>
+    <button type="submit" class="btn btn-primary">保存用户名</button>
+  </form>
+</div>
+
+<!-- Change Password -->
+<div class="card">
+  <div class="card-title"><i class="fas fa-lock"></i> 修改密码</div>
+  <form id="passwordForm">
+    <div class="form-group">
+      <label class="form-label">当前密码</label>
+      <div class="input-wrap">
+        <input type="password" class="form-input" id="oldPassword" placeholder="请输入当前密码">
+        <button type="button" class="password-toggle" onclick="togglePwd('oldPassword',this)"><i class="fas fa-eye"></i></button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">新密码</label>
+      <div class="input-wrap">
+        <input type="password" class="form-input" id="newPassword" placeholder="至少6位" oninput="checkStrength()">
+        <button type="button" class="password-toggle" onclick="togglePwd('newPassword',this)"><i class="fas fa-eye"></i></button>
+      </div>
+      <div class="password-strength"><div class="password-strength-bar" id="strengthBar"></div></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">确认新密码</label>
+      <div class="input-wrap">
+        <input type="password" class="form-input" id="confirmPassword" placeholder="再次输入新密码">
+        <button type="button" class="password-toggle" onclick="togglePwd('confirmPassword',this)"><i class="fas fa-eye"></i></button>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">保存密码</button>
+  </form>
+</div>
+
+<script>
+function showToast(msg, type) {
+  const el = document.getElementById('toastMsg');
+  el.className = 'toast-msg show ' + (type || 'success');
+  document.getElementById('toastText').textContent = msg;
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function togglePwd(id, btn) {
+  const input = document.getElementById(id);
+  const icon = btn.querySelector('i');
+  input.type = input.type === 'password' ? 'text' : 'password';
+  icon.className = input.type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+}
+
+function checkStrength() {
+  const pwd = document.getElementById('newPassword').value;
+  const bar = document.getElementById('strengthBar');
+  bar.className = 'password-strength-bar';
+  if (pwd.length >= 8 && /[A-Z]/.test(pwd) && /[0-9]/.test(pwd)) bar.classList.add('strength-strong');
+  else if (pwd.length >= 6) bar.classList.add('strength-medium');
+  else if (pwd.length > 0) bar.classList.add('strength-weak');
+}
+
+// Load user info
+async function loadUserInfo() {
+  try {
+    const res = await fetch('/api/me');
+    const data = await res.json();
+    if (!data.user) return;
+    
+    const u = data.user;
+    document.getElementById('infoUsername').textContent = u.username;
+    document.getElementById('infoEmail').textContent = u.email;
+    document.getElementById('infoRole').textContent = u.role === 'admin' ? '管理员' : '用户';
+    document.getElementById('infoCreated').textContent = new Date(u.created_at).toLocaleString('zh-CN');
+    document.getElementById('currentUsername').value = u.username;
+  } catch (e) {}
+}
+
+// Change username
+document.getElementById('usernameForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const newUsername = document.getElementById('newUsername').value.trim();
+  
+  if (!newUsername) {
+    showToast('请输入新用户名', 'error');
+    return;
+  }
+  if (newUsername.length < 3 || newUsername.length > 20) {
+    showToast('用户名长度3-20位', 'error');
+    return;
+  }
+  if (!/^[a-zA-Z0-9_]+$/.test(newUsername)) {
+    showToast('用户名只能包含字母、数字、下划线', 'error');
+    return;
+  }
+  
+  try {
+    const res = await fetch('/api/account/username', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: newUsername })
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+      showToast('用户名已修改，请重新登录', 'success');
+      setTimeout(() => { window.location.href = '/admin/login'; }, 1500);
+    } else {
+      showToast(data.error || '修改失败', 'error');
+    }
+  } catch (e) {
+    showToast('网络错误', 'error');
+  }
+});
+
+// Change password
+document.getElementById('passwordForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const oldPassword = document.getElementById('oldPassword').value;
+  const newPassword = document.getElementById('newPassword').value;
+  const confirmPassword = document.getElementById('confirmPassword').value;
+  
+  if (!oldPassword || !newPassword || !confirmPassword) {
+    showToast('请填写完整信息', 'error');
+    return;
+  }
+  if (newPassword.length < 6) {
+    showToast('新密码至少6位', 'error');
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    showToast('两次密码不一致', 'error');
+    return;
+  }
+  
+  try {
+    const res = await fetch('/api/account/password', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ oldPassword, newPassword })
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+      showToast('密码已修改，请重新登录', 'success');
+      setTimeout(() => { window.location.href = '/admin/login'; }, 1500);
+    } else {
+      showToast(data.error || '修改失败', 'error');
+    }
+  } catch (e) {
+    showToast('网络错误', 'error');
+  }
+});
+
+loadUserInfo();
+</script>
+</body>
+</html>

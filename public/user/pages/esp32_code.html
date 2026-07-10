@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESP32 代码</title>
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f5f6fa;color:#1e293b;padding:16px}
+.page-title{font-size:18px;font-weight:700;margin-bottom:4px}
+.page-desc{font-size:12px;color:#94a3b8;margin-bottom:16px}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;margin-bottom:14px;overflow-x:auto}
+.tab{padding:8px 14px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;transition:all .2s;font-family:'Inter',sans-serif}
+.tab.active{background:#3b82f6;color:#fff;border-color:#3b82f6}
+.tab:hover:not(.active){border-color:#93c5fd}
+
+/* Code block */
+.code-section{background:#1e293b;border-radius:12px;overflow:hidden;margin-bottom:14px}
+.code-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#0f172a}
+.code-header .title{font-size:12px;font-weight:500;color:#94a3b8;display:flex;align-items:center;gap:6px}
+.code-header .title i{color:#3b82f6}
+.btn-copy{padding:6px 12px;border:none;border-radius:6px;background:#3b82f6;color:#fff;font-size:11px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;display:flex;align-items:center;gap:4px}
+.btn-copy:hover{background:#2563eb}
+.btn-copy.copied{background:#059669}
+.code-body{padding:14px;overflow-x:auto;max-height:700px;overflow-y:auto}
+.code-body::-webkit-scrollbar{width:6px;height:6px}
+.code-body::-webkit-scrollbar-thumb{background:#334155;border-radius:3px}
+pre{margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;color:#e2e8f0;white-space:pre;tab-size:2}
+
+/* Info card */
+.info-card{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px;margin-bottom:14px;font-size:12px;color:#1e40af;line-height:1.7}
+.info-card i{margin-right:4px}
+.info-card strong{color:#1e3a8a}
+
+/* Reset card */
+.reset-card{background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:14px;margin-bottom:14px;font-size:12px;color:#92400e;line-height:1.7}
+.reset-card i{margin-right:4px;color:#f59e0b}
+.reset-card strong{color:#78350f}
+.reset-card code{background:#fde68a;padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#78350f}
+
+/* Loading */
+.loading{text-align:center;padding:40px;color:#94a3b8}
+.loading i{font-size:24px;margin-bottom:8px;display:block}
+
+/* Toast */
+#toast{position:fixed;top:10px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:8px 18px;border-radius:8px;font-size:12px;font-weight:500;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+#toast.show{opacity:1}
+#toast.success{background:#059669}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+
+<div class="page-title"><i class="fas fa-microchip" style="color:#3b82f6"></i> ESP32 固件代码</div>
+<div class="page-desc">复制以下代码到 Arduino IDE，烧录到 ESP32 即可使用</div>
+
+<div class="info-card">
+  <i class="fas fa-info-circle"></i> <strong>使用说明：</strong><br>
+  1. 安装 Arduino IDE，添加 ESP32 开发板支持<br>
+  2. 安装库：<b>PubSubClient</b>（MQTT）、<b>ArduinoJson</b>（v6）<br>
+  3. 修改代码中的 <b>MQTT服务器</b> 地址<br>
+  4. 烧录后首次启动会打开 AP 热点 <b>木白云IoT-配网</b>（密码 12345678），连接后自动弹出配网页面<br>
+  5. 配网成功后自动通过MQTT注册设备码并连接平台
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <div class="tab active" onclick="showTab('main')"><i class="fas fa-code"></i> 主程序 (main)</div>
+  <div class="tab" onclick="showTab('config')"><i class="fas fa-gear"></i> 配置说明</div>
+</div>
+
+<!-- Main Code -->
+<div id="tab-main" class="code-section">
+  <div class="code-header">
+    <div class="title"><i class="fas fa-file-code"></i> mubaiyun_iot.ino</div>
+    <button class="btn-copy" onclick="copyCode()"><i class="fas fa-copy"></i> 复制代码</button>
+  </div>
+  <div class="code-body">
+    <div id="loading" class="loading"><i class="fas fa-spinner fa-spin"></i> 加载代码中...</div>
+    <pre id="code-main" style="display:none"></pre>
+  </div>
+</div>
+
+<!-- Config Info -->
+<div id="tab-config" style="display:none">
+  <div class="info-card" style="background:#f0fdf4;border-color:#bbf7d0;color:#166534">
+    <i class="fas fa-cog"></i> <strong>需要修改的配置项：</strong><br><br>
+    <b>MQTT_SERVER</b> — MQTT服务器地址，如 <code>mqtt.mcoud.cn</code><br>
+    <b>MQTT_PORT</b> — MQTT端口，默认 <code>1883</code><br>
+    <b>RELAY_PIN</b> — 继电器引脚，默认 <code>GPIO 26</code><br><br>
+    <b>可选配置：</b><br>
+    <b>HEARTBEAT_INTERVAL</b> — 心跳间隔(毫秒)，默认 30000 (30秒)<br>
+    <b>SOIL_PIN</b> — 土壤湿度传感器引脚 (ADC)<br>
+    <b>DHT_PIN</b> — DHT11温湿度传感器引脚<br><br>
+    <i class="fas fa-clock"></i> <strong>计划任务功能：</strong><br>
+    设备通过NTP自动同步时间，收到计划任务后保存到本地闪存。<br>
+    <b>固定浇水</b>：到时直接执行，完成后上报日志<br>
+    <b>智能浇水</b>：到时向平台请求AI判断，根据AI回复执行（60秒超时重试1次，共等160秒）<br><br>
+    <i class="fas fa-redo"></i> <strong>恢复出厂：</strong><br>
+    串口发送 <code>FACTORY_RESET</code> 即可清空配网信息，重新进入AP配网模式
+  </div>
+
+  <div class="reset-card">
+    <i class="fas fa-exclamation-triangle"></i> <strong>恢复出厂设置（重置配网）：</strong><br><br>
+    在串口监视器中发送：<code>FACTORY_RESET</code><br><br>
+    <b>注意：</b><br>
+    &bull; 波特率：<code>115200</code><br>
+    &bull; 串口监视器结尾建议选 <code>新行</code> 或 <code>NL</code><br>
+    &bull; 命令不区分大小写，代码里会自动转大写<br>
+    &bull; 执行后会清空 NVS 配置、断开 WiFi、关闭继电器，然后自动重启<br>
+    &bull; 重启后进入 AP 配网模式，AP 密码 <code>12345678</code><br><br>
+    串口会看到：<code>[factory] clearing NVS and restarting...</code>，然后设备重启
+  </div>
+</div>
+
+<script>
+let firmwareCode = '';
+
+// 从服务器加载固件代码
+fetch('/api/esp32/firmware')
+  .then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.text();
+  })
+  .then(code => {
+    firmwareCode = code;
+    document.getElementById('code-main').textContent = code;
+    document.getElementById('code-main').style.display = 'block';
+    document.getElementById('loading').style.display = 'none';
+  })
+  .catch(e => {
+    document.getElementById('loading').innerHTML = '<i class="fas fa-exclamation-circle" style="color:#ef4444"></i> 加载失败: ' + e.message;
+  });
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('[id^="tab-"]').forEach(d => d.style.display = 'none');
+  document.getElementById('tab-' + name).style.display = 'block';
+  event.target.closest('.tab').classList.add('active');
+}
+
+function copyCode() {
+  if (!firmwareCode) { showToast('代码未加载', 'error'); return; }
+  const btn = event.target.closest('.btn-copy');
+  navigator.clipboard.writeText(firmwareCode).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = '<i class="fas fa-check"></i> 已复制';
+    showToast('已复制到剪贴板', 'success');
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = '<i class="fas fa-copy"></i> 复制代码';
+    }, 2000);
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = firmwareCode;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.classList.add('copied');
+    btn.innerHTML = '<i class="fas fa-check"></i> 已复制';
+    showToast('已复制到剪贴板', 'success');
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = '<i class="fas fa-copy"></i> 复制代码';
+    }, 2000);
+  });
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type === 'success' ? ' success' : '');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.className = '', 2500);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,317 @@
+ 
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>关于 · 管理框架</title>
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,sans-serif;background:#f5f6fa;color:#1e293b;padding:24px 18px 80px;line-height:1.7}
+.page-header{margin-bottom:24px}
+.page-header h1{font-size:20px;font-weight:800;display:flex;align-items:center;gap:8px}
+.page-header h1 .badge{font-size:11px;font-weight:600;background:#ecfdf5;color:#059669;padding:3px 10px;border-radius:20px}
+.page-header p{font-size:13px;color:#8892a4;margin-top:4px}
+
+.section{margin-bottom:20px}
+.section-title{font-size:15px;font-weight:700;margin-bottom:12px;padding-left:2px;display:flex;align-items:center;gap:8px}
+.section-title i{color:#059669;font-size:14px}
+
+.card{background:#fff;border-radius:14px;border:1px solid #eef0f4;padding:20px 22px;margin-bottom:12px}
+.card h3{font-size:13px;font-weight:700;color:#1e293b;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.card h3 i{font-size:12px;color:#059669}
+.card p{font-size:13px;color:#64748b;margin-bottom:8px}
+.card p:last-child{margin-bottom:0}
+
+.code-block{
+  background:#1e293b;color:#e2e8f0;font-family:'JetBrains Mono','Fira Code',monospace;
+  font-size:12px;line-height:1.6;padding:14px 16px;border-radius:10px;
+  overflow-x:auto;white-space:pre;tab-size:2;
+}
+.code-block .kw{color:#c084fc}
+.code-block .fn{color:#60a5fa}
+.code-block .str{color:#34d399}
+.code-block .cm{color:#64748b}
+.code-block .op{color:#f472b6}
+
+.tag{
+  display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;
+  padding:2px 8px;border-radius:6px;margin-right:4px;
+}
+.tag-green{background:#ecfdf5;color:#059669}
+.tag-blue{background:#eef2ff;color:#4f46e5}
+.tag-amber{background:#fffbeb;color:#d97706}
+.tag-gray{background:#f1f5f9;color:#64748b}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:600px){.grid{grid-template-columns:1fr}}
+
+.api-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.api-table th{text-align:left;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;padding:6px 0;border-bottom:1px solid #eef0f4}
+.api-table td{padding:8px 0;border-bottom:1px solid #f5f6fa;vertical-align:top}
+.api-table td:first-child{font-family:'JetBrains Mono',monospace;font-size:11px;color:#4f46e5;white-space:nowrap;font-weight:600}
+.api-table td:nth-child(2){font-family:'JetBrains Mono',monospace;font-size:11px;color:#64748b}
+.api-table td:last-child{font-size:12px;color:#475569}
+
+.timeline{position:relative;padding-left:20px}
+.timeline::before{content:'';position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:#e2e8f0;border-radius:2px}
+.timeline-item{position:relative;margin-bottom:14px;padding-left:12px}
+.timeline-item::before{content:'';position:absolute;left:-17px;top:6px;width:10px;height:10px;border-radius:50%;background:#059669;border:2px solid #f5f6fa}
+.timeline-item .time{font-size:11px;color:#94a3b8;font-weight:500}
+.timeline-item .desc{font-size:13px;color:#475569}
+
+.footer-note{text-align:center;font-size:12px;color:#94a3b8;margin-top:24px;padding-top:16px;border-top:1px solid #eef0f4}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1><i class="fas fa-shield-alt" style="color:#059669"></i> 管理框架文档 <span class="badge">v1.1</span></h1>
+  <p>木白云后台管理框架 · 自定义单页应用架构 · 完全自研</p>
+</div>
+
+<!-- Architecture -->
+<div class="section">
+  <div class="section-title"><i class="fas fa-cubes"></i> 技术架构</div>
+  <div class="card">
+    <h3><i class="fas fa-layer-group"></i> 整体架构</h3>
+    <p>采用 <strong>iframe 单页应用（SPA）</strong>模式。主框架 <code>index.html</code> 负责导航、标签管理、弹窗、消息提示等容器功能，子页面通过 iframe 加载，各自独立运行。</p>
+    <div class="grid" style="margin-top:12px">
+      <div>
+        <p><span class="tag tag-blue">前端</span></p>
+        <p>原生 HTML/CSS/JS，无框架依赖<br>Font Awesome 6.5 图标<br>Inter 字体<br>CSS 变量统一主题色</p>
+      </div>
+      <div>
+        <p><span class="tag tag-green">后端</span></p>
+        <p>Node.js + Express<br>Session 认证<br>Nginx 反向代理<br>Ubuntu 服务器</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Container API -->
+<div class="section">
+  <div class="section-title"><i class="fas fa-code"></i> 容器 API（子页面调用）</div>
+  <div class="card">
+    <p>子页面通过 <code>parent</code> 对象调用主框架功能：</p>
+    <table class="api-table">
+      <tr><th>方法</th><th>参数</th><th>说明</th></tr>
+      <tr><td>parent.openTab()</td><td>id, title, icon, closable, url</td><td>打开新标签页。id 为标签标识，icon 为 FA 图标类名（不含 fa-），url 可选（覆盖 PAGE_MAP）</td></tr>
+      <tr><td>parent.openModal()</td><td>url, title, w, h</td><td>打开弹窗。w/h 为宽度/高度（如 '600px'、'80vw'）</td></tr>
+      <tr><td>parent.openModalPost()</td><td>url, title, params, w, h</td><td>POST 方式打开弹窗。params 为 {key: value} 对象</td></tr>
+      <tr><td>parent.closeModal()</td><td>—</td><td>关闭弹窗（带下滑动画）</td></tr>
+      <tr><td>parent.showToast()</td><td>msg, type</td><td>显示消息。type: success / error / info</td></tr>
+      <tr><td>parent.showConfirm()</td><td>title, msg, opts</td><td>自定义确认弹窗（Promise）。opts: type(danger/info), okText, cancelText, icon</td></tr>
+      <tr><td>parent.closeTab()</td><td>id</td><td>关闭指定标签</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3><i class="fas fa-play"></i> 调用示例</h3>
+    <div class="code-block"><span class="cm">// 打开一个新标签</span>
+parent.openTab('user_list', '用户列表', 'fa-user', true);
+
+<span class="cm">// 打开一个非 closable 的标签（首页）</span>
+parent.openTab('welcome', '首页', 'fa-house', false);
+
+<span class="cm">// 打开带自定义 URL 的标签</span>
+parent.openTab('add_3', '添加-' + username, 'fa-plus', true,
+  'add_domain.html?useridid=' + username);
+
+<span class="cm">// 打开弹窗</span>
+parent.openModal('edit_domain.html?id=1', '编辑域名', '600px', '70vh');
+
+<span class="cm">// POST 弹窗（表单提交）</span>
+parent.openModalPost('stats.html', '域名统计', {id: 1, ym: 'example.com'});
+
+<span class="cm">// 显示成功提示</span>
+parent.showToast('操作成功', 'success');
+
+<span class="cm">// 显示错误提示</span>
+parent.showToast('提交失败', 'error');
+
+<span class="cm">// 确认弹窗（危险操作，红色按钮）</span>
+parent.showConfirm('确认删除', '删除后无法恢复', {
+  type: 'danger', okText: '删除'
+}).then(function(ok) {
+  if (ok) { <span class="cm">/* 执行删除 */</span> }
+});
+
+<span class="cm">// 确认弹窗（普通确认，蓝色按钮）</span>
+parent.showConfirm('提示', '确定要这样做吗？').then(function(ok) {
+  if (ok) { <span class="cm">/* 执行操作 */</span> }
+});</div>
+  </div>
+</div>
+
+<!-- Tab System -->
+<div class="section">
+  <div class="section-title"><i class="fas fa-folder-open"></i> 标签页系统</div>
+  <div class="grid">
+    <div class="card">
+      <h3><i class="fas fa-plus-circle"></i> 标签生命周期</h3>
+      <p><strong>打开：</strong>调用 <code>openTab()</code> → 创建 iframe → 渲染标签栏 → 滚动到可见区域</p>
+      <p><strong>切换：</strong>点击标签 / 侧边栏 → <code>activateTab()</code> → 切换 active 类</p>
+      <p><strong>关闭：</strong>点击关闭按钮 / 右键菜单 → <code>closeTab()</code> → 移除 iframe 和标签</p>
+      <p><strong>首页标签</strong>不可关闭（<code>closable=false</code>），始终显示。</p>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-mouse-pointer"></i> 标签操作</h3>
+      <p><span class="tag tag-green">点击</span> 切换标签</p>
+      <p><span class="tag tag-green">点击 ✕</span> 关闭标签</p>
+      <p><span class="tag tag-green">右键</span> 上下文菜单</p>
+      <p><span class="tag tag-blue">下拉按钮</span> 关闭当前 / 其他 / 全部</p>
+      <p><span class="tag tag-amber">自动滚动</span> 新标签和切换时自动滚动到可见区域</p>
+    </div>
+  </div>
+</div>
+
+<!-- Modal System -->
+<div class="section">
+  <div class="section-title"><i class="fas fa-window-restore"></i> 弹窗系统</div>
+  <div class="card">
+    <h3><i class="fas fa-arrow-up"></i> 弹窗行为</h3>
+    <p><strong>打开动画：</strong>从底部滑入（translateY + scale）</p>
+    <p><strong>关闭动画：</strong>向下滑出（closing 类 + 220ms 延迟）</p>
+    <p><strong>桌面端：</strong>居中显示，宽度 max(80vw, 800px)，高度 max(75vh, 600px)</p>
+    <p><strong>移动端：</strong>全屏底部弹出，圆角顶部 16px</p>
+    <p><strong>关闭方式：</strong>点击关闭箭头 / 点击遮罩层 / ESC 键</p>
+  </div>
+  <div class="card">
+    <h3><i class="fas fa-paper-plane"></i> openModal vs openModalPost</h3>
+    <p><code>openModal()</code> 直接 GET 加载 URL 到 iframe。</p>
+    <p><code>openModalPost()</code> 在 iframe 内动态创建 form 并 POST 提交，适合传递隐藏参数（如 ID），URL 不暴露参数。</p>
+  </div>
+  <div class="card">
+    <h3><i class="fas fa-circle-question"></i> showConfirm 确认弹窗</h3>
+    <p>替代浏览器原生 <code>confirm()</code>，返回 Promise，支持过渡动画（背景模糊 + 卡片缩放）。</p>
+    <p><span class="tag tag-green">type: danger</span> 红色按钮，用于删除等危险操作</p>
+    <p><span class="tag tag-blue">type: info</span> 蓝色按钮，用于普通确认</p>
+    <p><span class="tag tag-amber">默认</span> 黄色图标，未指定 type 时</p>
+    <p>所有 admin 子页面的原生 confirm 已全部替换。</p>
+  </div>
+</div>
+
+<!-- Sidebar & Navigation -->
+<div class="section">
+  <div class="section-title"><i class="fas fa-bars"></i> 侧边栏与导航</div>
+  <div class="grid">
+    <div class="card">
+      <h3><i class="fas fa-sitemap"></i> 侧边栏结构</h3>
+      <p>分组（nav-group）可折叠，点击标题切换。事件委托处理导航点击，避免逐个绑定。</p>
+      <p><strong>移动端：</strong>默认隐藏，通过汉堡按钮切换，点击遮罩层关闭。</p>
+      <p><strong>桌面端：</strong>按钮切换显示/隐藏。</p>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-route"></i> 导航数据</h3>
+      <p>通过 <code>data-*</code> 属性传递信息：</p>
+      <p><code>data-page</code> → 页面 ID（对应 PAGE_MAP）</p>
+      <p><code>data-title</code> → 标签标题</p>
+      <p><code>data-icon</code> → FA 图标名</p>
+      <p><code>data-closable</code> → 是否可关闭（0/1）</p>
+    </div>
+  </div>
+</div>
+
+<!-- Page Map -->
+<div class="section">
+  <div class="section-title"><i class="fas fa-map"></i> 页面注册表（PAGE_MAP）</div>
+  <div class="card">
+    <table class="api-table">
+      <tr><th>Key</th><th>File</th><th>说明</th></tr>
+      <tr><td>welcome</td><td>hom.html</td><td>首页仪表盘</td></tr>
+      <tr><td>user_list</td><td>user_list.html</td><td>用户列表</td></tr>
+      <tr><td>tjyh</td><td>tjyh.html</td><td>添加用户</td></tr>
+      <tr><td>ql</td><td>ql.html</td><td>清理无效用户</td></tr>
+      <tr><td>order_list</td><td>order_list.html</td><td>订单列表</td></tr>
+      <tr><td>site</td><td>site.html</td><td>站点设置</td></tr>
+      <tr><td>payment_settings</td><td>payment_settings.html</td><td>支付设置</td></tr>
+      <tr><td>template</td><td>template.html</td><td>模板管理</td></tr>
+      <tr><td>ymlist</td><td>ymlist.html</td><td>域名列表</td></tr>
+      <tr><td>add_domain</td><td>add_domain.html</td><td>添加域名</td></tr>
+      <tr><td>ymcl</td><td>ymcl.html</td><td>域名操作</td></tr>
+      <tr><td>about</td><td>about.html</td><td>关于（本文档）</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- Design System -->
+<div class="section">
+  <div class="section-title"><i class="fas fa-palette"></i> 设计规范</div>
+  <div class="grid">
+    <div class="card">
+      <h3><i class="fas fa-swatchbook"></i> 色彩系统</h3>
+      <p><span style="display:inline-block;width:14px;height:14px;background:#f5f6fa;border-radius:4px;vertical-align:middle;border:1px solid #e2e8f0"></span> <code>#f5f6fa</code> 页面背景</p>
+      <p><span style="display:inline-block;width:14px;height:14px;background:#fff;border-radius:4px;vertical-align:middle;border:1px solid #e2e8f0"></span> <code>#fff</code> 卡片背景</p>
+      <p><span style="display:inline-block;width:14px;height:14px;background:#eef0f4;border-radius:4px;vertical-align:middle;border:1px solid #e2e8f0"></span> <code>#eef0f4</code> 边框</p>
+      <p><span style="display:inline-block;width:14px;height:14px;background:#059669;border-radius:4px;vertical-align:middle"></span> <code>#059669</code> 主题绿</p>
+      <p><span style="display:inline-block;width:14px;height:14px;background:#1e293b;border-radius:4px;vertical-align:middle"></span> <code>#1e293b</code> 主文字</p>
+      <p><span style="display:inline-block;width:14px;height:14px;background:#64748b;border-radius:4px;vertical-align:middle"></span> <code>#64748b</code> 次要文字</p>
+      <p><span style="display:inline-block;width:14px;height:14px;background:#94a3b8;border-radius:4px;vertical-align:middle"></span> <code>#94a3b8</code> 提示文字</p>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-ruler-combined"></i> 组件规范</h3>
+      <p><strong>圆角：</strong>卡片 14px，按钮 10px，小标签 6-7px</p>
+      <p><strong>内边距：</strong>卡片 18-20px，按钮 10-11px × 20-24px</p>
+      <p><strong>字体：</strong>Inter（正文），JetBrains Mono（代码）</p>
+      <p><strong>图标：</strong>Font Awesome 6.5 Free</p>
+      <p><strong>按钮风格：</strong>扁平，无渐变，hover 加深</p>
+      <p><strong>Tab 胶囊：</strong>选中绿色边框+文字，未选透明底+浅灰边框</p>
+    </div>
+  </div>
+</div>
+
+<!-- Features -->
+<div class="section">
+  <div class="section-title"><i class="fas fa-star"></i> 核心特性</div>
+  <div class="grid">
+    <div class="card">
+      <h3><i class="fas fa-bolt"></i> 零依赖</h3>
+      <p>完全自研，不依赖 layui、jQuery、Bootstrap 等框架。使用原生 JS（fetch API、FormData、classList、event delegation）实现所有交互。</p>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-mobile-alt"></i> 移动适配</h3>
+      <p>响应式布局：侧边栏滑出覆盖，标签栏单指滑动，触摸事件优化（touch-action: manipulation），stat 卡片 2 列网格，弹窗全屏底部弹出。</p>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-search"></i> 自定义搜索下拉</h3>
+      <p>自研搜索下拉组件，支持键盘导航（↑↓ + Enter）、输入过滤、点击关闭。用于添加域名页面的用户选择。</p>
+    </div>
+    <div class="card">
+      <h3><i class="fas fa-puzzle-piece"></i> 兼容层</h3>
+      <p><code>compat.css</code> 提供最小第三方类名等价样式，使未改造的子页面（如 order_list.html）仍可正常显示，无需逐页修改。</p>
+    </div>
+  </div>
+</div>
+
+<!-- Timeline -->
+<div class="section">
+  <div class="section-title"><i class="fas fa-clock"></i> 开发时间线</div>
+  <div class="card">
+    <div class="timeline">
+      <div class="timeline-item"><span class="time">00:00</span><div class="desc">数据库修复：创建 m_777_cam，迁移表结构 <span class="tag tag-gray">MiMo v2.5 Pro</span></div></div>
+      <div class="timeline-item"><span class="time">00:10</span><div class="desc">搭建 index.html 主框架：侧边栏、标签栏、header <span class="tag tag-gray">MiMo v2.5 Pro</span></div></div>
+      <div class="timeline-item"><span class="time">00:30</span><div class="desc">改造首页仪表盘 hom.html，统一风格 <span class="tag tag-gray">MiMo v2.5 Pro</span></div></div>
+      <div class="timeline-item"><span class="time">00:45</span><div class="desc">改造用户管理页面：tjyh / user_list / usertmp / edu / czmm <span class="tag tag-gray">MiMo v2.5 Pro</span></div></div>
+      <div class="timeline-item"><span class="time">01:00</span><div class="desc">域名列表 ymlist.html，完全自研，弹窗集成 <span class="tag tag-gray">MiMo v2.5 Pro</span></div></div>
+      <div class="timeline-item"><span class="time">01:20</span><div class="desc">弹窗系统：openModal / openModalPost / 关闭动画 <span class="tag tag-gray">MiMo v2.5 Pro</span></div></div>
+      <div class="timeline-item"><span class="time">01:40</span><div class="desc">标签栏优化：胶囊样式、下拉菜单、右键菜单、关闭动画 <span class="tag tag-gray">MiMo v2.5 Pro</span></div></div>
+      <div class="timeline-item"><span class="time">02:00</span><div class="desc">合并 add_domain + addt_domain，自研搜索下拉 <span class="tag tag-gray">MiMo v2.5 Pro</span></div></div>
+      <div class="timeline-item"><span class="time">02:20</span><div class="desc">改造 ql.html / template.html，统一卡片风格 <span class="tag tag-gray">MiMo v2.5 Pro</span></div></div>
+      <div class="timeline-item"><span class="time">02:30</span><div class="desc">框架优化：头像、缓存清理、主页按钮、用户菜单、弹窗加载 <span class="tag tag-gray">MiMo v2.5 Pro</span></div></div>
+      <div class="timeline-item"><span class="time">05-27</span><div class="desc">侧边栏样式优化：一级菜单加粗、二级颜色区分层级 <span class="tag tag-gray">MiMo v2.5 Pro</span></div></div>
+      <div class="timeline-item"><span class="time">05-27</span><div class="desc">新增 showConfirm 确认弹窗，全站替换原生 confirm() <span class="tag tag-gray">MiMo v2.5 Pro</span></div></div>
+      <div class="timeline-item"><span class="time">05-27</span><div class="desc">修改密码页面重新设计：卡片风格 + 确认密码 + 密码强度条 <span class="tag tag-gray">MiMo v2.5 Pro</span></div></div>
+      <div class="timeline-item"><span class="time">05-27</span><div class="desc">checkout.html 框架保护：防止脱离框架直接访问 <span class="tag tag-gray">MiMo v2.5 Pro</span></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer-note">
+  <i class="fas fa-shield-alt"></i> 木白云管理框架 v1.1 · 2026-05-27 · AI 辅助开发 · 小米 MiMo v2.5 Pro
+</div>
+
+</body>
+</html>

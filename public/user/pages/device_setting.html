@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#fff;color:#1e293b;padding:20px;font-size:14px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:12px;font-weight:500;color:#64748b;margin-bottom:6px}
+.form-group input[type="text"]{width:100%;height:40px;border:1.5px solid #e2e8f0;border-radius:10px;padding:0 12px;font-size:14px;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s}
+.form-group input:focus{border-color:#3b82f6}
+
+/* Custom Select Dropdown */
+.custom-select{position:relative;user-select:none}
+.select-trigger{display:flex;align-items:center;justify-content:space-between;height:40px;border:1.5px solid #e2e8f0;border-radius:10px;padding:0 12px;font-size:14px;cursor:pointer;transition:border-color .2s;background:#fff}
+.select-trigger:hover,.select-trigger.open{border-color:#3b82f6}
+.select-trigger .placeholder{color:#cbd5e1}
+.select-trigger .arrow{font-size:10px;color:#94a3b8;transition:transform .2s}
+.select-trigger.open .arrow{transform:rotate(180deg)}
+.select-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:100;display:none;overflow:hidden;max-height:200px;overflow-y:auto}
+.select-dropdown.show{display:block}
+.select-option{padding:10px 14px;font-size:13px;cursor:pointer;transition:background .12s;display:flex;align-items:center;gap:8px}
+.select-option:hover{background:#f0f4ff}
+.select-option.active{background:#eff6ff;color:#1e40af;font-weight:500}
+.select-option.disabled{color:#cbd5e1;cursor:not-allowed;opacity:.6}
+.select-option.disabled:hover{background:transparent}
+.select-option .vip-tag{font-size:9px;font-weight:600;padding:1px 5px;border-radius:4px;background:#fef3c7;color:#d97706;margin-left:auto}
+
+/* Search location */
+.search-wrap{position:relative}
+.location-search-row{display:flex;align-items:center;gap:8px}
+.location-search-row input{flex:1;min-width:0}
+.search-wrap input{padding-left:12px;padding-right:12px;background-image:none !important;-webkit-appearance:none;appearance:none}
+.search-wrap input::-webkit-search-cancel-button,
+.search-wrap input::-webkit-search-decoration{-webkit-appearance:none}
+.search-wrap .fa-search,.search-wrap .fa-map-marker-alt,.search-wrap .fa-location-dot{display:none !important}
+.btn-search-loc{width:74px;height:40px;border:0;border-radius:10px;background:#3b82f6;color:#fff;font-size:12px;font-weight:700;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;flex-shrink:0;transition:all .2s}
+.btn-search-loc:hover{background:#2563eb}.btn-search-loc:active{transform:scale(.97)}.btn-search-loc:disabled{opacity:.55;cursor:not-allowed;transform:none}
+.search-hint{display:flex;align-items:center;gap:5px;margin-top:6px;font-size:11px;color:#94a3b8;line-height:1.4}.search-hint i{font-size:10px;color:#3b82f6}.search-hint.searching{color:#3b82f6}.search-hint.error{color:#ef4444}.search-hint.success{color:#059669}
+.dropdown{position:absolute;top:calc(100% - 20px);left:0;right:82px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:100;display:none;margin-top:4px}
+.dropdown.show{display:block}
+.dropdown-item{padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f5f9;transition:background .12s;display:flex;align-items:center;gap:8px}
+.dropdown-item:last-child{border-bottom:none}
+.dropdown-item:hover{background:#f0f4ff}
+.dropdown-item i{color:#3b82f6;font-size:11px}
+.dropdown-item .loc-name{font-weight:500}
+.dropdown-item .loc-detail{font-size:11px;color:#94a3b8;margin-left:4px}
+
+.location-tag{display:inline-flex;align-items:center;gap:6px;background:#ecfdf5;color:#059669;font-size:12px;font-weight:500;padding:6px 10px;border-radius:8px;margin-top:6px}
+.location-tag i.clear{cursor:pointer;color:#94a3b8;margin-left:4px}
+.location-tag i.clear:hover{color:#ef4444}
+
+.section-divider{border:none;border-top:1px solid #f1f5f9;margin:18px 0}
+.section-title{font-size:12px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+
+.btn{width:100%;height:42px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s}
+.btn-primary{background:#3b82f6;color:#fff}
+.btn-primary:hover{background:#2563eb}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+#toast{position:fixed;top:10px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:8px 18px;border-radius:8px;font-size:12px;font-weight:500;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+#toast.show{opacity:1}
+#toast.success{background:#059669}
+#toast.error{background:#dc2626}
+
+@media(max-width:480px){
+  body{padding:16px}
+  .location-search-row{gap:7px}
+  .btn-search-loc{width:70px;height:40px;font-size:12px}
+  .dropdown{right:78px}
+  .form-group input[type="text"]{font-size:16px!important}
+}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+<div id="content"></div>
+
+<script>
+const DATA = __POST_DATA__;
+const d = DATA.device;
+const s = d.settings || {};
+const hasAdminWeather = DATA.hasAdminWeather;
+const hasUserWeather = DATA.hasUserWeather;
+const llmConfigs = DATA.llmConfigs || [];
+const isVip = DATA.isVip;
+
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type ? ' ' + type : '');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.className = '', 2500);
+}
+
+// ========== Custom Select Component ==========
+function createSelect(id, options, selected, placeholder) {
+  const wrap = document.createElement('div');
+  wrap.className = 'custom-select';
+  wrap.id = 'wrap_' + id;
+
+  const trigger = document.createElement('div');
+  trigger.className = 'select-trigger';
+  const selOpt = options.find(o => o.value === selected);
+  trigger.innerHTML = selOpt && !selOpt.disabled
+    ? `<span>${selOpt.label}</span><i class="fas fa-chevron-down arrow"></i>`
+    : `<span class="placeholder">${placeholder || '请选择'}</span><i class="fas fa-chevron-down arrow"></i>`;
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'select-dropdown';
+  options.forEach(opt => {
+    const item = document.createElement('div');
+    item.className = 'select-option' + (opt.value === selected ? ' active' : '') + (opt.disabled ? ' disabled' : '');
+    item.innerHTML = `<span>${opt.label}</span>${opt.vipTag ? '<span class="vip-tag">VIP</span>' : ''}`;
+    if (!opt.disabled) {
+      item.onclick = () => {
+        wrap._value = opt.value;
+        trigger.innerHTML = `<span>${opt.label}</span><i class="fas fa-chevron-down arrow"></i>`;
+        dropdown.classList.remove('show');
+        trigger.classList.remove('open');
+        dropdown.querySelectorAll('.select-option').forEach(o => o.classList.remove('active'));
+        item.classList.add('active');
+      };
+    }
+    dropdown.appendChild(item);
+  });
+
+  trigger.onclick = (e) => {
+    e.stopPropagation();
+    document.querySelectorAll('.select-dropdown.show').forEach(dd => { dd.classList.remove('show'); dd.previousElementSibling.classList.remove('open'); });
+    dropdown.classList.toggle('show');
+    trigger.classList.toggle('open');
+  };
+
+  wrap.appendChild(trigger);
+  wrap.appendChild(dropdown);
+  wrap._value = selected || '';
+  return wrap;
+}
+
+// Close dropdowns on outside click
+document.addEventListener('click', () => {
+  document.querySelectorAll('.select-dropdown.show').forEach(dd => { dd.classList.remove('show'); dd.previousElementSibling.classList.remove('open'); });
+});
+
+// ========== Render ==========
+function render() {
+  const content = document.getElementById('content');
+  content.innerHTML = '';
+
+  // Device name
+  const nameGroup = document.createElement('div');
+  nameGroup.className = 'form-group';
+  nameGroup.innerHTML = '<label>设备名称</label>';
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.id = 'nameInput';
+  nameInput.value = d.device_name || '';
+  nameGroup.appendChild(nameInput);
+  content.appendChild(nameGroup);
+
+  // Section divider: Weather
+  const divider1 = document.createElement('hr');
+  divider1.className = 'section-divider';
+  content.appendChild(divider1);
+  const title1 = document.createElement('div');
+  title1.className = 'section-title';
+  title1.textContent = '天气服务';
+  content.appendChild(title1);
+
+  // Weather API select
+  const weatherGroup = document.createElement('div');
+  weatherGroup.className = 'form-group';
+  weatherGroup.innerHTML = '<label>天气数据来源</label>';
+  const weatherOptions = [
+    { value: '', label: '请选择', disabled: true },
+    { value: 'official', label: '官方 API', disabled: !isVip, vipTag: true },
+    { value: 'custom', label: '自定义 API', disabled: !hasUserWeather, vipTag: false }
+  ];
+  const weatherSelect = createSelect('weatherApi', weatherOptions, s.weather_api, '请选择');
+  weatherGroup.appendChild(weatherSelect);
+  content.appendChild(weatherGroup);
+
+  // Location search
+  const locGroup = document.createElement('div');
+  locGroup.className = 'form-group';
+  locGroup.innerHTML = '<label>设备所在地</label>';
+  const searchWrap = document.createElement('div');
+  searchWrap.className = 'search-wrap';
+  const locRow = document.createElement('div');
+  locRow.className = 'location-search-row';
+  const locInput = document.createElement('input');
+  locInput.type = 'text';
+  locInput.id = 'locInput';
+  locInput.placeholder = '输入城市名称，如 杭州 / 上虞';
+  locInput.autocomplete = 'off';
+  const locBtn = document.createElement('button');
+  locBtn.type = 'button';
+  locBtn.className = 'btn-search-loc';
+  locBtn.id = 'locSearchBtn';
+  locBtn.innerHTML = '<i class="fas fa-magnifying-glass"></i> 搜索';
+  locBtn.onclick = () => searchLocation(locInput.value.trim(), true);
+  locRow.appendChild(locInput);
+  locRow.appendChild(locBtn);
+  searchWrap.appendChild(locRow);
+  const locHint = document.createElement('div');
+  locHint.className = 'search-hint';
+  locHint.id = 'locSearchHint';
+  locHint.innerHTML = '<i class="fas fa-circle-info"></i><span>输入2个字自动搜索，也可按回车或点搜索</span>';
+  searchWrap.appendChild(locHint);
+  const locDropdown = document.createElement('div');
+  locDropdown.className = 'dropdown';
+  locDropdown.id = 'locDropdown';
+  searchWrap.appendChild(locDropdown);
+  locGroup.appendChild(searchWrap);
+
+  // Show saved location
+  if (s.location_name) {
+    const tag = document.createElement('div');
+    tag.className = 'location-tag';
+    tag.id = 'locTag';
+    tag.innerHTML = `<i class="fas fa-map-marker-alt"></i> ${s.location_name} (${s.location_id}) <i class="fas fa-times clear" onclick="clearLocation()"></i>`;
+    locGroup.appendChild(tag);
+  }
+  content.appendChild(locGroup);
+
+  // Location search logic
+  let searchTimer = null;
+  locInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    const q = locInput.value.trim();
+    if (q.length >= 2) {
+      setSearchHint('输入中，稍后自动搜索...', 'searching');
+      searchTimer = setTimeout(() => searchLocation(q, false), 350);
+    } else {
+      locDropdown.classList.remove('show');
+      setSearchHint('输入2个字自动搜索，也可按回车或点搜索', '');
+    }
+  });
+  locInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); clearTimeout(searchTimer); searchLocation(locInput.value.trim(), true); }
+  });
+
+  // Section divider: LLM
+  const divider2 = document.createElement('hr');
+  divider2.className = 'section-divider';
+  content.appendChild(divider2);
+  const title2 = document.createElement('div');
+  title2.className = 'section-title';
+  title2.textContent = '大模型接口';
+  content.appendChild(title2);
+
+  // LLM API select
+  const llmGroup = document.createElement('div');
+  llmGroup.className = 'form-group';
+  llmGroup.innerHTML = '<label>大模型来源</label>';
+  const llmOptions = [
+    { value: '', label: '请选择', disabled: true },
+    { value: 'official', label: '官方大模型', disabled: !isVip, vipTag: true }
+  ];
+  // Add custom models
+  if (llmConfigs.length > 0) {
+    llmConfigs.forEach(c => {
+      llmOptions.push({ value: 'custom_' + c.id, label: c.name || ('模型 #' + c.id), vipTag: false });
+    });
+  } else {
+    llmOptions.push({ value: 'custom_none', label: '暂无自定义模型', disabled: true });
+  }
+  const llmSelect = createSelect('llmApi', llmOptions, s.llm_api, '请选择');
+  llmGroup.appendChild(llmSelect);
+  content.appendChild(llmGroup);
+
+
+  // Save button
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-primary';
+  btn.id = 'saveBtn';
+  btn.textContent = '保存';
+  btn.style.marginTop = '16px';
+  btn.onclick = save;
+  content.appendChild(btn);
+
+  // Store refs
+  window._weatherSelect = weatherSelect;
+  window._llmSelect = llmSelect;
+  window._locId = s.location_id || '';
+  window._locName = s.location_name || '';
+}
+
+// ========== Location Search ==========
+function setSearchHint(msg, type='') {
+  const hint = document.getElementById('locSearchHint');
+  if (!hint) return;
+  hint.className = 'search-hint' + (type ? ' ' + type : '');
+  const icon = type === 'searching' ? 'fa-spinner fa-spin' : (type === 'error' ? 'fa-triangle-exclamation' : (type === 'success' ? 'fa-check-circle' : 'fa-circle-info'));
+  hint.innerHTML = '<i class="fas ' + icon + '"></i><span>' + msg + '</span>';
+}
+async function searchLocation(q, manual=false) {
+  const dd = document.getElementById('locDropdown');
+  const btn = document.getElementById('locSearchBtn');
+  if (!q) { dd.classList.remove('show'); setSearchHint('请输入城市名称后搜索', 'error'); return; }
+  if (q.length < 2) { dd.classList.remove('show'); setSearchHint('至少输入2个字再搜索', 'error'); return; }
+  try {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 搜索'; }
+    setSearchHint((manual ? '正在搜索“' : '自动搜索“') + q + '”...', 'searching');
+    const res = await fetch('/api/weather/search?location=' + encodeURIComponent(q));
+    const data = await res.json();
+    if (data.success && data.locations?.length > 0) {
+      dd.innerHTML = data.locations.map(loc =>
+        `<div class="dropdown-item" onclick="selectLocation('${loc.id}','${loc.name.replace(/'/g,"\'")}')"><i class="fas fa-map-marker-alt"></i><span class="loc-name">${loc.name}</span><span class="loc-detail">${loc.adm1}, ${loc.country}</span></div>`
+      ).join('');
+      dd.classList.add('show');
+      setSearchHint('找到 ' + data.locations.length + ' 个地点，请从下方选择', 'success');
+    } else {
+      dd.innerHTML = '<div class="dropdown-item" style="color:#94a3b8;cursor:default"><i class="fas fa-circle-info"></i> 未找到，换个城市名试试</div>';
+      dd.classList.add('show');
+      setSearchHint('未找到地点，换个关键词试试', 'error');
+    }
+  } catch(e) {
+    setSearchHint('搜索失败，请稍后重试', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-magnifying-glass"></i> 搜索'; }
+  }
+}
+
+function selectLocation(id, name) {
+  window._locId = id;
+  window._locName = name;
+  document.getElementById('locInput').value = '';
+  document.getElementById('locDropdown').classList.remove('show');
+  // Update tag
+  let tag = document.getElementById('locTag');
+  if (!tag) {
+    tag = document.createElement('div');
+    tag.className = 'location-tag';
+    tag.id = 'locTag';
+    document.getElementById('locInput').closest('.form-group').appendChild(tag);
+  }
+  tag.innerHTML = `<i class="fas fa-map-marker-alt"></i> ${name} (${id}) <i class="fas fa-times clear" onclick="clearLocation()"></i>`;
+  setSearchHint('已选择：' + name, 'success');
+}
+
+
+function clearLocation() {
+  window._locId = '';
+  window._locName = '';
+  const tag = document.getElementById('locTag');
+  if (tag) tag.remove();
+  setSearchHint('输入2个字自动搜索，也可按回车或点搜索', '');
+}
+
+
+// ========== Save ==========
+async function save() {
+  const name = document.getElementById('nameInput').value.trim();
+  if (!name) return showToast('名称不能为空', 'error');
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+
+  const weatherApi = window._weatherSelect._value;
+  const llmApi = window._llmSelect._value;
+
+  const body = {
+    device_name: name,
+    settings: {
+      ...s,
+      weather_api: weatherApi,
+      location_id: window._locId,
+      location_name: window._locName,
+      llm_api: llmApi
+    }
+  };
+
+  try {
+    const res = await fetch('/api/devices/' + d.id, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('保存成功', 'success');
+      setTimeout(() => { try { parent.closeModal(); parent.document.querySelector('iframe.active')?.contentWindow?.loadDevice(); } catch(e){} }, 600);
+    } else {
+      showToast(data.error || '保存失败', 'error');
+    }
+  } catch(e) { showToast('网络错误', 'error'); }
+  btn.disabled = false;
+}
+
+render();
+</script>
+</body>
+</html>

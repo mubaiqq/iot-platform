@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f5f6fa;color:#1e293b;padding:16px;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.section{margin-bottom:16px;flex-shrink:0}
+.section-title{font-size:13px;font-weight:600;color:#334155;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.section-title i{color:#3b82f6;font-size:12px}
+.desc{font-size:11px;color:#94a3b8;line-height:1.5;margin-bottom:12px}
+
+/* 变量按钮 */
+.var-trigger{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:all .2s;font-size:13px;font-weight:500;color:#334155}
+.var-trigger:hover{border-color:#3b82f6;color:#3b82f6}
+.var-trigger i{font-size:12px}
+.var-trigger .count{font-size:10px;background:#dbeafe;color:#3b82f6;padding:2px 6px;border-radius:4px;margin-left:auto}
+
+/* 变量弹窗 */
+.var-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.var-modal.show{display:flex}
+.var-modal-content{background:#fff;border-radius:16px;width:100%;max-width:760px;max-height:82vh;display:flex;flex-direction:column}
+.var-modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid #e2e8f0}
+.var-modal-header h3{font-size:16px;font-weight:600}
+.var-modal-close{width:32px;height:32px;border:none;background:#f1f5f9;border-radius:8px;cursor:pointer;font-size:16px;color:#64748b;display:flex;align-items:center;justify-content:center}
+.var-modal-close:hover{background:#e2e8f0}
+.var-modal-body{flex:1;overflow-y:auto;padding:16px}
+.var-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:9px}
+.var-item{display:flex;align-items:center;gap:8px;padding:9px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;font-size:12px;min-height:40px}
+.var-item .var-name{font-weight:600;color:#1e293b;flex:1;min-width:0;line-height:1.35;white-space:normal;word-break:break-word}
+.var-item .var-tag{font-size:10px;padding:2px 6px;border-radius:999px;background:#dbeafe;color:#3b82f6;flex-shrink:0}
+.var-item .var-btns{display:flex;gap:4px;flex-shrink:0}
+.var-btn{width:28px;height:24px;border:none;border-radius:5px;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.var-btn.insert{background:#3b82f6;color:#fff}
+.var-btn.insert:hover{background:#2563eb}
+.var-btn.copy{background:#e2e8f0;color:#475569}
+.var-btn.copy:hover{background:#cbd5e1}
+
+/* 模板选择 */
+.template-bar{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.template-btn{padding:6px 12px;border:1px solid #e2e8f0;border-radius:6px;background:#fff;font-size:11px;font-weight:500;cursor:pointer;transition:all .2s;font-family:'Inter',sans-serif}
+.template-btn:hover{border-color:#3b82f6;color:#3b82f6}
+.template-btn.active{background:#3b82f6;color:#fff;border-color:#3b82f6}
+
+/* 文本框 */
+.prompt-section{flex:1;display:flex;flex-direction:column;min-height:0}
+textarea{width:100%;flex:1;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px;font-size:13px;font-family:monospace;outline:none;resize:none;transition:border-color .2s;line-height:1.7;background:#fff;min-height:120px}
+textarea:focus{border-color:#3b82f6}
+textarea::placeholder{color:#cbd5e1}
+
+/* 预览区 */
+.preview{background:#1e293b;border-radius:10px;padding:12px;margin-top:12px;display:none}
+.preview-title{font-size:11px;color:#64748b;margin-bottom:8px;font-weight:500}
+.preview-content{font-size:12px;color:#a5f3fc;font-family:monospace;line-height:1.6;white-space:pre-wrap;word-break:break-all}
+
+/* 按钮 */
+.btn-row{display:flex;gap:8px;margin-top:14px;flex-shrink:0}
+.btn{flex:1;height:40px;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-primary{background:#3b82f6;color:#fff}
+.btn-primary:hover{background:#2563eb}
+.btn-ghost{background:#fff;color:#475569;border:1px solid #e2e8f0}
+.btn-ghost:hover{background:#f8fafc}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* Toast */
+#toast{position:fixed;top:10px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:8px 18px;border-radius:8px;font-size:12px;font-weight:500;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+#toast.show{opacity:1}
+#toast.success{background:#059669}
+#toast.error{background:#dc2626}
+
+@media(max-width:560px){
+  .var-modal{padding:12px}
+  .var-modal-content{max-width:none;max-height:86vh;border-radius:14px}
+  .var-grid{grid-template-columns:1fr}
+  .var-item{min-height:38px;padding:9px 10px}
+}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+
+<!-- 变量弹窗 -->
+<div class="var-modal" id="varModal" onclick="if(event.target===this)closeVarModal()">
+  <div class="var-modal-content">
+    <div class="var-modal-header">
+      <h3>可用变量</h3>
+      <button class="var-modal-close" onclick="closeVarModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="var-modal-body">
+      <div class="var-grid" id="varGrid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 变量按钮 -->
+<div class="section">
+  <button class="var-trigger" onclick="openVarModal()">
+    <i class="fas fa-code"></i>
+    <span>可用变量</span>
+    <span class="count" id="varCount">0</span>
+  </button>
+</div>
+
+<!-- 模板选择 -->
+<div class="section">
+  <div class="section-title"><i class="fas fa-file-lines"></i> 快速模板</div>
+  <div class="template-bar" id="templateBar"></div>
+</div>
+
+<!-- 提示词编辑 -->
+<div class="section prompt-section">
+  <div class="section-title"><i class="fas fa-pen"></i> 提示词内容</div>
+  <textarea id="promptInput" placeholder="输入自定义提示词，可使用变量如 {{weather}} {{time}} ..."></textarea>
+  
+  <!-- 预览 -->
+  <div class="preview" id="preview">
+    <div class="preview-title"><i class="fas fa-eye"></i> 实时预览（变量已替换）</div>
+    <div class="preview-content" id="previewContent"></div>
+  </div>
+</div>
+
+<!-- 按钮 -->
+<div class="btn-row">
+  <button class="btn btn-ghost" onclick="togglePreview()"><i class="fas fa-eye"></i> 预览</button>
+  <button class="btn btn-primary" onclick="save()" id="saveBtn"><i class="fas fa-check"></i> 保存</button>
+</div>
+
+<script>
+const DATA = __POST_DATA__;
+const d = DATA.device;
+const s = d.settings || {};
+const sensors = DATA.sensors || [];
+
+// 传感器字段定义
+const SENSOR_FIELDS = [
+  { key: 'soil_moisture', label: '土壤湿度', unit: '%' },
+  { key: 'air_humidity', label: '空气湿度', unit: '%' },
+  { key: 'temperature', label: '温度', unit: '℃' },
+  { key: 'light', label: '光照', unit: 'lux' }
+];
+
+// 变量定义
+const VARIABLES = [
+  { name: '{{device_name}}', label: '设备名称', tag: '设备', example: d.device_name || '未命名' },
+  { name: '{{device_code}}', label: '设备编码', tag: '设备', example: d.device_code || '--' },
+  { name: '{{device_type}}', label: '设备类型', tag: '设备', example: d.device_type === 'controller' ? '控制器' : '传感器' },
+  { name: '{{location}}', label: '设备位置', tag: '位置', example: s.location_name || '未设置' },
+  { name: '{{time}}', label: '当前时间', tag: '时间', example: new Date().toLocaleString('zh-CN') },
+  { name: '{{date}}', label: '当前日期', tag: '时间', example: new Date().toLocaleDateString('zh-CN') },
+  { name: '{{weather_current}}', label: '当前天气', tag: '天气', example: '晴，25℃，湿度60%' },
+  { name: '{{weather_today}}', label: '今天天气', tag: '天气', example: '多云转晴，20°/28°' },
+  { name: '{{weather_tomorrow}}', label: '明天天气', tag: '天气', example: '小雨，18°/25°' },
+  { name: '{{weather_day_after}}', label: '后天天气', tag: '天气', example: '阴，19°/26°' },
+  { name: '{{weather}}', label: '完整天气(兼容)', tag: '天气', example: '当前天气+3天预报' },
+  { name: '{{temperature}}', label: '当前温度', tag: '天气', example: '25℃' },
+  { name: '{{humidity}}', label: '当前湿度', tag: '天气', example: '60%' },
+  { name: '{{wind}}', label: '当前风向风力', tag: '天气', example: '东南风3级' },
+  { name: '{{soil_moisture}}', label: '土壤湿度(本机)', tag: '本机', example: '45%' },
+  { name: '{{air_humidity}}', label: '空气湿度(本机)', tag: '本机', example: '55%' },
+  { name: '{{temperature}}', label: '温度(本机)', tag: '本机', example: '25℃' },
+  { name: '{{light}}', label: '光照强度(本机)', tag: '本机', example: '800lux' },
+];
+
+// 动态添加传感器变量
+sensors.forEach(sensor => {
+  const displayName = sensor.device_name || sensor.device_code;
+  SENSOR_FIELDS.forEach(field => {
+    const val = sensor.sensor_data?.[field.key];
+    VARIABLES.push({
+      name: '{{sensor_' + sensor.device_code + '_' + field.key + '}}',
+      label: displayName + ' ' + field.label,
+      tag: '传感器',
+      example: val !== undefined ? val + field.unit : '--'
+    });
+  });
+});
+
+// 模板定义
+const TEMPLATES = [
+  {
+    name: '浇水判断',
+    content: `你是一个专业的植物浇水判断助手。请根据设备、天气、环境数据，判断当前是否应该浇水。
+
+【设备信息】
+设备名称：{{device_name}}
+设备编码：{{device_code}}
+设备位置：{{location}}
+当前时间：{{time}}
+
+【天气信息】
+当前天气：{{weather_current}}
+今天预报：{{weather_today}}
+明天预报：{{weather_tomorrow}}
+后天预报：{{weather_day_after}}
+
+【本机传感器数据】
+土壤湿度：{{soil_moisture}}
+空气湿度：{{air_humidity}}
+环境温度：{{temperature}}
+光照强度：{{light}}
+
+【判断要求】
+1. 优先参考土壤湿度：土壤明显偏干时倾向浇水，土壤湿度较高时不要浇水。
+2. 结合未来天气：如果今天或明天有明显降雨，应减少或避免浇水。
+3. 结合温度和光照：高温、强光、空气干燥时可适当提高浇水倾向。
+4. 如果关键数据缺失，请根据已有信息保守判断，不要过度浇水。
+5. 只输出 JSON，不要输出解释文字、Markdown 或代码块。
+
+【输出格式】
+{
+  "should_water": true或false,
+  "reason": "一句话简短理由"
+}`
+  }
+];
+
+// 打开变量弹窗
+function openVarModal() {
+  document.getElementById('varModal').classList.add('show');
+}
+
+// 关闭变量弹窗
+function closeVarModal() {
+  document.getElementById('varModal').classList.remove('show');
+}
+
+// 初始化变量面板
+function initVarGrid() {
+  const grid = document.getElementById('varGrid');
+  document.getElementById('varCount').textContent = VARIABLES.length;
+  
+  grid.innerHTML = VARIABLES.map(v => `
+    <div class="var-item" title="${v.example}">
+      <span class="var-name">${v.label}</span>
+      <span class="var-tag">${v.tag}</span>
+      <div class="var-btns">
+        <button class="var-btn insert" onclick="insertVar('${v.name}')" title="插入"><i class="fas fa-arrow-down"></i></button>
+        <button class="var-btn copy" onclick="copyVar('${v.name}')" title="复制"><i class="fas fa-copy"></i></button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// 初始化模板栏
+function initTemplateBar() {
+  const bar = document.getElementById('templateBar');
+  bar.innerHTML = TEMPLATES.map((t, i) => `
+    <button class="template-btn" onclick="applyTemplate(${i})">${t.name}</button>
+  `).join('');
+}
+
+// 插入变量到文本框
+function insertVar(varName) {
+  const textarea = document.getElementById('promptInput');
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const text = textarea.value;
+  textarea.value = text.substring(0, start) + varName + text.substring(end);
+  textarea.selectionStart = textarea.selectionEnd = start + varName.length;
+  textarea.focus();
+  closeVarModal();
+  showToast('已插入: ' + varName, 'success');
+}
+
+// 复制变量
+function copyVar(varName) {
+  navigator.clipboard.writeText(varName).then(() => {
+    showToast('已复制: ' + varName, 'success');
+  });
+}
+
+// 应用模板
+function applyTemplate(index) {
+  const template = TEMPLATES[index];
+  document.getElementById('promptInput').value = template.content;
+  
+  // 更新按钮状态
+  document.querySelectorAll('.template-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i === index);
+  });
+  
+  showToast('已应用模板: ' + template.name, 'success');
+}
+
+// 预览
+function togglePreview() {
+  const preview = document.getElementById('preview');
+  const show = preview.style.display === 'none' || !preview.style.display;
+  preview.style.display = show ? 'block' : 'none';
+  
+  if (show) {
+    updatePreview();
+  }
+}
+
+function updatePreview() {
+  let content = document.getElementById('promptInput').value;
+  
+  // 替换变量
+  VARIABLES.forEach(v => {
+    content = content.replace(new RegExp(v.name.replace(/[{}]/g, '\\$&'), 'g'), v.example);
+  });
+  
+  document.getElementById('previewContent').textContent = content;
+}
+
+// 保存
+async function save() {
+  const prompt = document.getElementById('promptInput').value.trim();
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  
+  try {
+    const res = await fetch('/api/devices/' + d.id, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ settings: { ...s, prompt } })
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+      showToast('保存成功', 'success');
+      setTimeout(() => {
+        try {
+          parent.closeModal();
+          parent.document.querySelector('iframe.active')?.contentWindow?.loadDevice();
+        } catch(e) {}
+      }, 600);
+    } else {
+      showToast(data.error || '保存失败', 'error');
+    }
+  } catch(e) {
+    showToast('网络错误', 'error');
+  }
+  
+  btn.disabled = false;
+}
+
+// Toast
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type ? ' ' + type : '');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.className = '', 2500);
+}
+
+// 初始化
+initVarGrid();
+initTemplateBar();
+
+// 加载已保存的提示词
+document.getElementById('promptInput').value = s.prompt || '';
+
+// 输入时实时更新预览
+document.getElementById('promptInput').addEventListener('input', () => {
+  if (document.getElementById('preview').style.display === 'block') {
+    updatePreview();
+  }
+});
+
+// ESC关闭弹窗
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeVarModal();
+});
+</script>
+</body>
+</html>

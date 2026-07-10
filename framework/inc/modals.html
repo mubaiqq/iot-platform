@@ -1,0 +1,80 @@
+<div class="toast" id="toast"></div>
+
+<!-- Confirm Dialog -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box" id="confirmBox">
+    <div class="confirm-icon" id="confirmIcon"><i class="fas fa-question"></i></div>
+    <h3 class="confirm-title" id="confirmTitle"></h3>
+    <p class="confirm-msg" id="confirmMsg"></p>
+    <div class="confirm-actions">
+      <button class="confirm-btn confirm-cancel" id="confirmCancel">取消</button>
+      <button class="confirm-btn confirm-ok" id="confirmOk">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box" id="modalBox">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle"></div>
+      <button class="modal-fullscreen icon-desktop" id="modalFullscreen" title="全屏"><i class="fas fa-expand"></i></button>
+      <button class="modal-close" id="modalClose"><i class="fas fa-chevron-down icon-mobile"></i><i class="fas fa-xmark icon-desktop"></i></button>
+    </div>
+    <div class="modal-body">
+      <iframe class="modal-iframe" id="modalIframe"></iframe>
+      <div class="modal-loading" id="modalLoading">
+        <div class="modal-spinner"></div>
+        <span>加载中...</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-context-menu" id="tabContextMenu">
+  <a href="javascript:;" onclick="closeTab(contextTabId)">关闭当前</a>
+  <a href="javascript:;" onclick="closeOtherTabs()">关闭其他</a>
+  <a href="javascript:;" onclick="closeAllTabs()">关闭全部</a>
+</div>
+
+<!-- Theme Panel -->
+<div class="theme-overlay" id="themeOverlay" onclick="toggleThemePanel()"></div>
+<div class="theme-panel" id="themePanel">
+  <div class="theme-panel-hd">
+    <h3><i class="fas fa-palette"></i> 主题设置</h3>
+    <button class="theme-panel-close" onclick="toggleThemePanel()"><i class="fas fa-xmark"></i></button>
+  </div>
+  <div class="theme-panel-body">
+    <div class="theme-sec">
+      <div class="theme-sec-title">主题模式</div>
+      <div class="theme-mode-grid">
+        <button class="theme-mode-btn active" data-mode="light" onclick="setThemeMode('light')">
+          <i class="mi fas fa-sun"></i><span class="ml">浅色</span>
+        </button>
+        <button class="theme-mode-btn" data-mode="dark" onclick="setThemeMode('dark')">
+          <i class="mi fas fa-moon"></i><span class="ml">深色</span>
+        </button>
+      </div>
+    </div>
+    <div class="theme-sec">
+      <div class="theme-sec-title">头部颜色</div>
+      <div class="color-grid">
+        <button class="color-btn active" style="background:#fff" data-header-color="default" onclick="setHeaderColor('default')"></button>
+        <button class="color-btn" style="background:#1e40af" data-header-color="blue" onclick="setHeaderColor('blue')"></button>
+        <button class="color-btn" style="background:#1e293b" data-header-color="dark" onclick="setHeaderColor('dark')"></button>
+        <button class="color-btn" style="background:#7c3aed" data-header-color="purple" onclick="setHeaderColor('purple')"></button>
+        <button class="color-btn" style="background:#059669" data-header-color="green" onclick="setHeaderColor('green')"></button>
+      </div>
+    </div>
+    <div class="theme-sec">
+      <div class="theme-sec-title">侧栏颜色</div>
+      <div class="color-grid">
+        <button class="color-btn active" style="background:#fff" data-sidebar-color="default" onclick="setSidebarColor('default')"></button>
+        <button class="color-btn" style="background:#1e293b" data-sidebar-color="blue" onclick="setSidebarColor('blue')"></button>
+        <button class="color-btn" style="background:#0f172a" data-sidebar-color="dark" onclick="setSidebarColor('dark')"></button>
+        <button class="color-btn" style="background:#374151" data-sidebar-color="gray" onclick="setSidebarColor('gray')"></button>
+      </div>
+    </div>
+    <button class="theme-reset-btn" onclick="resetTheme()"><i class="fas fa-rotate-left"></i> 恢复默认设置</button>
+  </div>
+</div>

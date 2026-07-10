@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>安全设置</title>
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,sans-serif;background:#f5f6fa;color:#1e293b;padding:16px 14px 60px;min-height:100vh}
+
+.section-title{font-size:12px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px;padding:0 2px}
+
+.form-card{background:#fff;border-radius:14px;border:1px solid #eef0f4;padding:20px}
+.form-group{margin-bottom:16px}
+.form-group:last-of-type{margin-bottom:0}
+.form-group label{font-size:13px;font-weight:600;color:#334155;display:block;margin-bottom:6px}
+.form-group .hint{font-size:11px;color:#94a3b8;margin-top:4px}
+.form-input{width:100%;height:44px;border:1.5px solid #e2e8f0;border-radius:10px;padding:0 14px;font-size:14px;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s;background:#fff}
+.form-input:focus{border-color:#3b82f6}
+.form-input.error{border-color:#ef4444}
+.form-input::placeholder{color:#cbd5e1}
+
+.btn-row{display:flex;gap:8px;margin-top:20px}
+.btn{flex:1;height:44px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-primary{background:#3b82f6;color:#fff}
+.btn-primary:hover{background:#2563eb}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;background:#94a3b8}
+.btn-primary.success{background:#059669}
+.btn-primary.error{background:#ef4444}
+.btn-ghost{background:#fff;color:#475569;border:1px solid #e2e8f0}
+.btn-ghost:hover{background:#f8fafc}
+
+/* Password strength */
+.strength-bar{height:4px;border-radius:4px;background:#e2e8f0;margin-top:6px;overflow:hidden}
+.strength-fill{height:100%;border-radius:4px;transition:width .3s,background .3s}
+.strength-text{font-size:10px;margin-top:3px;font-weight:500}
+
+/* Toast */
+#toast{position:fixed;top:16px;left:50%;transform:translateX(-50%) translateY(-20px);background:#1e293b;color:#fff;padding:10px 20px;border-radius:10px;font-size:12px;font-weight:500;z-index:999;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.15)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.success{background:#059669}
+#toast.error{background:#ef4444}
+
+/* Info card */
+.info-card{background:#fff;border-radius:14px;border:1px solid #eef0f4;overflow:hidden}
+.info-row{display:flex;align-items:center;padding:14px 16px;gap:12px}
+.info-row+.info-row{border-top:1px solid #f1f5f9}
+.info-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.info-icon.blue{background:#eff6ff;color:#3b82f6}
+.info-icon.green{background:#ecfdf5;color:#059669}
+.info-icon.orange{background:#fff7ed;color:#f59e0b}
+.info-body{flex:1;min-width:0}
+.info-label{font-size:12px;color:#94a3b8;margin-bottom:1px}
+.info-value{font-size:14px;font-weight:600;color:#1e293b}
+.info-value.small{font-size:12px;font-weight:500;color:#475569}
+
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px}
+.toggle-row+.toggle-row{border-top:1px solid #f1f5f9}
+.toggle-label .title{font-size:13px;font-weight:500;color:#1e293b}
+.toggle-label .desc{font-size:11px;color:#94a3b8;margin-top:1px}
+.switch{position:relative;width:44px;height:26px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.switch .slider{position:absolute;inset:0;background:#d1d5db;border-radius:26px;cursor:pointer;transition:.25s}
+.switch .slider::before{content:'';position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.switch input:checked+.slider{background:#3b82f6}
+.switch input:checked+.slider::before{transform:translateX(18px)}
+
+@media(max-width:480px){
+  body{padding:10px 10px 60px}
+  .form-input{font-size:16px}
+}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+
+<div class="section-title">修改密码</div>
+<div class="form-card">
+  <div class="form-group">
+    <label>当前密码</label>
+    <input type="password" class="form-input" id="oldPassword" placeholder="输入当前密码">
+  </div>
+  <div class="form-group">
+    <label>新密码</label>
+    <input type="password" class="form-input" id="newPassword" placeholder="至少6位" oninput="checkStrength()">
+    <div class="strength-bar"><div class="strength-fill" id="strengthFill" style="width:0"></div></div>
+    <div class="strength-text" id="strengthText"></div>
+  </div>
+  <div class="form-group">
+    <label>确认新密码</label>
+    <input type="password" class="form-input" id="confirmPassword" placeholder="再次输入新密码">
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="submitBtn" onclick="changePassword()"><i class="fas fa-check"></i> 修改密码</button>
+  </div>
+</div>
+
+<div class="section-title">账号安全</div>
+<div class="info-card">
+  <div class="info-row">
+    <div class="info-icon green"><i class="fas fa-shield-halved"></i></div>
+    <div class="info-body">
+      <div class="info-label">密码强度</div>
+      <div class="info-value" id="pwdStatus">已设置</div>
+    </div>
+  </div>
+  <div class="info-row">
+    <div class="info-icon blue"><i class="fas fa-cookie-bite"></i></div>
+    <div class="info-body">
+      <div class="info-label">登录保持</div>
+      <div class="info-value small">Cookie 365天自动保持</div>
+    </div>
+  </div>
+  <div class="toggle-row">
+    <div class="toggle-label">
+      <div class="title"><i class="fas fa-desktop" style="margin-right:6px;color:#3b82f6"></i>多设备登录</div>
+      <div class="desc" id="multiDesc">关闭后新设备登录会踢掉其他设备</div>
+    </div>
+    <label class="switch">
+      <input type="checkbox" id="multiToggle" onchange="toggleMultiLogin(this.checked)">
+      <span class="slider"></span>
+    </label>
+  </div>
+</div>
+
+<div class="section-title" style="margin-top:20px">危险操作</div>
+<div class="info-card">
+  <div class="toggle-row" style="cursor:pointer" onclick="logoutAll()">
+    <div class="toggle-label">
+      <div class="title" style="color:#ef4444"><i class="fas fa-right-from-bracket" style="margin-right:6px"></i>退出所有设备</div>
+      <div class="desc">清除所有设备的登录状态，需要重新登录</div>
+    </div>
+    <i class="fas fa-chevron-right" style="color:#cbd5e1;font-size:12px"></i>
+  </div>
+</div>
+
+<script>
+function showToast(msg,type){
+  var t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='show'+(type?' '+type:'');
+  clearTimeout(t._tid);
+  t._tid=setTimeout(function(){t.className=''},2500);
+}
+
+function checkStrength(){
+  var pwd=document.getElementById('newPassword').value;
+  var fill=document.getElementById('strengthFill');
+  var text=document.getElementById('strengthText');
+  if(!pwd){fill.style.width='0';text.textContent='';return}
+  var score=0;
+  if(pwd.length>=6)score++;
+  if(pwd.length>=10)score++;
+  if(/[a-z]/.test(pwd)&&/[A-Z]/.test(pwd))score++;
+  if(/\d/.test(pwd))score++;
+  if(/[^a-zA-Z0-9]/.test(pwd))score++;
+  var levels=[
+    {w:'20%',c:'#ef4444',t:'弱'},
+    {w:'40%',c:'#f59e0b',t:'较弱'},
+    {w:'60%',c:'#f59e0b',t:'一般'},
+    {w:'80%',c:'#3b82f6',t:'较强'},
+    {w:'100%',c:'#059669',t:'强'}
+  ];
+  var lv=levels[Math.min(score,4)];
+  fill.style.width=lv.w;
+  fill.style.background=lv.c;
+  text.textContent='密码强度：'+lv.t;
+  text.style.color=lv.c;
+}
+
+async function changePassword(){
+  var old=document.getElementById('oldPassword').value;
+  var pwd=document.getElementById('newPassword').value;
+  var confirm=document.getElementById('confirmPassword').value;
+  var btn=document.getElementById('submitBtn');
+
+  if(!old){showToast('请输入当前密码','error');return}
+  if(!pwd||pwd.length<6){showToast('新密码至少6位','error');return}
+  if(pwd!==confirm){showToast('两次密码不一致','error');return}
+  if(old===pwd){showToast('新密码不能和旧密码相同','error');return}
+
+  btn.disabled=true;
+  btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> 修改中...';
+
+  try{
+    var res=await fetch('/api/account/password',{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({oldPassword:old,newPassword:pwd})
+    });
+    var data=await res.json();
+    if(data.success||res.ok){
+      btn.className='btn btn-primary success';
+      btn.innerHTML='<i class="fas fa-check"></i> 修改成功';
+      showToast('密码已修改，请重新登录','success');
+      setTimeout(function(){window.location.href='/login'},2000);
+    } else {
+      throw new Error(data.error||'修改失败');
+    }
+  } catch(e){
+    btn.className='btn btn-primary error';
+    btn.innerHTML='<i class="fas fa-times"></i> 失败';
+    showToast(e.message,'error');
+    setTimeout(function(){
+      btn.disabled=false;
+      btn.className='btn btn-primary';
+      btn.innerHTML='<i class="fas fa-check"></i> 修改密码';
+    },2000);
+  }
+}
+
+// Load multi-login setting
+fetch('/api/account/multi-login').then(function(r){return r.json()}).then(function(data){
+  if(data.success){
+    document.getElementById('multiToggle').checked=data.enabled;
+    updateMultiDesc(data.enabled);
+  }
+});
+
+function updateMultiDesc(enabled){
+  document.getElementById('multiDesc').textContent=enabled?'多设备可同时在线':'关闭后新设备登录会踢掉其他设备';
+}
+
+async function toggleMultiLogin(on){
+  try{
+    var res=await fetch('/api/account/multi-login',{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({enabled:on})
+    });
+    var data=await res.json();
+    if(!data.success) throw new Error(data.error);
+    updateMultiDesc(on);
+    showToast(on?'已开启多设备登录':'已关闭，其他设备将被踢下线','success');
+  }catch(e){
+    document.getElementById('multiToggle').checked=!on;
+    showToast(e.message,'error');
+  }
+}
+
+async function logoutAll(){
+  if(!confirm('确定退出所有设备？'))return;
+  try{
+    await fetch('/api/logout',{method:'POST'});
+    showToast('已退出','success');
+    setTimeout(function(){window.location.href='/login'},800);
+  }catch(e){
+    showToast('操作失败','error');
+  }
+}
+</script>
+</body>
+</html>

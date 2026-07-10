@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>添加设备 - 木白云iot</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f5f6fa;color:#1e293b;min-height:100vh;padding:20px}
+.card{background:#fff;border-radius:14px;border:1px solid #eef0f4;padding:24px;margin-bottom:16px}
+.card-title{font-size:18px;font-weight:600;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.card-title i{color:#3b82f6}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:14px;font-weight:500;color:#475569;margin-bottom:6px}
+.input-wrapper{position:relative;display:flex;align-items:center}
+.input-wrapper i.prefix-icon{position:absolute;left:14px;color:#94a3b8;font-size:16px;transition:color .2s}
+.input-wrapper i.prefix-icon.active-k{color:#3b82f6}
+.input-wrapper i.prefix-icon.active-c{color:#10b981}
+input[type="text"]{width:100%;padding:12px 14px 12px 42px;border:1px solid #e2e8f0;border-radius:8px;font-size:15px;font-family:inherit;outline:none;transition:border-color .2s;background:#f8fafc}
+input[type="text"]:focus{border-color:#3b82f6;background:#fff}
+input[type="text"].no-icon{padding-left:14px}
+input::placeholder{color:#94a3b8}
+.hint-card{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:#1e40af;line-height:1.7}
+.hint-card i{margin-right:4px}
+.btn-primary{width:100%;padding:13px;border:none;border-radius:8px;background:#3b82f6;color:#fff;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-primary:hover{background:#2563eb}
+.btn-primary:active{transform:scale(.98)}
+.btn-primary:disabled{opacity:.6;cursor:not-allowed}
+.toast-container{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{padding:12px 20px;border-radius:10px;font-size:14px;font-weight:500;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.12);animation:toastIn .3s ease;pointer-events:auto;max-width:90vw;text-align:center}
+.toast.success{background:#22c55e}
+.toast.error{background:#ef4444}
+@keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes toastOut{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-12px)}}
+@media(max-width:600px){
+  body{padding:12px}
+  .card{padding:18px}
+  input[type="text"]{font-size:16px!important;padding:14px 14px 14px 42px}
+  input[type="text"].no-icon{padding-left:14px}
+  .btn-primary{font-size:16px;padding:14px}
+}
+</style>
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="card">
+  <div class="card-title"><i class="fas fa-plus-circle"></i> 添加设备</div>
+  <form id="addDeviceForm" onsubmit="handleSubmit(event)">
+    <div class="form-group">
+      <label>设备码 <span style="color:#ef4444">*</span></label>
+      <div class="input-wrapper">
+        <i class="fas fa-microchip prefix-icon" id="codeIcon"></i>
+        <input type="text" id="device_code" name="device_code" required placeholder="输入设备码，如 K001A 或 C002B" oninput="updateIcon()">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>设备名称 <span style="color:#94a3b8;font-weight:400">（选填）</span></label>
+      <div class="input-wrapper">
+        <input type="text" id="device_name" name="device_name" placeholder="自定义设备名称，留空自动生成" class="no-icon">
+      </div>
+    </div>
+    <button type="submit" class="btn-primary" id="submitBtn"><i class="fas fa-plus"></i> 添加设备</button>
+  </form>
+</div>
+
+<script>
+function fillDeviceCode(code, pendingId) {
+  document.getElementById('device_code').value = code;
+  window._pendingId = pendingId;
+  updateIcon();
+  showToast('已填入设备码: ' + code, 'success');
+}
+
+function consumePendingSelection() {
+  try {
+    const raw = localStorage.getItem('iot_pending_bind');
+    if (!raw) return;
+    localStorage.removeItem('iot_pending_bind');
+    const d = JSON.parse(raw);
+    if (d && d.device_code) {
+      fillDeviceCode(d.device_code, d.id || d.pending_id || null);
+      const nameEl = document.getElementById('device_name');
+      if (nameEl && !nameEl.value) nameEl.focus();
+    }
+  } catch(e) {}
+}
+
+setTimeout(consumePendingSelection, 80);
+
+function updateIcon(){
+  const code=document.getElementById('device_code').value.trim().toUpperCase();
+  const icon=document.getElementById('codeIcon');
+  icon.className='fas prefix-icon';
+  if(code.startsWith('K')){
+    icon.classList.add('fa-faucet','active-k');
+  }else if(code.startsWith('C')){
+    icon.classList.add('fa-microchip','active-c');
+  }else{
+    icon.classList.add('fa-microchip');
+  }
+}
+
+function showToast(msg,type){
+  const c=document.getElementById('toastContainer');
+  const t=document.createElement('div');
+  t.className='toast '+type;
+  t.textContent=msg;
+  c.appendChild(t);
+  setTimeout(()=>{t.style.animation='toastOut .3s ease forwards';setTimeout(()=>t.remove(),300)},3000);
+}
+
+async function handleSubmit(e){
+  e.preventDefault();
+  const code=document.getElementById('device_code').value.trim();
+  const name=document.getElementById('device_name').value.trim();
+  if(!code){showToast('请输入设备码','error');return;}
+  const btn=document.getElementById('submitBtn');
+  btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> 添加中...';
+  try{
+    const body={device_code:code};
+    if(name)body.device_name=name;
+    const res=await fetch('/api/devices',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data=await res.json();
+    if(data.success){
+      showToast('设备添加成功！','success');
+      btn.className='btn-primary';
+      btn.style.background='#16a34a';
+      btn.innerHTML='<i class="fas fa-check"></i> 添加成功';
+      // 删除待绑定记录
+      if(window._pendingId) {
+        fetch('/api/esp32/pending/' + window._pendingId, {method:'DELETE'}).catch(()=>{});
+        window._pendingId = null;
+      }
+      document.getElementById('addDeviceForm').reset();
+      updateIcon();
+      try{
+        parent.__deviceListDirty=true;
+        if(parent.refreshDeviceViews) parent.refreshDeviceViews();
+        localStorage.setItem('iot_devices_changed', String(Date.now()));
+      }catch(e){}
+      // 先让用户看到成功反馈，再关闭弹窗；父页面关闭后也会再次刷新列表
+      setTimeout(()=>{
+        try{
+          if(parent.refreshDeviceViews) parent.refreshDeviceViews();
+          parent.closeModal();
+        }catch(e){}
+      },700);
+    }else{
+      showToast(data.error||data.message||'添加失败，请重试','error');
+      btn.disabled=false;btn.style.background='';btn.innerHTML='<i class="fas fa-plus"></i> 添加设备';
+    }
+  }catch(err){
+    showToast('网络错误，请检查连接','error');
+    btn.disabled=false;btn.style.background='';btn.innerHTML='<i class="fas fa-plus"></i> 添加设备';
+  }
+}
+</script>
+</body>
+</html>

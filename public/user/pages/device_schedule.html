@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f5f6fa;color:#1e293b;padding:16px;font-size:14px;-webkit-tap-highlight-color:transparent}
+
+.notice{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#92400e;display:flex;align-items:flex-start;gap:8px}
+.notice i{color:#f59e0b;margin-top:2px;flex-shrink:0}
+
+.top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.top-bar .left{font-size:15px;font-weight:600}
+.top-bar .count{font-size:11px;color:#94a3b8;background:#f1f5f9;padding:2px 8px;border-radius:10px}
+.btn-publish{height:34px;padding:0 16px;border:none;border-radius:8px;background:#3b82f6;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:5px;transition:all .2s}
+.btn-publish:hover{background:#2563eb}
+.btn-publish:disabled{opacity:.5;cursor:not-allowed}.btn-publish.success{background:#059669!important}.btn-publish.error{background:#ef4444!important}
+
+.task-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px}
+.task-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.task-num{font-size:13px;font-weight:600;color:#3b82f6}
+.task-actions{display:flex;gap:6px}
+.btn-sm{height:28px;padding:0 10px;border:none;border-radius:6px;font-size:11px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif}
+.btn-save{background:#dbeafe;color:#3b82f6;transition:all .2s}
+.btn-save:hover{background:#bfdbfe}
+.btn-save.success{background:#059669!important;color:#fff!important}
+.btn-save.error{background:#ef4444!important;color:#fff!important}
+.btn-del{background:#fef2f2;color:#ef4444}
+.btn-del:hover{background:#fee2e2}
+.btn-sm:disabled{opacity:.5;cursor:not-allowed}
+
+.task-body{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:11px;color:#64748b;font-weight:500}
+.field input[type="time"],
+.field input[type="number"]{height:34px;border:1.5px solid #e2e8f0;border-radius:8px;padding:0 10px;font-size:13px;font-family:'Inter',sans-serif;outline:none}
+.field input:focus{border-color:#3b82f6}
+
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0}
+.toggle-row+.toggle-row{border-top:1px solid #f1f5f9}
+.toggle-label{font-size:12px;color:#475569}
+.toggle-desc{font-size:10px;color:#94a3b8;margin-top:1px}
+.switch{position:relative;width:40px;height:24px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.switch .slider{position:absolute;inset:0;background:#d1d5db;border-radius:24px;cursor:pointer;transition:.25s}
+.switch .slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.switch input:checked+.slider{background:#3b82f6}
+.switch input:checked+.slider::before{transform:translateX(16px)}
+
+.btn-add{width:100%;height:40px;border:1.5px dashed #cbd5e1;border-radius:10px;background:transparent;color:#64748b;font-size:13px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px}
+.btn-add:hover{border-color:#3b82f6;color:#3b82f6}
+.btn-add:disabled{opacity:.4;cursor:not-allowed}
+
+.task-card.highlight{animation:highlightPulse 2s ease;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+@keyframes highlightPulse{
+  0%{box-shadow:0 0 0 3px rgba(59,130,246,.4)}
+  100%{box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+}
+.task-card .field input.time-duplicate{border-color:#ef4444;background:#fef2f2}
+.task-card .field input.time-valid{border-color:#22c55e}
+
+.empty{text-align:center;padding:40px 0;color:#94a3b8}
+.empty i{font-size:32px;margin-bottom:8px;display:block;opacity:.4}
+
+#toast{position:fixed;top:10px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:8px 18px;border-radius:8px;font-size:12px;font-weight:500;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+#toast.show{opacity:1}
+#toast.success{background:#059669}
+#toast.error{background:#dc2626}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+
+<div class="notice">
+  <i class="fas fa-info-circle"></i>
+  <div>点击每个任务的「保存」会立即保存到数据库；点击右上角「发布」会再推送给设备生效。</div>
+</div>
+
+<div class="top-bar">
+  <div class="left">计划任务 <span class="count" id="taskCount">0/10</span></div>
+  <button class="btn-publish" id="publishBtn" onclick="publishAll()"><i class="fas fa-cloud-arrow-up"></i> 发布</button>
+</div>
+
+<div id="taskList"></div>
+<button class="btn-add" id="addBtn" onclick="addTask()"><i class="fas fa-plus"></i> 添加计划</button>
+
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script>
+const DATA = __POST_DATA__;
+const deviceId = DATA.device_id;
+let device = null;
+let schedules = [];
+
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type ? ' ' + type : '');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.className = '', 2500);
+}
+function showConfirm(msg) {
+  return new Promise(resolve => {
+    const mask = document.createElement('div');
+    mask.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.35);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px';
+    mask.innerHTML = '<div style="width:min(300px,100%);background:#fff;border-radius:16px;padding:18px;text-align:center"><div style="font-size:15px;font-weight:700;margin-bottom:8px">确认删除</div><div style="font-size:12px;color:#64748b;line-height:1.6">'+msg+'</div><div style="display:flex;gap:10px;margin-top:16px"><button class="confirm-cancel" style="flex:1;height:36px;border:0;border-radius:9px;background:#f1f5f9;color:#64748b;font-weight:700">取消</button><button class="confirm-ok" style="flex:1;height:36px;border:0;border-radius:9px;background:#ef4444;color:#fff;font-weight:700">删除</button></div></div>';
+    document.body.appendChild(mask);
+    mask.querySelector('.confirm-cancel').onclick = () => { mask.remove(); resolve(false); };
+    mask.querySelector('.confirm-ok').onclick = () => { mask.remove(); resolve(true); };
+    mask.onclick = e => { if (e.target === mask) { mask.remove(); resolve(false); } };
+  });
+}
+
+
+// 时间工具函数
+function timeToMinutes(t) {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+// 检查单个任务的时间是否有重复或间隔过近
+function checkTimeDuplicate(idx) {
+  const input = document.getElementById('time_' + idx);
+  if (!input) return true;
+  
+  const currentTime = input.value;
+  if (!currentTime) return true;
+  
+  const currentMinutes = timeToMinutes(currentTime);
+  let hasDuplicate = false;
+  let tooClose = false;
+  
+  // 收集所有其他任务的时间
+  for (let i = 0; i < schedules.length; i++) {
+    if (i === idx) continue;
+    const otherTime = schedules[i].time;
+    if (!otherTime) continue;
+    
+    const otherMinutes = timeToMinutes(otherTime);
+    const diff = Math.abs(currentMinutes - otherMinutes);
+    
+    if (diff === 0) {
+      hasDuplicate = true;
+    } else if (diff < 10) {
+      tooClose = true;
+    }
+  }
+  
+  // 更新输入框样式
+  input.classList.remove('time-duplicate', 'time-valid');
+  if (hasDuplicate) {
+    input.classList.add('time-duplicate');
+    return { valid: false, msg: '时间重复，不能添加相同时刻的任务' };
+  } else if (tooClose) {
+    input.classList.add('time-duplicate');
+    return { valid: false, msg: '间隔必须大于10分钟' };
+  } else {
+    input.classList.add('time-valid');
+    return { valid: true };
+  }
+}
+
+// 检查所有任务的时间
+function checkAllTimeDuplicates() {
+  for (let i = 0; i < schedules.length; i++) {
+    checkTimeDuplicate(i);
+  }
+}
+
+// 校验所有任务，返回是否有效
+function validateAllTasks() {
+  // 先从输入框读取最新值
+  for (let i = 0; i < schedules.length; i++) {
+    const timeInput = document.getElementById('time_' + i);
+    const durationInput = document.getElementById('duration_' + i);
+    const enabledInput = document.getElementById('enabled_' + i);
+    const fixedInput = document.getElementById('fixed_' + i);
+    
+    if (timeInput) schedules[i].time = timeInput.value;
+    if (durationInput) schedules[i].duration = parseInt(durationInput.value) || 30;
+    if (enabledInput) schedules[i].enabled = enabledInput.checked;
+    if (fixedInput) schedules[i].fixed_watering = fixedInput.checked;
+  }
+  
+  // 校验每个任务的时间
+  for (let i = 0; i < schedules.length; i++) {
+    const result = checkTimeDuplicate(i);
+    if (result && !result.valid) {
+      showToast(result.msg, 'error');
+      document.getElementById('time_' + i)?.focus();
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+async function loadDevice() {
+  try {
+    const res = await fetch('/api/devices/' + deviceId);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    device = data.device;
+    schedules = (device.settings && device.settings.schedules) || [];
+    renderTasks();
+  } catch(e) {
+    showToast('加载失败: ' + e.message, 'error');
+  }
+}
+
+function renderTasks() {
+  // 按时间排序
+  schedules.sort((a, b) => (a.time || '00:00').localeCompare(b.time || '00:00'));
+  
+  const list = document.getElementById('taskList');
+  document.getElementById('taskCount').textContent = schedules.length + '/10';
+  document.getElementById('addBtn').disabled = schedules.length >= 10;
+  
+  if (schedules.length === 0) {
+    list.innerHTML = '<div class="empty"><i class="fas fa-clock"></i><p>暂无计划任务</p></div>';
+    return;
+  }
+  
+  list.innerHTML = schedules.map((task, i) => `
+    <div class="task-card${task._highlight ? ' highlight' : ''}" data-index="${i}">
+      <div class="task-header">
+        <div class="task-num">#${i + 1}</div>
+        <div class="task-actions">
+          <button class="btn-sm btn-save" onclick="saveTask(${i})"><i class="fas fa-check"></i> 保存</button>
+          <button class="btn-sm btn-del" onclick="deleteTask(${i})"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+      <div class="task-body">
+        <div class="field">
+          <label>执行时间</label>
+          <input type="time" id="time_${i}" value="${task.time || '08:00'}" onchange="checkTimeDuplicate(${i})">
+        </div>
+        <div class="field">
+          <label>浇水时长 (秒)</label>
+          <input type="number" id="duration_${i}" value="${task.duration || 30}" min="1" max="600">
+        </div>
+      </div>
+      <div style="margin-top:10px">
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">启用任务</div>
+            <div class="toggle-desc">关闭后此任务不会执行</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="enabled_${i}" ${task.enabled ? 'checked' : ''}>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">固定浇水</div>
+            <div class="toggle-desc">开启=定时直接浇水，关闭=AI智能判断</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="fixed_${i}" ${task.fixed_watering ? 'checked' : ''}>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  
+  // 清除高亮标记
+  schedules.forEach(t => delete t._highlight);
+  
+  // 初始检查时间重复
+  setTimeout(() => checkAllTimeDuplicates(), 50);
+}
+
+function addTask() {
+  if (schedules.length >= 10) { showToast('最多10组', 'error'); return; }
+  
+  // 计算当前时间+1分钟作为默认时间
+  const now = new Date();
+  now.setMinutes(now.getMinutes() + 1);
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const defaultTime = hh + ':' + mm;
+  
+  schedules.push({ time: defaultTime, duration: 30, enabled: true, fixed_watering: false, _highlight: true });
+  renderTasks();
+  
+  // 滚动到新添加的任务
+  setTimeout(() => {
+    const cards = document.querySelectorAll('.task-card');
+    if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 100);
+}
+
+async function saveAllToDb() {
+  const clean = schedules.map(t => ({
+    time: t.time,
+    duration: Math.max(1, Math.min(600, parseInt(t.duration) || 30)),
+    enabled: !!t.enabled,
+    fixed_watering: !!t.fixed_watering
+  })).sort((a,b) => (a.time || '00:00').localeCompare(b.time || '00:00'));
+  const res = await fetch('/api/devices/' + deviceId, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ settings: { ...(device.settings || {}), schedules: clean } })
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || '保存失败');
+  schedules = clean;
+  device.settings = device.settings || {};
+  device.settings.schedules = clean;
+  return clean;
+}
+
+async function saveTask(i) {
+  const btn = document.querySelector('.task-card[data-index="' + i + '"] .btn-save');
+  const result = checkTimeDuplicate(i);
+  if (result && !result.valid) {
+    showToast(result.msg, 'error');
+    if (btn) { btn.classList.add('error'); btn.innerHTML = '<i class="fas fa-times"></i> 失败'; setTimeout(() => { btn.classList.remove('error'); btn.innerHTML = '<i class="fas fa-check"></i> 保存'; }, 1600); }
+    return;
+  }
+  schedules[i] = {
+    time: document.getElementById('time_' + i).value,
+    duration: parseInt(document.getElementById('duration_' + i).value) || 30,
+    enabled: document.getElementById('enabled_' + i).checked,
+    fixed_watering: document.getElementById('fixed_' + i).checked
+  };
+  if (!schedules[i].time) { showToast('请选择执行时间', 'error'); return; }
+  try {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中'; }
+    await saveAllToDb();
+    showToast('#' + (i+1) + ' 已保存', 'success');
+    if (btn) { btn.classList.add('success'); btn.innerHTML = '<i class="fas fa-check"></i> 已保存'; }
+    setTimeout(() => {
+      if (btn) { btn.disabled = false; btn.classList.remove('success'); btn.innerHTML = '<i class="fas fa-check"></i> 保存'; }
+      renderTasks();
+    }, 1600);
+  } catch(e) {
+    showToast('保存失败: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.classList.add('error'); btn.innerHTML = '<i class="fas fa-times"></i> 失败'; setTimeout(() => { btn.classList.remove('error'); btn.innerHTML = '<i class="fas fa-check"></i> 保存'; }, 1800); }
+  }
+}
+
+
+async function deleteTask(i) {
+  if (!await showConfirm('删除计划 #' + (i+1) + '？删除后会立即保存到数据库。')) return;
+  const old = schedules.slice();
+  schedules.splice(i, 1);
+  renderTasks();
+  try {
+    await saveAllToDb();
+    showToast('已删除并保存', 'success');
+  } catch(e) {
+    schedules = old;
+    renderTasks();
+    showToast('删除保存失败: ' + e.message, 'error');
+  }
+}
+
+
+async function publishAll() {
+  // 先校验所有任务
+  if (!validateAllTasks()) return;
+  
+  const btn = document.getElementById('publishBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 发布中...';
+  
+  try {
+    // 先保存到数据库，再发布到设备
+    await saveAllToDb();
+    
+    // 连接MQTT发送给设备
+    const configRes = await fetch('/api/mqtt/user-config');
+    const configData = await configRes.json();
+    if (!configData.success) throw new Error('MQTT配置获取失败');
+    const cfg = configData.config;
+    const clientId = (cfg.mqtt_client_id || 'mubaiyun') + '_sch_' + Math.random().toString(16).slice(2, 6);
+    const options = { clientId, clean: true, keepalive: 60, connectTimeout: 10000 };
+    if (cfg.mqtt_username) options.username = cfg.mqtt_username;
+    if (cfg.mqtt_password) options.password = cfg.mqtt_password;
+    
+    await new Promise((resolve, reject) => {
+      const client = mqtt.connect('wss://mqtt.mcoud.cn/mqtt', options);
+      client.on('connect', () => {
+        const statusTopic = 'device/' + device.device_code + '/status';
+        client.subscribe(statusTopic, {qos: 1});
+        
+        // 发送计划任务
+        client.publish('device/' + device.device_code + '/command', JSON.stringify({
+          command: 'schedule',
+          tasks: schedules,
+          device_code: device.device_code,
+          timestamp: new Date().toISOString()
+        }), {qos: 1});
+        
+        // 等待设备回复
+        const timer = setTimeout(() => {
+          client.end();
+          reject(new Error('设备未响应'));
+        }, 8000);
+        
+        client.on('message', (topic, message) => {
+          try {
+            const payload = JSON.parse(message.toString());
+            clearTimeout(timer);
+            client.end();
+            if (payload.success) {
+              resolve(true);
+            } else {
+              reject(new Error(payload.error || '设备拒绝'));
+            }
+          } catch(e) {}
+        });
+      });
+      client.on('error', (err) => reject(err));
+    });
+    
+    btn.className = 'btn-publish success';
+    btn.innerHTML = '<i class="fas fa-check"></i> 发布成功';
+    showToast('发布成功，设备已确认', 'success');
+    
+  } catch(e) {
+    btn.className = 'btn-publish error';
+    btn.innerHTML = '<i class="fas fa-times"></i> 发布失败';
+    showToast('发布失败: ' + e.message, 'error');
+  }
+  
+  setTimeout(() => { btn.disabled = false; btn.className = 'btn-publish'; btn.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> 发布'; }, 1600);
+}
+
+loadDevice();
+</script>
+</body>
+</html>

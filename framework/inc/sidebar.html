@@ -1,0 +1,62 @@
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon"><i class="fas fa-shield-alt"></i></div>
+      <span class="logo-text">木白云</span>
+    </div>
+    <nav class="sidebar-nav" id="sidebarNav">
+      <div class="nav-group"><div class="nav-items">
+        <div class="nav-item active" data-page="welcome" data-title="首页" data-icon="fa-house" data-closable="0">
+          <i class="fas fa-house"></i><span>首页</span>
+        </div>
+      </div></div>
+
+      <div class="nav-group collapsed">
+        <div class="nav-group-title" onclick="toggleGroup(this)">
+          <i class="fas fa-users"></i><span>用户管理</span><i class="fas fa-chevron-down chevron"></i>
+        </div>
+        <div class="nav-items">
+          <div class="nav-item" data-page="user_list" data-title="用户列表" data-icon="fa-user"><i class="fas fa-user"></i><span>用户列表</span></div>
+          <div class="nav-item" data-page="tjyh" data-title="添加用户" data-icon="fa-user-plus"><i class="fas fa-user-plus"></i><span>添加用户</span></div>
+          <div class="nav-item" data-page="ql" data-title="清理无效用户" data-icon="fa-broom"><i class="fas fa-broom"></i><span>清理无效用户</span></div>
+        </div>
+      </div>
+
+      <div class="nav-group collapsed">
+        <div class="nav-group-title" onclick="toggleGroup(this)">
+          <i class="fas fa-shopping-cart"></i><span>订单管理</span><i class="fas fa-chevron-down chevron"></i>
+        </div>
+        <div class="nav-items">
+          <div class="nav-item" data-page="order_list" data-title="订单列表" data-icon="fa-receipt"><i class="fas fa-receipt"></i><span>订单列表</span></div>
+        </div>
+      </div>
+
+      <div class="nav-group collapsed">
+        <div class="nav-group-title" onclick="toggleGroup(this)">
+          <i class="fas fa-globe"></i><span>域名管理</span><i class="fas fa-chevron-down chevron"></i>
+        </div>
+        <div class="nav-items">
+          <div class="nav-item" data-page="ymlist" data-title="域名列表" data-icon="fa-list"><i class="fas fa-list"></i><span>域名列表</span></div>
+          <div class="nav-item" data-page="add_domain" data-title="添加域名" data-icon="fa-plus"><i class="fas fa-plus"></i><span>添加域名</span></div>
+          <div class="nav-item" data-page="ymcl" data-title="域名操作" data-icon="fa-wrench"><i class="fas fa-wrench"></i><span>域名操作</span></div>
+        </div>
+      </div>
+
+      <div class="nav-group collapsed">
+        <div class="nav-group-title" onclick="toggleGroup(this)">
+          <i class="fas fa-cog"></i><span>系统设置</span><i class="fas fa-chevron-down chevron"></i>
+        </div>
+        <div class="nav-items">
+          <div class="nav-item" data-page="site" data-title="站点设置" data-icon="fa-gears"><i class="fas fa-gears"></i><span>站点设置</span></div>
+          <div class="nav-item" data-page="account" data-title="账号设置" data-icon="fa-user-shield"><i class="fas fa-user-shield"></i><span>账号设置</span></div>
+          <div class="nav-item" data-page="payment_settings" data-title="支付设置" data-icon="fa-credit-card"><i class="fas fa-credit-card"></i><span>支付设置</span></div>
+          <div class="nav-item" data-page="template" data-title="模板管理" data-icon="fa-palette"><i class="fas fa-palette"></i><span>模板管理</span></div>
+        </div>
+      </div>
+
+      <div class="nav-group"><div class="nav-items">
+        <div class="nav-item" data-page="about" data-title="关于" data-icon="fa-circle-info"><i class="fas fa-circle-info"></i><span>关于</span></div>
+      </div></div>
+    </nav>
+  </aside>

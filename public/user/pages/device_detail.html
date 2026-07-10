@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>设备详情</title>
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'"><noscript><link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet"></noscript>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{max-width:100%;overflow-x:hidden}
+body{font-family:'Inter',sans-serif;background:#f5f6fa;color:#1e293b;min-height:100vh;-webkit-tap-highlight-color:transparent}
+body.sensor-page .header{display:none}
+body.sensor-page .container{padding-top:14px}
+.header{padding:20px 16px 12px;display:flex;align-items:center;justify-content:space-between}
+.header .name{font-size:20px;font-weight:700}
+.header .status{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px}
+.header .status.online{background:#ecfdf5;color:#059669}
+.header .status.offline{background:#f1f5f9;color:#94a3b8}
+.header .status .dot{width:6px;height:6px;border-radius:50%}
+.header .status.online .dot{background:#059669}
+.header .status.offline .dot{background:#94a3b8}
+.container{max-width:480px;margin:0 auto;padding:0 14px 40px}
+.section{margin-bottom:14px}
+.section-label{font-size:12px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;padding:0 4px;margin-bottom:8px}
+.card{background:#fff;border-radius:14px;border:1px solid #eef0f4;overflow:hidden}
+.menu-row{display:flex;align-items:center;padding:14px 16px;cursor:pointer;transition:background .12s;gap:12px}
+.menu-row:active{background:#f8fafc}
+.menu-row+.menu-row{border-top:1px solid #f1f5f9}
+.menu-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px}
+.menu-icon.blue{background:#eff6ff;color:#3b82f6}
+.menu-icon.orange{background:#fff7ed;color:#f59e0b}
+.menu-icon.purple{background:#faf5ff;color:#8b5cf6}
+.menu-icon.gray{background:#f8fafc;color:#64748b}
+.menu-icon.red{background:#fef2f2;color:#ef4444}
+.menu-text{flex:1;min-width:0}
+.menu-text .title{font-size:14px;font-weight:500;color:#1e293b}
+.menu-text .desc{font-size:11px;color:#94a3b8;margin-top:1px}
+.menu-arrow{color:#cbd5e1;font-size:12px;flex-shrink:0}
+.menu-value{font-size:13px;color:#94a3b8;margin-right:4px;flex-shrink:0;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Sensor data - single row */
+.sensor-row{display:flex;flex-wrap:wrap;gap:16px;padding:10px 4px}
+.sensor-item{display:flex;align-items:center;gap:5px;font-size:13px;color:#475569}
+.sensor-item i{font-size:14px}
+.sensor-item i.blue{color:#3b82f6}
+.sensor-item i.green{color:#059669}
+.sensor-item i.orange{color:#f59e0b}
+.sensor-item i.purple{color:#8b5cf6}
+.sensor-item .val{font-weight:600;color:#1e293b}
+
+/* Sensor detail card */
+.sensor-card{background:#fff;border-radius:16px;border:1px solid #eef0f4;overflow:hidden}
+.sensor-card-header{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid #f1f5f9}
+.sensor-card-icon{width:42px;height:42px;border-radius:12px;background:#ecfdf5;display:flex;align-items:center;justify-content:center;font-size:18px;color:#059669}
+.sensor-card-info{flex:1;min-width:0}
+.sensor-card-code{font-size:16px;font-weight:700;font-family:monospace;color:#1e293b}
+.sensor-card-time{font-size:11px;color:#94a3b8;margin-top:2px}
+.sensor-card-status{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;flex-shrink:0}
+.sensor-card-status.on{background:#ecfdf5;color:#059669}
+.sensor-card-status.off{background:#f1f5f9;color:#94a3b8}
+
+.sensor-metrics{padding:6px 18px 18px}
+.metric-item{display:flex;align-items:center;gap:12px;padding:12px 0}
+.metric-item+.metric-item{border-top:1px solid #f8fafc}
+.metric-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.metric-icon.soil{background:#eff6ff;color:#3b82f6}
+.metric-icon.humid{background:#ecfeff;color:#06b6d4}
+.metric-icon.temp{background:#fef2f2;color:#ef4444}
+.metric-icon.light{background:#fffbeb;color:#f59e0b}
+.metric-body{flex:1;min-width:0}
+.metric-label{font-size:11px;color:#94a3b8;font-weight:500}
+.metric-value{font-size:20px;font-weight:700;color:#1e293b;line-height:1.2}
+.metric-unit{font-size:12px;font-weight:500;color:#94a3b8;margin-left:2px}
+.metric-bar{flex:0 0 80px;height:5px;background:#f1f5f9;border-radius:5px;overflow:hidden}
+.metric-bar-fill{height:100%;border-radius:5px;transition:width .6s ease}
+.metric-bar-fill.soil{background:#3b82f6}
+.metric-bar-fill.humid{background:#06b6d4}
+.metric-bar-fill.temp{background:#ef4444}
+.metric-bar-fill.light{background:#f59e0b}
+
+.sensor-empty{text-align:center;padding:40px 20px;color:#cbd5e1}
+.sensor-empty i{font-size:32px;display:block;margin-bottom:8px}
+.sensor-empty span{display:block;font-size:13px;color:#94a3b8}
+.sensor-empty-hint{font-size:11px!important;color:#cbd5e1!important;margin-top:4px}
+
+/* App-like sensor detail */
+.sensor-hero{background:#fff;border-radius:20px;padding:16px;margin-bottom:12px;display:flex;align-items:center;gap:13px;border:0;box-shadow:none}
+.sensor-hero-icon{width:52px;height:52px;border-radius:18px;background:#f4f0ff;color:#7c3aed;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.sensor-hero-main{flex:1;min-width:0}.sensor-hero-name{font-size:17px;font-weight:800;color:#172033;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sensor-hero-code{font-size:11px;color:#9aa4b3;font-weight:700;margin-top:5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.sensor-hero-status{height:24px;border-radius:999px;padding:0 9px;display:flex;align-items:center;gap:5px;font-size:10px;font-weight:800;background:#f1f5f9;color:#94a3b8;flex-shrink:0}.sensor-hero-status.on{background:#ecfdf5;color:#059669}.sensor-hero-status .dot{width:6px;height:6px;border-radius:50%;background:#94a3b8}.sensor-hero-status.on .dot{background:#059669}
+.sensor-overview{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}.sensor-overview.count-1{grid-template-columns:1fr}.sensor-overview.count-2{grid-template-columns:repeat(2,1fr)}.sensor-overview.count-3{grid-template-columns:repeat(3,1fr)}.sensor-tile{background:#fff;border-radius:16px;padding:12px 10px;min-height:82px}.sensor-tile i{font-size:15px;margin-bottom:9px}.sensor-tile.soil i{color:#3b82f6}.sensor-tile.humid i{color:#06b6d4}.sensor-tile.temp i{color:#ef4444}.sensor-tile.light i{color:#f59e0b}.sensor-tile-value{font-size:17px;font-weight:800;color:#172033;line-height:1}.sensor-tile-unit{font-size:10px;color:#94a3b8;font-weight:700;margin-left:1px}.sensor-tile-label{font-size:10px;color:#94a3b8;font-weight:700;margin-top:6px}.sensor-tile-bar{height:3px;border-radius:4px;background:#eef2f7;margin-top:9px;overflow:hidden}.sensor-tile-fill{height:100%;border-radius:4px;transition:width .45s}.sensor-tile-fill.soil{background:#3b82f6}.sensor-tile-fill.humid{background:#06b6d4}.sensor-tile-fill.temp{background:#ef4444}.sensor-tile-fill.light{background:#f59e0b}
+.app-card{background:#fff;border-radius:18px;overflow:hidden}.app-row{display:flex;align-items:center;gap:12px;padding:14px 15px;cursor:pointer;transition:background .12s}.app-row:active{background:#f8fafc}.app-row+.app-row{border-top:1px solid #f5f7fa}.app-icon{width:34px;height:34px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px}.app-icon.blue{background:#eef5ff;color:#3478f6}.app-icon.red{background:#fff1f2;color:#ef4444}.app-text{flex:1;min-width:0}.app-title{font-size:14px;font-weight:800;color:#172033}.app-desc{font-size:11px;color:#9aa4b3;font-weight:600;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.app-value{font-size:12px;color:#9aa4b3;font-weight:700;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.app-arrow{font-size:12px;color:#c5ccd8}.sensor-delete-row .app-title{color:#ef4444}
+@media(max-width:560px){.container{padding:0 10px 40px}.header{padding:16px 12px 10px}.sensor-overview{grid-template-columns:repeat(2,1fr);gap:8px}.sensor-overview.count-1{grid-template-columns:1fr}.sensor-tile{min-height:78px}.sensor-hero{border-radius:18px;padding:14px}.sensor-hero-icon{width:48px;height:48px;border-radius:16px}.sensor-hero-name{font-size:16px}}
+
+/* Watering control */
+.water-card{background:#fff;border-radius:14px;border:1px solid #eef0f4;padding:20px;text-align:center}
+.water-icon{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#dbeafe,#eff6ff);display:flex;align-items:center;justify-content:center;margin:0 auto 10px}
+.water-icon i{font-size:28px;color:#3b82f6}
+.water-icon.active{background:linear-gradient(135deg,#bbf7d0,#ecfdf5)}
+.water-icon.active i{color:#059669}
+.water-title{font-size:15px;font-weight:600;margin-bottom:4px}
+.water-sub{font-size:11px;color:#94a3b8;margin-bottom:14px}
+.duration-row{display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:14px}
+.duration-input{width:70px;height:36px;border:1.5px solid #e2e8f0;border-radius:8px;text-align:center;font-size:14px;font-family:'Inter',sans-serif;outline:none}
+.duration-input:focus{border-color:#3b82f6}
+.duration-label{font-size:12px;color:#64748b}
+.btn-water{width:100%;height:44px;border:none;border-radius:10px;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s}
+.btn-water:hover{background:linear-gradient(135deg,#2563eb,#1d4ed8)}
+.btn-water:disabled{opacity:.5;cursor:not-allowed;background:#94a3b8}
+.btn-water.success{background:linear-gradient(135deg,#059669,#047857)}
+.btn-water.error{background:linear-gradient(135deg,#ef4444,#dc2626)}
+.water-status{margin-top:10px;font-size:12px;color:#64748b;min-height:18px;transition:opacity .3s}
+
+#toast{position:fixed;top:16px;left:50%;transform:translateX(-50%) translateY(-20px);background:#1e293b;color:#fff;padding:10px 20px;border-radius:10px;font-size:12px;font-weight:500;z-index:999;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.15)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.success{background:#059669}
+#toast.error{background:#dc2626}
+.confirm-mask{position:fixed;inset:0;background:rgba(15,23,42,.35);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}.confirm-box{width:min(320px,100%);background:#fff;border-radius:18px;padding:20px;text-align:center}.confirm-box h3{font-size:16px;margin-bottom:8px}.confirm-box p{font-size:13px;color:#64748b;line-height:1.6}.confirm-actions{display:flex;gap:10px;margin-top:18px}.confirm-actions button{flex:1;height:38px;border:0;border-radius:10px;font-size:13px;font-weight:700}.confirm-cancel{background:#f1f5f9;color:#64748b}.confirm-ok{background:#ef4444;color:#fff}
+
+.loading{text-align:center;padding:80px 0;color:#94a3b8;font-size:13px}
+.loading i{display:block;font-size:28px;margin-bottom:10px;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:480px){.duration-input{font-size:16px}.header .name{font-size:18px}.sensor-row{gap:10px}.sensor-item{font-size:12px}.metric-bar{flex:0 0 50px}.metric-value{font-size:18px}.sensor-card-header{padding:14px}}
+
+/* Premium controller detail - app-like */
+body.controller-page{background:#f4f6fb}
+body.controller-page .header{display:none}
+body.controller-page .container{max-width:520px;padding:14px 12px 44px}
+.controller-hero{position:relative;background:linear-gradient(145deg,#ffffff 0%,#f7fbff 100%);border-radius:24px;padding:18px;margin-bottom:12px;overflow:hidden;border:1px solid rgba(226,232,240,.75)}
+.controller-hero:before{content:"";position:absolute;right:-46px;top:-48px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(59,130,246,.16),rgba(59,130,246,0) 70%)}
+.controller-top{position:relative;display:flex;align-items:flex-start;gap:13px}
+.controller-icon{width:54px;height:54px;border-radius:19px;background:#eef5ff;color:#3478f6;display:flex;align-items:center;justify-content:center;font-size:23px;flex-shrink:0}
+.controller-info{flex:1;min-width:0}.controller-name{font-size:18px;font-weight:850;color:#172033;line-height:1.18;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.controller-code{font-size:11px;color:#94a3b8;font-weight:800;margin-top:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.controller-status{height:25px;border-radius:999px;padding:0 10px;display:flex;align-items:center;gap:6px;font-size:10px;font-weight:850;background:#f1f5f9;color:#94a3b8;flex-shrink:0}.controller-status.on{background:#ecfdf5;color:#059669}.controller-status .dot{width:6px;height:6px;border-radius:50%;background:#94a3b8}.controller-status.on .dot{background:#059669}
+.controller-metrics{margin-top:12px;display:flex;align-items:center;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0}.controller-metrics::-webkit-scrollbar{display:none}.metric-card{height:32px;border-radius:999px;background:rgba(255,255,255,.78);border:1px solid rgba(237,242,247,.96);padding:0 9px;display:flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;min-width:0}.metric-card-icon{width:auto;height:auto;border-radius:0;background:transparent!important;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}.metric-card.soil .metric-card-icon{color:#3b82f6}.metric-card.humid .metric-card-icon{color:#06b6d4}.metric-card.temp .metric-card-icon{color:#ef4444}.metric-card.light .metric-card-icon{color:#f59e0b}.metric-card-value{font-size:12px;font-weight:900;color:#172033;line-height:1;letter-spacing:-.1px}.metric-card-unit{font-size:9px;color:#94a3b8;font-weight:800;margin-left:1px}.metric-card-label{font-size:10px;color:#94a3b8;font-weight:800}.metric-card-bar,.metric-card-fill{display:none}
+.controller-grid{display:grid;grid-template-columns:1fr;gap:12px}.panel-card{background:#fff;border-radius:22px;overflow:hidden;border:1px solid rgba(238,240,244,.9)}
+.water-panel{position:relative;padding:13px 14px;overflow:hidden;background:linear-gradient(145deg,#ffffff 0%,#f8fbff 100%);display:flex;flex-direction:column}.water-panel:before{content:"";position:absolute;right:-42px;top:-54px;width:132px;height:132px;border-radius:50%;background:radial-gradient(circle,rgba(52,120,246,.13),rgba(52,120,246,0) 68%);transition:transform .45s,opacity .45s}.water-panel.running:before{transform:scale(1.12);opacity:.95}.rain-layer{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;opacity:0;transition:opacity .35s}.water-panel.running .rain-layer{opacity:1}.rain-layer span{position:absolute;top:-28px;width:2px;height:18px;border-radius:999px;background:linear-gradient(180deg,rgba(96,165,250,0),rgba(96,165,250,.72));filter:drop-shadow(0 2px 2px rgba(52,120,246,.12));animation:rainFall 1.15s linear infinite}.rain-layer span:after{content:"";position:absolute;left:-2px;bottom:-3px;width:6px;height:3px;border-radius:50%;background:rgba(96,165,250,.20)}.rain-layer span:nth-child(1){left:7%;animation-delay:-.1s;animation-duration:1.05s}.rain-layer span:nth-child(2){left:16%;animation-delay:-.65s;animation-duration:1.24s}.rain-layer span:nth-child(3){left:25%;animation-delay:-.35s;animation-duration:1.12s}.rain-layer span:nth-child(4){left:34%;animation-delay:-.9s;animation-duration:1.32s}.rain-layer span:nth-child(5){left:43%;animation-delay:-.18s;animation-duration:1.18s}.rain-layer span:nth-child(6){left:52%;animation-delay:-.78s;animation-duration:1.08s}.rain-layer span:nth-child(7){left:61%;animation-delay:-.48s;animation-duration:1.28s}.rain-layer span:nth-child(8){left:70%;animation-delay:-.22s;animation-duration:1.14s}.rain-layer span:nth-child(9){left:79%;animation-delay:-.88s;animation-duration:1.34s}.rain-layer span:nth-child(10){left:88%;animation-delay:-.42s;animation-duration:1.16s}.rain-layer span:nth-child(11){left:95%;animation-delay:-.72s;animation-duration:1.26s}.rain-layer span:nth-child(12){left:3%;animation-delay:-.52s;animation-duration:1.36s}.water-panel>*:not(.rain-layer){position:relative;z-index:1}.water-visual{position:relative;width:62px;height:62px;margin:0 auto 8px}.water-ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(#3478f6 var(--p,5%),#eaf1fb 0);display:flex;align-items:center;justify-content:center;transition:background .25s}.water-ring:after{content:"";position:absolute;inset:6px;border-radius:50%;background:#fff}.water-core{position:relative;z-index:1;width:44px;height:44px;border-radius:16px;background:#eef5ff;color:#3478f6;display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden}.water-core:before{content:"";position:absolute;left:0;right:0;bottom:-46%;height:62%;background:linear-gradient(180deg,rgba(96,165,250,.42),rgba(52,120,246,.70));border-radius:45% 45% 0 0;transition:bottom .5s}.water-panel.running .water-core:before{bottom:0;animation:waterWave 1.8s ease-in-out infinite}.water-core i{position:relative;z-index:1}.water-panel.running .water-core i{animation:faucetWiggle .85s ease-in-out infinite}.water-stream{position:absolute;left:50%;top:48px;width:34px;height:36px;transform:translateX(-50%);z-index:3;pointer-events:none;opacity:0}.water-panel.running .water-stream{opacity:1}.water-stream span{position:absolute;top:0;width:5px;height:26px;border-radius:999px;background:linear-gradient(180deg,rgba(96,165,250,.95),rgba(52,120,246,.18));filter:drop-shadow(0 2px 3px rgba(52,120,246,.20));animation:streamDrop .72s linear infinite}.water-stream span:nth-child(1){left:5px;animation-delay:0s}.water-stream span:nth-child(2){left:15px;height:32px;animation-delay:.12s}.water-stream span:nth-child(3){left:25px;animation-delay:.24s}.water-splash{position:absolute;left:50%;top:78px;width:66px;height:24px;transform:translateX(-50%);z-index:3;pointer-events:none;opacity:0}.water-panel.running .water-splash{opacity:1}.water-splash span{position:absolute;left:50%;top:10px;width:5px;height:5px;border-radius:50%;background:#60a5fa;opacity:0;animation:splashPop 1.05s ease-out infinite}.water-splash span:nth-child(1){--sx:-26px;--sy:-9px;animation-delay:0s}.water-splash span:nth-child(2){--sx:-12px;--sy:-15px;animation-delay:.16s}.water-splash span:nth-child(3){--sx:4px;--sy:-11px;animation-delay:.28s}.water-splash span:nth-child(4){--sx:18px;--sy:-16px;animation-delay:.42s}.water-splash span:nth-child(5){--sx:29px;--sy:-7px;animation-delay:.56s}.water-pulse{position:absolute;inset:3px;border-radius:50%;border:1px solid rgba(52,120,246,.16);opacity:0}.water-panel.connecting .water-pulse,.water-panel.running .water-pulse{animation:pulseRing 1.4s ease-out infinite}.water-head{text-align:center;margin-bottom:8px}.water-copy .water-title{font-size:15px;font-weight:900;color:#172033;margin:0}.water-copy .water-sub{font-size:10px;color:#94a3b8;font-weight:750;margin-top:3px;margin-bottom:0}.duration-readout{display:flex;align-items:baseline;justify-content:center;gap:3px;margin:0 0 7px}.duration-readout .num{font-size:22px;font-weight:950;color:#172033;letter-spacing:-.8px}.duration-readout .unit{font-size:10px;font-weight:850;color:#94a3b8}.duration-slider-wrap{width:100%;max-width:100%;overflow:hidden;margin:0 0 9px;padding:0}.duration-slider-box{position:relative;border-radius:15px;background:linear-gradient(145deg,#f8fbff,#f2f6fc);border:1px solid #eef2f7;padding:9px 10px 7px}.duration-slider-box:before{content:"";position:absolute;left:11px;right:11px;top:18px;height:5px;border-radius:999px;background:linear-gradient(90deg,rgba(52,120,246,.20),rgba(52,120,246,.07));pointer-events:none}.duration-slider{position:relative;z-index:1;width:100%;height:22px;display:block;appearance:none;-webkit-appearance:none;background:transparent;touch-action:pan-y;cursor:pointer}.duration-slider:focus{outline:none}.duration-slider::-webkit-slider-runnable-track{height:5px;border-radius:999px;background:linear-gradient(90deg,#3478f6 var(--fill,0%),#e5edf7 var(--fill,0%))}.duration-slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:linear-gradient(145deg,#ffffff,#eff6ff);border:5px solid #3478f6;box-shadow:0 4px 10px rgba(52,120,246,.24);margin-top:-7.5px}.duration-slider::-moz-range-track{height:5px;border-radius:999px;background:#e5edf7}.duration-slider::-moz-range-progress{height:5px;border-radius:999px;background:#3478f6}.duration-slider::-moz-range-thumb{width:10px;height:10px;border-radius:50%;background:#fff;border:5px solid #3478f6;box-shadow:0 4px 10px rgba(52,120,246,.24)}.duration-range-labels{display:flex;justify-content:space-between;margin-top:2px;font-size:9px;font-weight:900;color:#9aa4b3}.duration-range-labels span{display:flex;align-items:center;gap:3px}.duration-range-labels span:before{content:"";width:4px;height:4px;border-radius:50%;background:#cbd5e1}.duration-box{height:30px;margin-bottom:9px;display:flex;align-items:center;justify-content:center;gap:6px;background:#f7f9fc;border-radius:13px}.duration-box .duration-input{width:58px;height:26px;border:0;background:transparent;text-align:center;font-size:16px;font-weight:900;color:#172033}.duration-box .duration-input:focus{outline:none}.duration-box .duration-label{font-size:10px;font-weight:850;color:#94a3b8}.btn-water{position:relative;height:42px;border-radius:14px;font-weight:900;box-shadow:none;background:#3478f6;overflow:hidden}.btn-water:before{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 0%,rgba(255,255,255,.22) 45%,transparent 70%);transform:translateX(-120%);transition:transform .55s}.btn-water:active{transform:scale(.985)}.btn-water:hover{background:#2563eb}.btn-water:not(:disabled):active:before{transform:translateX(120%)}.btn-water.success{background:#059669}.btn-water.error{background:#ef4444}.water-status{font-weight:750;min-height:15px;font-size:11px}.drop-burst{position:absolute;left:50%;top:40px;z-index:3;pointer-events:none}.drop-burst span{position:absolute;width:5px;height:8px;border-radius:8px 8px 8px 2px;background:#60a5fa;opacity:0;transform:translate(-50%,-50%) rotate(35deg);animation:dropFly .68s ease-out forwards}.drop-burst span:nth-child(1){--x:-36px;--y:-18px}.drop-burst span:nth-child(2){--x:36px;--y:-15px;animation-delay:.04s}.drop-burst span:nth-child(3){--x:-24px;--y:24px;animation-delay:.08s}.drop-burst span:nth-child(4){--x:28px;--y:24px;animation-delay:.12s}@keyframes rainFall{0%{transform:translate3d(0,-30px,0);opacity:0}12%{opacity:.85}82%{opacity:.85}100%{transform:translate3d(0,250px,0);opacity:0}}@keyframes faucetWiggle{0%,100%{transform:rotate(0)}50%{transform:rotate(-7deg)}}@keyframes streamDrop{0%{transform:translateY(-9px) scaleY(.35);opacity:0}18%{opacity:1}100%{transform:translateY(18px) scaleY(1);opacity:0}}@keyframes splashPop{0%{transform:translate(-50%,0) scale(.45);opacity:0}22%{opacity:.95}100%{transform:translate(calc(-50% + var(--sx)),var(--sy)) scale(1);opacity:0}}@keyframes pulseRing{0%{transform:scale(.86);opacity:.75}100%{transform:scale(1.18);opacity:0}}@keyframes waterWave{0%,100%{border-radius:45% 45% 0 0}50%{border-radius:58% 42% 0 0}}@keyframes dropFly{0%{opacity:.95;transform:translate(-50%,-50%) rotate(35deg) scale(.6)}100%{opacity:0;transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) rotate(35deg) scale(1)}}
+.app-section-title{font-size:12px;font-weight:850;color:#94a3b8;letter-spacing:.4px;padding:2px 4px 8px}.controller-menu .app-icon.purple{background:#f5f0ff;color:#7c3aed}.controller-menu .app-icon.orange{background:#fff7ed;color:#f59e0b}.controller-menu .app-icon.gray{background:#f8fafc;color:#64748b}.controller-menu .app-row{padding:14px 15px}.controller-menu .app-title{font-size:14px}.danger-card{margin-top:12px}.danger-card .app-row{justify-content:flex-start}.danger-card .app-title{color:#ef4444}
+@media(min-width:720px){body.controller-page .container{max-width:760px}.controller-grid{grid-template-columns:1fr 1fr;align-items:stretch}.controller-hero{grid-column:1/-1}.watering-section,.management-section{display:flex;flex-direction:column;height:100%}.watering-section{grid-column:1}.management-section{grid-column:2}.water-panel{flex:1;min-height:0}.management-section .danger-card{margin-top:12px}}
+@media(max-width:480px){body.controller-page .container{padding:10px 10px 40px}.controller-hero{border-radius:22px;padding:16px}.controller-icon{width:50px;height:50px;border-radius:17px}.controller-name{font-size:17px}.metric-card{height:30px;padding:0 8px}.metric-card-value{font-size:11px}.metric-card-label{font-size:9px}.water-visual{width:58px;height:58px}.water-core{width:42px;height:42px}.duration-box .duration-input{font-size:16px}}
+
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="name" id="deviceName">加载中...</div>
+  <div class="status offline" id="statusBadge"><span class="dot"></span>离线</div>
+</div>
+<div class="container" id="main">
+  <div class="loading"><i class="fas fa-spinner"></i>加载中...</div>
+</div>
+<div id="toast"></div>
+
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script>
+const deviceId = window.location.pathname.split('/').pop();
+let device = null;
+let mqttClient = null;
+let mqttConnected = false;
+let wateringResolve = null;
+let wateringTimer = null;
+const WATERING_STATE_KEY = 'iot_watering_' + deviceId;
+
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type ? ' ' + type : '');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.className = '', 2500);
+}
+function showConfirm(msg) {
+  return new Promise(resolve => {
+    const mask = document.createElement('div');
+    mask.className = 'confirm-mask';
+    mask.innerHTML = '<div class="confirm-box"><h3>确认删除</h3><p>'+msg+'</p><div class="confirm-actions"><button class="confirm-cancel">取消</button><button class="confirm-ok">删除</button></div></div>';
+    document.body.appendChild(mask);
+    mask.querySelector('.confirm-cancel').onclick = () => { mask.remove(); resolve(false); };
+    mask.querySelector('.confirm-ok').onclick = () => { mask.remove(); resolve(true); };
+    mask.onclick = e => { if(e.target === mask){ mask.remove(); resolve(false); } };
+  });
+}
+
+async function loadDevice() {
+  try {
+    const res = await fetch('/api/devices/' + deviceId);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || '加载失败');
+    device = data.device;
+    render();
+  } catch(e) {
+    document.getElementById('main').innerHTML = '<div class="loading" style="color:#ef4444"><i class="fas fa-exclamation-circle" style="animation:none"></i>' + e.message + '</div>';
+  }
+}
+
+function render() {
+  const d = device;
+  const s = d.settings || {};
+  const sd = d.sensor_data || {};
+  const isController = d.device_type === 'controller';
+  const online = d.status === 'online';
+
+  document.body.classList.toggle('sensor-page', !isController);
+  document.body.classList.toggle('controller-page', isController);
+  document.getElementById('deviceName').textContent = d.device_name || '未命名设备';
+  const badge = document.getElementById('statusBadge');
+  badge.className = 'status ' + (online ? 'online' : 'offline');
+  badge.innerHTML = '<span class="dot"></span>' + (online ? '在线' : '离线');
+
+  // 传感器设备 - 简洁显示
+  if (!isController) {
+    renderSensorView(d, sd, online);
+    return;
+  }
+
+  // 控制器设备 - 完整功能
+  renderControllerView(d, s, sd, online);
+}
+
+function renderSensorView(d, sd, online) {
+  const fields = [
+    {key:'soil_moisture', metric:'soil', cls:'soil', icon:'fa-droplet', label:'土壤湿度', unit:'%', pctType:''},
+    {key:'air_humidity', metric:'humid', cls:'humid', icon:'fa-wind', label:'空气湿度', unit:'%', pctType:''},
+    {key:'temperature', metric:'temp', cls:'temp', icon:'fa-temperature-half', label:'温度', unit:'℃', pctType:'temp'},
+    {key:'light', metric:'light', cls:'light', icon:'fa-sun', label:'光照', unit:'lux', pctType:'light'}
+  ];
+  const available = fields.filter(f => sd[f.key] !== undefined && sd[f.key] !== null && sd[f.key] !== '');
+  const hasData = available.length > 0;
+  const lastSeen = d.last_heartbeat ? timeAgo(d.last_heartbeat) : '从未上报';
+  function val(v){ return v !== undefined && v !== null && v !== '' ? v : '--'; }
+  function pct(v, type){
+    const n = Number(v) || 0;
+    if(type === 'temp') return Math.min(100, Math.max(0, (n + 20) / 80 * 100));
+    if(type === 'light') return Math.min(100, n / 1000 * 100);
+    return Math.min(100, Math.max(0, n));
+  }
+  let html = `<div class="sensor-hero">
+    <div class="sensor-hero-icon"><i class="fas fa-satellite-dish"></i></div>
+    <div class="sensor-hero-main">
+      <div class="sensor-hero-name">${d.device_name || '未命名传感器'}</div>
+      <div class="sensor-hero-code">${d.device_code || ''} · 最近上报 ${lastSeen}</div>
+    </div>
+    <div class="sensor-hero-status ${online?'on':'off'}"><span class="dot"></span>${online?'在线':'离线'}</div>
+  </div>`;
+
+  if (hasData) {
+    html += `<div class="sensor-overview count-${available.length}">` + available.map(f => `
+      <div class="sensor-tile ${f.cls}">
+        <i class="fas ${f.icon}"></i><div><span class="sensor-tile-value" data-metric="${f.metric}">${val(sd[f.key])}</span><span class="sensor-tile-unit">${f.unit}</span></div><div class="sensor-tile-label">${f.label}</div><div class="sensor-tile-bar"><div class="sensor-tile-fill ${f.cls}" style="width:${pct(sd[f.key], f.pctType)}%"></div></div>
+      </div>`).join('') + `
+    </div>`;
+  } else {
+    html += `<div class="sensor-empty app-card">
+      <i class="fas fa-chart-line"></i><span>暂无传感器数据</span><span class="sensor-empty-hint">等待设备上报...</span>
+    </div>`;
+  }
+
+  html += `<div class="section">
+    <div class="section-label">传感器管理</div>
+    <div class="app-card">
+      <div class="app-row" onclick="openSensorSetting()">
+        <div class="app-icon blue"><i class="fas fa-gear"></i></div>
+        <div class="app-text"><div class="app-title">传感器设置</div><div class="app-desc">名称、休眠时间、校准参数</div></div>
+        <span class="app-value">${d.device_name || '未设置'}</span><i class="fas fa-chevron-right app-arrow"></i>
+      </div>
+      <div class="app-row sensor-delete-row" onclick="deleteDevice()">
+        <div class="app-icon red"><i class="fas fa-trash"></i></div>
+        <div class="app-text"><div class="app-title">删除设备</div><div class="app-desc">删除后无法恢复</div></div>
+        <i class="fas fa-chevron-right app-arrow"></i>
+      </div>
+    </div>
+  </div>`;
+
+  document.getElementById('main').innerHTML = html;
+}
+
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  if (diff < 60000) return '刚刚';
+  if (diff < 3600000) return Math.floor(diff/60000) + '分钟前';
+  if (diff < 86400000) return Math.floor(diff/3600000) + '小时前';
+  return Math.floor(diff/86400000) + '天前';
+}
+
+function esc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+}
+
+
+function renderControllerView(d, s, sd, online) {
+  const hasSensor = sd.soil_moisture !== undefined || sd.temperature !== undefined || sd.air_humidity !== undefined || sd.light !== undefined;
+  const scheduleCount = (s.schedules || []).length;
+  const lastSeen = d.last_heartbeat ? timeAgo(d.last_heartbeat) : '从未上报';
+  const code = esc(d.device_code || '');
+  const name = esc(d.device_name || '未命名控制器');
+  const pct = (v, type) => {
+    const n = Number(v) || 0;
+    if (type === 'temp') return Math.min(100, Math.max(0, (n + 20) / 80 * 100));
+    if (type === 'light') return Math.min(100, n / 1000 * 100);
+    return Math.min(100, Math.max(0, n));
+  };
+  const metric = (cls, icon, label, value, unit, pctType='') => `<div class="metric-card ${cls}">
+    <div class="metric-card-icon"><i class="fas ${icon}"></i></div>
+    <span class="metric-card-label">${label}</span>
+    <span class="metric-card-value" data-cmetric="${cls}">${esc(value)}<span class="metric-card-unit">${unit}</span></span>
+  </div>`;
+  const sensorCards = [];
+  if (sd.soil_moisture !== undefined && sd.soil_moisture !== null && sd.soil_moisture !== '') sensorCards.push(metric('soil', 'fa-droplet', '土壤', sd.soil_moisture, '%'));
+  if (sd.air_humidity !== undefined && sd.air_humidity !== null && sd.air_humidity !== '') sensorCards.push(metric('humid', 'fa-water', '空气', sd.air_humidity, '%'));
+  if (sd.temperature !== undefined && sd.temperature !== null && sd.temperature !== '') sensorCards.push(metric('temp', 'fa-temperature-half', '温度', sd.temperature, '℃', 'temp'));
+  if (sd.light !== undefined && sd.light !== null && sd.light !== '') sensorCards.push(metric('light', 'fa-sun', '光照', sd.light, 'lux', 'light'));
+
+  let html = `
+  <div class="controller-grid">
+    <div class="controller-hero">
+      <div class="controller-top">
+        <div class="controller-icon"><i class="fas fa-faucet-drip"></i></div>
+        <div class="controller-info">
+          <div class="controller-name">${name}</div>
+          <div class="controller-code">${code} · 最近上报 ${esc(lastSeen)}</div>
+        </div>
+        <div class="controller-status ${online?'on':'off'}"><span class="dot"></span>${online?'在线':'离线'}</div>
+      </div>
+      ${sensorCards.length ? '<div class="controller-metrics count-' + sensorCards.length + '">' + sensorCards.join('') + '</div>' : ''}
+    </div>
+
+    <div class="watering-section">
+      <div class="app-section-title">浇水控制</div>
+      <div class="panel-card water-panel" id="waterPanel">
+        <div class="rain-layer" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="drop-burst" id="dropBurst"></div>
+        <div class="water-visual">
+          <div class="water-pulse"></div>
+          <div class="water-stream"><span></span><span></span><span></span></div>
+          <div class="water-splash"><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="water-ring" id="waterRing" style="--p:32%">
+            <div class="water-core" id="waterIcon"><i class="fas fa-faucet-drip"></i></div>
+          </div>
+        </div>
+        <div class="water-head">
+          <div class="water-copy">
+            <div class="water-title" id="waterTitle">手动浇水</div>
+            <div class="water-sub">选择时长，设备确认后开始动态倒计时</div>
+          </div>
+        </div>
+        <div class="duration-readout"><span class="num" id="durationReadout">30</span><span class="unit">秒</span></div>
+        <div class="duration-slider-wrap">
+          <div class="duration-slider-box">
+            <input class="duration-slider" id="durationSlider" type="range" min="30" max="600" step="5" value="30" oninput="setDuration(this.value, false)">
+            <div class="duration-range-labels"><span>30秒</span><span>600秒</span></div>
+          </div>
+        </div>
+        <div class="duration-box">
+          <input type="number" class="duration-input" id="duration" value="30" min="30" max="600" placeholder="秒" oninput="updateDurationUI(true)">
+          <span class="duration-label">秒</span>
+        </div>
+        <button class="btn-water" id="waterBtn" onclick="doWatering()"><i class="fas fa-droplet"></i> 开始浇水</button>
+        <div class="water-status" id="waterStatus"></div>
+      </div>
+    </div>
+
+    <div class="management-section">
+      <div class="app-section-title">设备管理</div>
+      <div class="app-card controller-menu">
+        <div class="app-row" onclick="openSetting()">
+          <div class="app-icon blue"><i class="fas fa-gear"></i></div>
+          <div class="app-text"><div class="app-title">设备设置</div><div class="app-desc">名称、天气API、大模型配置</div></div>
+          <i class="fas fa-chevron-right app-arrow"></i>
+        </div>
+        <div class="app-row" onclick="openPrompt()">
+          <div class="app-icon purple"><i class="fas fa-wand-magic-sparkles"></i></div>
+          <div class="app-text"><div class="app-title">提示词</div><div class="app-desc">自定义AI浇水判断逻辑</div></div>
+          <span class="app-value">${s.prompt?'已设置':'未设置'}</span><i class="fas fa-chevron-right app-arrow"></i>
+        </div>
+        <div class="app-row" onclick="openSchedule()">
+          <div class="app-icon orange"><i class="fas fa-clock"></i></div>
+          <div class="app-text"><div class="app-title">计划任务</div><div class="app-desc">定时浇水、固定浇水</div></div>
+          <span class="app-value">${scheduleCount > 0 ? scheduleCount + '组' : '未设置'}</span><i class="fas fa-chevron-right app-arrow"></i>
+        </div>
+        <div class="app-row" onclick="openLog()">
+          <div class="app-icon gray"><i class="fas fa-clock-rotate-left"></i></div>
+          <div class="app-text"><div class="app-title">操作日志</div><div class="app-desc">查看设备操作历史</div></div>
+          <i class="fas fa-chevron-right app-arrow"></i>
+        </div>
+      </div>
+      <div class="app-card danger-card controller-menu">
+        <div class="app-row" onclick="deleteDevice()">
+          <div class="app-icon red"><i class="fas fa-trash"></i></div>
+          <div class="app-text"><div class="app-title">删除设备</div><div class="app-desc">删除后无法恢复</div></div>
+          <i class="fas fa-chevron-right app-arrow"></i>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  document.getElementById('main').innerHTML = html;
+  setTimeout(() => { updateDurationUI(true); restoreWateringState(); }, 0);
+}
+
+function updateDurationUI(fromInput=false) {
+  const input = document.getElementById('duration');
+  const slider = document.getElementById('durationSlider');
+  const ring = document.getElementById('waterRing');
+  const readout = document.getElementById('durationReadout');
+  if (!input) return;
+  const sec = Math.max(30, Math.min(600, parseInt(input.value) || 30));
+  if (String(input.value) !== String(sec)) input.value = sec;
+  if (readout) readout.textContent = sec;
+  if (ring) ring.style.setProperty('--p', Math.max(8, Math.min(100, sec / 600 * 100)) + '%');
+  if (slider) {
+    slider.value = Math.max(30, Math.min(600, Math.round(sec / 5) * 5));
+    const fill = ((Number(slider.value) - 30) / (600 - 30) * 100).toFixed(2) + '%';
+    slider.style.setProperty('--fill', fill);
+  }
+}
+function setDuration(sec, fromInput=true) {
+  const input = document.getElementById('duration');
+  sec = Math.max(30, Math.min(600, parseInt(sec) || 30));
+  if (input) input.value = sec;
+  updateDurationUI(fromInput);
+}
+function waterBurst() {
+  const burst = document.getElementById('dropBurst');
+  if (!burst) return;
+  burst.innerHTML = '<span></span><span></span><span></span><span></span>';
+  setTimeout(() => { if (burst) burst.innerHTML = ''; }, 760);
+}
+
+// === MQTT 连接 ===
+async function connectMqtt() {
+  if (mqttClient && mqttConnected) return true;
+  try {
+    const configRes = await fetch('/api/mqtt/user-config');
+    const configData = await configRes.json();
+    if (!configData.success) throw new Error(configData.error || 'MQTT配置获取失败');
+    const cfg = configData.config;
+    const clientId = (cfg.mqtt_client_id || 'mubaiyun') + '_' + device.device_code + '_' + Math.random().toString(16).slice(2, 6);
+    const options = { clientId, clean: true, keepalive: 60, reconnectPeriod: 3000, connectTimeout: 10000 };
+    if (cfg.mqtt_username) options.username = cfg.mqtt_username;
+    if (cfg.mqtt_password) options.password = cfg.mqtt_password;
+    
+    return new Promise((resolve, reject) => {
+      mqttClient = mqtt.connect('wss://mqtt.mcoud.cn/mqtt', options);
+      mqttClient.on('connect', () => {
+        mqttConnected = true;
+        const statusTopic = 'device/' + device.device_code + '/status';
+        mqttClient.subscribe(statusTopic, {qos: 0});
+        resolve(true);
+      });
+      mqttClient.on('message', (topic, message) => {
+        try {
+          const payload = JSON.parse(message.toString());
+          if (wateringResolve) {
+            wateringResolve(payload);
+            wateringResolve = null;
+          }
+        } catch(e) {}
+      });
+      mqttClient.on('error', (err) => { reject(err); });
+      setTimeout(() => reject(new Error('MQTT连接超时')), 12000);
+    });
+  } catch(e) {
+    throw e;
+  }
+}
+
+function getWateringState() {
+  try {
+    const st = JSON.parse(localStorage.getItem(WATERING_STATE_KEY) || 'null');
+    if (!st || !st.endAt || Date.now() >= st.endAt) { localStorage.removeItem(WATERING_STATE_KEY); return null; }
+    return st;
+  } catch(e) { localStorage.removeItem(WATERING_STATE_KEY); return null; }
+}
+function saveWateringState(secs) {
+  localStorage.setItem(WATERING_STATE_KEY, JSON.stringify({ endAt: Date.now() + secs * 1000, duration: secs }));
+}
+function clearWateringState() { localStorage.removeItem(WATERING_STATE_KEY); }
+function startWaterCountdown(endAt) {
+  const btn = document.getElementById('waterBtn');
+  const icon = document.getElementById('waterIcon');
+  const panel = document.getElementById('waterPanel');
+  const status = document.getElementById('waterStatus');
+  if (!btn) return;
+  if (wateringTimer) { clearInterval(wateringTimer); wateringTimer = null; }
+  btn.disabled = true;
+  btn.className = 'btn-water success';
+  if (icon) icon.classList.add('active');
+  if (panel) { panel.classList.remove('connecting'); panel.classList.add('running'); }
+  if (status) status.textContent = '';
+  const tick = () => {
+    const remain = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+    if (remain <= 0) { resetWaterBtn(); return; }
+    btn.innerHTML = '<i class="fas fa-droplet"></i> 浇水中 ' + remain + '秒';
+  };
+  tick();
+  wateringTimer = setInterval(tick, 1000);
+}
+function restoreWateringState() {
+  const st = getWateringState();
+  if (st) startWaterCountdown(st.endAt);
+}
+// === 手动浇水 ===
+async function doWatering() {
+  const btn = document.getElementById('waterBtn');
+  const status = document.getElementById('waterStatus');
+  const icon = document.getElementById('waterIcon');
+  const secs = parseInt(document.getElementById('duration').value) || 30;
+  
+  if (secs < 30 || secs > 600) { showToast('时长范围30-600秒', 'error'); return; }
+  const activeState = getWateringState();
+  if (activeState) { startWaterCountdown(activeState.endAt); showToast('当前正在浇水中，请等待完成', 'error'); return; }
+  
+  // 清除之前的定时器
+  if (wateringTimer) { clearTimeout(wateringTimer); wateringTimer = null; }
+  
+  const panel = document.getElementById('waterPanel');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 连接中...';
+  btn.className = 'btn-water';
+  if (panel) panel.classList.add('connecting');
+  status.textContent = '';
+
+  try {
+    await connectMqtt();
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 发送中...';
+    waterBurst();
+    
+    // 简化的浇水指令
+    const wateringData = { water: true, duration: secs };
+    
+    const ackPromise = new Promise((resolve, reject) => {
+      wateringResolve = resolve;
+      setTimeout(() => { wateringResolve = null; reject(new Error('设备未响应')); }, 8000);
+    });
+    
+    mqttClient.publish('device/' + device.device_code + '/command', JSON.stringify(wateringData), {qos: 1});
+    
+    const ack = await ackPromise;
+    
+    if (ack.success || ack.water) {
+      btn.className = 'btn-water success';
+      icon.classList.add('active');
+      if (panel) { panel.classList.remove('connecting'); panel.classList.add('running'); }
+      status.textContent = '';
+      
+      saveWateringState(secs);
+      startWaterCountdown(Date.now() + secs * 1000);
+    } else {
+      throw new Error(ack.error || '设备拒绝执行');
+    }
+    
+  } catch(e) {
+    if (panel) { panel.classList.remove('connecting'); panel.classList.remove('running'); }
+    btn.className = 'btn-water error';
+    btn.innerHTML = '<i class="fas fa-times"></i> 失败';
+    status.textContent = '✗ ' + e.message;
+    showToast('浇水失败: ' + e.message, 'error');
+    wateringTimer = setTimeout(() => resetWaterBtn(), 3000);
+  }
+}
+
+function resetWaterBtn() {
+  clearWateringState();
+  if (wateringTimer) { clearInterval(wateringTimer); wateringTimer = null; }
+  const btn = document.getElementById('waterBtn');
+  const icon = document.getElementById('waterIcon');
+  const panel = document.getElementById('waterPanel');
+  if (btn) { btn.disabled = false; btn.className = 'btn-water'; btn.innerHTML = '<i class="fas fa-droplet"></i> 开始浇水'; }
+  if (icon) icon.classList.remove('active');
+  if (panel) { panel.classList.remove('connecting'); panel.classList.remove('running'); }
+}
+
+function openSetting() { try { parent.openModalPost('/user/pages/device_setting', '设备设置', {device_id: deviceId}); } catch(e) {} }
+function openPrompt() { try { parent.openModalPost('/user/pages/device_prompt', '提示词', {device_id: deviceId}); } catch(e) {} }
+function openSchedule() { try { parent.openModalPost('/user/pages/device_schedule', '计划任务', {device_id: deviceId}); } catch(e) {} }
+function openLog() { try { parent.openModalPost('/user/pages/device_log', '操作日志', {device_id: deviceId}); } catch(e) {} }
+function openSensorSetting() { try { parent.openModalPost('/user/pages/sensor_setting', '传感器设置', {device_id: deviceId}); } catch(e) {} }
+
+async function editSensorName() {
+  const current = device.device_name || '';
+  const newName = prompt('输入设备名称', current);
+  if (newName === null) return; // 取消
+  try {
+    const res = await fetch('/api/devices/' + deviceId, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ device_name: newName.trim() || '传感器' })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    showToast('名称已更新', 'success');
+    loadDevice();
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+}
+
+async function deleteDevice() {
+  if (!await showConfirm('确定删除「' + (device.device_name||'设备') + '」？此操作不可撤销。')) return;
+  try {
+    const res = await fetch('/api/devices/' + deviceId, { method: 'DELETE' });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    showToast('设备已删除', 'success');
+    setTimeout(() => {
+      try {
+        // 关闭当前设备详情标签
+        parent.closeTab('device_' + deviceId);
+        // 切换到设备列表标签并刷新
+        parent.activateTab('my_devices');
+        var listFrame = parent.document.querySelector('.content-frame[data-id="my_devices"]');
+        if (listFrame && listFrame.contentWindow && listFrame.contentWindow.loadDevices) {
+          listFrame.contentWindow.loadDevices();
+        }
+      } catch(e) {
+        window.location.href = '/user';
+      }
+    }, 500);
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+loadDevice();
+// 每5秒刷新在线状态和传感器数据
+setInterval(async () => {
+  try {
+    const res = await fetch('/api/devices/' + deviceId);
+    const data = await res.json();
+    if (data.success && data.device) {
+      device = data.device;
+      const online = device.status === 'online';
+      const badge = document.getElementById('statusBadge');
+      if (badge) {
+        badge.className = 'status ' + (online ? 'online' : 'offline');
+        badge.innerHTML = '<span class="dot"></span>' + (online ? '在线' : '离线');
+      }
+      const sd = device.sensor_data || {};
+
+      // 传感器详情页 - 字段集合变化时整页重渲染；字段不变时只更新值
+      const sensorOverview = document.querySelector('.sensor-overview');
+      if (sensorOverview) {
+        const currentCount = document.querySelectorAll('.sensor-tile').length;
+        const nextCount = ['soil_moisture','air_humidity','temperature','light'].filter(k => sd[k] !== undefined && sd[k] !== null && sd[k] !== '').length;
+        if (currentCount !== nextCount) { render(); return; }
+      }
+      const setText = (sel, val) => { const el = document.querySelector(sel); if (el && val !== undefined && val !== null && val !== '') el.textContent = val; };
+      setText('[data-metric="soil"]', sd.soil_moisture);
+      setText('[data-metric="humid"]', sd.air_humidity);
+      setText('[data-metric="temp"]', sd.temperature);
+      setText('[data-metric="light"]', sd.light);
+      const fill = (sel, width) => { const el = document.querySelector(sel); if (el) el.style.width = width; };
+      fill('.sensor-tile-fill.soil', (sd.soil_moisture||0) + '%');
+      fill('.sensor-tile-fill.humid', (sd.air_humidity||0) + '%');
+      fill('.sensor-tile-fill.temp', Math.min(100,Math.max(0,(sd.temperature||0)+20)/80*100) + '%');
+      fill('.sensor-tile-fill.light', Math.min(100,(sd.light||0)/1000*100) + '%');
+      const heroCode = document.querySelector('.sensor-hero-code');
+      if (heroCode && device.last_heartbeat) heroCode.textContent = (device.device_code || '') + ' · 最近上报 ' + timeAgo(device.last_heartbeat);
+
+      // 控制器详情页 - 更新顶部状态和传感器胶囊
+      const controllerStatus = document.querySelector('.controller-status');
+      if (controllerStatus) {
+        controllerStatus.className = 'controller-status ' + (online ? 'on' : 'off');
+        controllerStatus.innerHTML = '<span class="dot"></span>' + (online ? '在线' : '离线');
+      }
+      const controllerCode = document.querySelector('.controller-code');
+      if (controllerCode && device.last_heartbeat) controllerCode.textContent = (device.device_code || '') + ' · 最近上报 ' + timeAgo(device.last_heartbeat);
+      const controllerMetrics = document.querySelector('.controller-metrics');
+      const nextControllerCount = ['soil_moisture','air_humidity','temperature','light'].filter(k => sd[k] !== undefined && sd[k] !== null && sd[k] !== '').length;
+      const currentControllerCount = controllerMetrics ? document.querySelectorAll('.metric-card').length : 0;
+      if ((controllerMetrics && currentControllerCount !== nextControllerCount) || (!controllerMetrics && nextControllerCount > 0)) { render(); return; }
+      const setMetric = (name, val, unit) => { const el = document.querySelector('[data-cmetric="' + name + '"]'); if (el && val !== undefined && val !== null && val !== '') el.innerHTML = val + '<span class="metric-card-unit">' + unit + '</span>'; };
+      setMetric('soil', sd.soil_moisture, '%');
+      setMetric('humid', sd.air_humidity, '%');
+      setMetric('temp', sd.temperature, '℃');
+      setMetric('light', sd.light, 'lux');
+      fill('.metric-card-fill.soil', (sd.soil_moisture||0) + '%');
+      fill('.metric-card-fill.humid', (sd.air_humidity||0) + '%');
+      fill('.metric-card-fill.temp', Math.min(100,Math.max(0,(sd.temperature||0)+20)/80*100) + '%');
+      fill('.metric-card-fill.light', Math.min(100,(sd.light||0)/1000*100) + '%');
+    }
+  } catch(e) {}
+}, 5000);
+</script>
+</body>
+</html>

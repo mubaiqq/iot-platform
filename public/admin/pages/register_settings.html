@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>注册设置</title>
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,sans-serif;background:#f5f6fa;color:#1e293b;padding:20px 18px 80px;min-height:100vh}
+.page-header{margin-bottom:20px}
+.page-header h1{font-size:18px;font-weight:700;color:#1e293b;margin-bottom:3px}
+.page-header p{font-size:12px;color:#8892a4}
+
+.card{background:#fff;border-radius:14px;border:1px solid #eef0f4;padding:20px;margin-bottom:16px}
+.card-title{font-size:15px;font-weight:700;color:#1e293b;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.card-title i{color:#3b82f6;font-size:14px}
+
+.setting-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 0;border-bottom:1px solid #f5f6fa;
+}
+.setting-row:last-child{border-bottom:none}
+.setting-info{flex:1}
+.setting-label{font-size:14px;font-weight:600;color:#1e293b;margin-bottom:2px}
+.setting-desc{font-size:12px;color:#8892a4}
+
+/* Toggle Switch */
+.toggle{position:relative;display:inline-block;width:48px;height:26px}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{
+  position:absolute;cursor:pointer;inset:0;
+  background:#e2e8f0;border-radius:26px;transition:all .3s;
+}
+.toggle-slider::before{
+  content:'';position:absolute;height:20px;width:20px;
+  left:3px;bottom:3px;background:#fff;border-radius:50%;
+  transition:all .3s;box-shadow:0 1px 3px rgba(0,0,0,.15);
+}
+.toggle input:checked+.toggle-slider{background:#3b82f6}
+.toggle input:checked+.toggle-slider::before{transform:translateX(22px)}
+
+/* Number Input */
+.num-input{
+  width:80px;padding:8px 12px;border:1.5px solid #e2e8f0;
+  border-radius:8px;font-size:14px;font-family:inherit;
+  text-align:center;font-weight:600;color:#1e293b;
+}
+.num-input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.1)}
+
+.btn{
+  padding:10px 24px;border:none;border-radius:10px;
+  font-size:13px;font-weight:600;font-family:inherit;
+  cursor:pointer;transition:all .2s;
+}
+.btn-primary{background:#3b82f6;color:#fff}
+.btn-primary:hover{background:#2563eb;box-shadow:0 4px 12px rgba(59,130,246,.25)}
+.btn-primary:disabled{background:#94a3b8;cursor:not-allowed}
+
+.toast-msg{
+  position:fixed;top:20px;left:50%;transform:translateX(-50%);
+  padding:12px 24px;border-radius:10px;font-size:13px;font-weight:500;
+  z-index:9999;display:none;align-items:center;gap:8px;
+  box-shadow:0 6px 20px rgba(0,0,0,.1);
+}
+.toast-msg.show{display:flex}
+.toast-msg.success{background:#ecfdf5;color:#059669;border:1px solid #a7f3d0}
+.toast-msg.error{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1><i class="fas fa-user-gear" style="color:#3b82f6;margin-right:8px"></i>注册设置</h1>
+  <p>系统设置 · 注册配置</p>
+</div>
+
+<div class="toast-msg" id="toastMsg">
+  <i class="fas fa-check-circle"></i>
+  <span id="toastText"></span>
+</div>
+
+<div class="card">
+  <div class="card-title"><i class="fas fa-toggle-on"></i> 注册开关</div>
+  
+  <div class="setting-row">
+    <div class="setting-info">
+      <div class="setting-label">开放注册</div>
+      <div class="setting-desc">关闭后用户无法注册新账号</div>
+    </div>
+    <label class="toggle">
+      <input type="checkbox" id="registerOpen" onchange="saveSetting('register_open', this.checked?'1':'0')">
+      <span class="toggle-slider"></span>
+    </label>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title"><i class="fas fa-gift"></i> 注册赠送VIP</div>
+  
+  <div class="setting-row">
+    <div class="setting-info">
+      <div class="setting-label">赠送天数</div>
+      <div class="setting-desc">新用户注册后自动获得VIP天数，设为0则不赠送</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <input type="number" class="num-input" id="vipDays" min="0" max="3650" value="30">
+      <span style="font-size:13px;color:#64748b">天</span>
+      <button class="btn btn-primary" onclick="saveSetting('register_vip_days', document.getElementById('vipDays').value)" style="padding:8px 16px">
+        保存
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title"><i class="fas fa-shield-halved"></i> 安全验证</div>
+  
+  <div class="setting-row">
+    <div class="setting-info">
+      <div class="setting-label">注册验证码</div>
+      <div class="setting-desc">开启后注册时需要输入图形验证码，防止机器人注册</div>
+    </div>
+    <label class="toggle">
+      <input type="checkbox" id="registerCaptcha" onchange="saveSetting('register_captcha', this.checked?'1':'0')">
+      <span class="toggle-slider"></span>
+    </label>
+  </div>
+</div>
+
+<script>
+function showToast(msg, type) {
+  const el = document.getElementById('toastMsg');
+  el.className = 'toast-msg show ' + (type || 'success');
+  document.getElementById('toastText').textContent = msg;
+  setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+async function loadSettings() {
+  try {
+    const token = localStorage.getItem('admin_token');
+    const res = await fetch('/api/settings', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const settings = await res.json();
+    
+    document.getElementById('registerOpen').checked = settings.register_open === '1';
+    document.getElementById('vipDays').value = settings.register_vip_days || '30';
+    document.getElementById('registerCaptcha').checked = settings.register_captcha === '1';
+  } catch (e) {
+    showToast('加载设置失败', 'error');
+  }
+}
+
+async function saveSetting(key, value) {
+  try {
+    const token = localStorage.getItem('admin_token');
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ key, value })
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+      showToast('设置已保存', 'success');
+    } else {
+      showToast('保存失败', 'error');
+    }
+  } catch (e) {
+    showToast('网络错误', 'error');
+  }
+}
+
+loadSettings();
+</script>
+</body>
+</html>

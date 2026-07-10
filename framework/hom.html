@@ -1,0 +1,198 @@
+     1| 
+     2|<!DOCTYPE html>
+     3|<html lang="zh">
+     4|<head>
+     5|<meta charset="UTF-8">
+     6|<meta name="viewport" content="width=device-width,initial-scale=1">
+     7|<title>首页</title>
+     8|<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+     9|<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    10|<style>
+    11|*{margin:0;padding:0;box-sizing:border-box}
+    12|body{font-family:'Inter',-apple-system,sans-serif;background:#f5f6fa;color:#1e293b;padding:20px 18px 80px;min-height:100vh}
+    13|.page-header{margin-bottom:20px}
+    14|.page-header h1{font-size:18px;font-weight:700;color:#1e293b;margin-bottom:3px}
+    15|.page-header p{font-size:12px;color:#8892a4}
+    16|
+    17|.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:22px}
+    18|.stat-card{
+    19|  background:#fff;border-radius:12px;padding:12px 14px;
+    20|  border:1px solid #eef0f4;transition:all .2s;
+    21|  display:flex;align-items:center;gap:12px;
+    22|}
+    23|.stat-card:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.05)}
+    24|.stat-card .stat-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+    25|.stat-card .stat-icon.blue{background:#eef2ff;color:#4f46e5}
+    26|.stat-card .stat-icon.green{background:#ecfdf5;color:#059669}
+    27|.stat-card .stat-icon.orange{background:#fff7ed;color:#ea580c}
+    28|.stat-card .stat-icon.purple{background:#f5f3ff;color:#7c3aed}
+    29|.stat-card .stat-icon.red{background:#fef2f2;color:#dc2626}
+    30|.stat-card .stat-icon.teal{background:#f0fdfa;color:#0d9488}
+    31|.stat-card .stat-info{flex:1;min-width:0}
+    32|.stat-card .stat-label{font-size:12px;color:#8892a4;font-weight:500;margin-bottom:2px}
+    33|.stat-card .stat-value{font-size:20px;font-weight:800;color:#1e293b;letter-spacing:-.5px;line-height:1.1}
+    34|
+    35|.section-title{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+    36|.section-title i{color:#a0a8b8;font-size:13px}
+    37|.quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
+    38|.quick-card{
+    39|  background:#fff;border-radius:10px;padding:14px 12px;
+    40|  border:1px solid #eef0f4;display:flex;align-items:center;gap:12px;
+    41|  cursor:pointer;transition:all .2s;
+    42|}
+    43|.quick-card:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.04);border-color:#dbeafe}
+    44|.quick-card .qc-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+    45|.quick-card .qc-icon.c1{background:#eef2ff;color:#4f46e5}
+    46|.quick-card .qc-icon.c2{background:#ecfdf5;color:#059669}
+    47|.quick-card .qc-icon.c3{background:#fff7ed;color:#ea580c}
+    48|.quick-card .qc-icon.c4{background:#f5f3ff;color:#7c3aed}
+    49|.quick-card .qc-text{font-size:13px;font-weight:600;color:#475569}
+    50|
+    51|.info-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    52|.info-card{background:#fff;border-radius:12px;padding:16px;border:1px solid #eef0f4}
+    53|.info-card h3{font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;display:flex;align-items:center;gap:5px}
+    54|.info-card h3 i{color:#a0a8b8;font-size:12px}
+    55|.info-item{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f6fa;font-size:12px}
+    56|.info-item:last-child{border-bottom:none}
+    57|.info-item .label{color:#8892a4}
+    58|.info-item .value{font-weight:600;color:#475569}
+    59|@media(max-width:768px){
+    60|  body{padding:12px}
+    61|  .quick-grid{grid-template-columns:repeat(2,1fr)}
+    62|  .info-row{grid-template-columns:1fr}
+    63|}
+    64|</style>
+    65|</head>
+    66|<body>
+    67|
+    68|<div class="page-header">
+    69|  <h1>👋 欢迎回来，Admin</h1>
+    70|  <p>今天是 <span id="todayDate"></span>，系统运行正常</p>
+    71|</div>
+    72|
+    73|<div class="stats-grid">
+    74|  <div class="stat-card">
+    75|    <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+    76|    <div class="stat-info">
+    77|      <div class="stat-label">用户总数</div>
+    78|      <div class="stat-value"><span id="stat-userCount">-</span></div>
+    79|    </div>
+    80|  </div>
+    81|  <div class="stat-card">
+    82|    <div class="stat-icon green"><i class="fas fa-globe"></i></div>
+    83|    <div class="stat-info">
+    84|      <div class="stat-label">域名总数</div>
+    85|      <div class="stat-value"><span id="stat-domainCount">-</span></div>
+    86|    </div>
+    87|  </div>
+    88|  <div class="stat-card">
+    89|    <div class="stat-icon purple"><i class="fas fa-eye"></i></div>
+    90|    <div class="stat-info">
+    91|      <div class="stat-label">总访问量</div>
+    92|      <div class="stat-value"><span id="stat-totalViews">-</span></div>
+    93|    </div>
+    94|  </div>
+    95|  <div class="stat-card">
+    96|    <div class="stat-icon orange"><i class="fas fa-chart-line"></i></div>
+    97|    <div class="stat-info">
+    98|      <div class="stat-label">今日访问</div>
+    99|      <div class="stat-value"><span id="stat-todayViews">-</span></div>
+   100|    </div>
+   101|  </div>
+   102|  <div class="stat-card">
+   103|    <div class="stat-icon teal"><i class="fas fa-receipt"></i></div>
+   104|    <div class="stat-info">
+   105|      <div class="stat-label">订单总数</div>
+   106|      <div class="stat-value"><span id="stat-orderCount">-</span></div>
+   107|    </div>
+   108|  </div>
+   109|  <div class="stat-card">
+   110|    <div class="stat-icon red"><i class="fas fa-bolt"></i></div>
+   111|    <div class="stat-info">
+   112|      <div class="stat-label">今日订单</div>
+   113|      <div class="stat-value"><span id="stat-todayOrders">-</span></div>
+   114|    </div>
+   115|  </div>
+   116|  <div class="stat-card">
+   117|    <div class="stat-icon green"><i class="fas fa-coins"></i></div>
+   118|    <div class="stat-info">
+   119|      <div class="stat-label">总营业额</div>
+   120|      <div class="stat-value">¥<span id="stat-totalRevenue">-</span></div>
+   121|    </div>
+   122|  </div>
+   123|  <div class="stat-card">
+   124|    <div class="stat-icon orange"><i class="fas fa-money-bill-trend-up"></i></div>
+   125|    <div class="stat-info">
+   126|      <div class="stat-label">今日营业额</div>
+   127|      <div class="stat-value">¥<span id="stat-todayRevenue">-</span></div>
+   128|    </div>
+   129|  </div>
+   130|</div>
+   131|
+   132|<div class="section-title"><i class="fas fa-bolt"></i>快捷操作</div>
+   133|<div class="quick-grid">
+   134|  <div class="quick-card" onclick="parent.openTab('add_domain','添加域名','fa-plus')">
+   135|    <div class="qc-icon c1"><i class="fas fa-plus"></i></div>
+   136|    <div class="qc-text">添加域名</div>
+   137|  </div>
+   138|  <div class="quick-card" onclick="parent.openTab('user_list','用户列表','fa-user')">
+   139|    <div class="qc-icon c2"><i class="fas fa-users"></i></div>
+   140|    <div class="qc-text">管理用户</div>
+   141|  </div>
+   142|  <div class="quick-card" onclick="parent.openTab('order_list','订单列表','fa-receipt')">
+   143|    <div class="qc-icon c3"><i class="fas fa-receipt"></i></div>
+   144|    <div class="qc-text">查看订单</div>
+   145|  </div>
+   146|  <div class="quick-card" onclick="parent.openTab('site','站点设置','fa-gears')">
+   147|    <div class="qc-icon c4"><i class="fas fa-cog"></i></div>
+   148|    <div class="qc-text">系统设置</div>
+   149|  </div>
+   150|</div>
+   151|
+   152|<div class="info-row">
+   153|  <div class="info-card">
+   154|    <h3><i class="fas fa-server"></i> 服务器信息</h3>
+   155|    <div class="info-item"><span class="label">PHP 版本</span><span class="value">-</span></div>
+   156|    <div class="info-item"><span class="label">MySQL 版本</span><span class="value">5.7</span></div>
+   157|    <div class="info-item"><span class="label">服务器软件</span><span class="value">-</span></div>
+   158|    <div class="info-item"><span class="label">操作系统</span><span class="value">-</span></div>
+   159|  </div>
+   160|  <div class="info-card">
+   161|    <h3><i class="fas fa-clock"></i> 运行状态</h3>
+   162|    <div class="info-item"><span class="label">当前时间</span><span class="value"><span id="serverTime"></span></span></div>
+   163|    <div class="info-item"><span class="label">服务器运行</span><span class="value"><span id="uptime"></span> 秒</span></div>
+   164|    <div class="info-item"><span class="label">内存使用</span><span class="value">- MB</span></div>
+   165|  </div>
+   166|</div>
+   167|
+   168|
+<script>
+  // Fill dynamic values
+  var now = new Date();
+  var days = ['日','一','二','三','四','五','六'];
+  document.getElementById('todayDate').textContent =
+    now.getFullYear() + '年' + (now.getMonth()+1) + '月' + now.getDate() + '日 星期' + days[now.getDay()];
+  document.getElementById('serverTime').textContent =
+    now.toTimeString().slice(0,8);
+
+  // Fetch stats from API
+  fetch('/api/admin/stats').then(function(r){return r.json()}).then(function(d){
+    if(d.userCount !== undefined) document.getElementById('stat-userCount').textContent = Number(d.userCount).toLocaleString();
+    if(d.domainCount !== undefined) document.getElementById('stat-domainCount').textContent = Number(d.domainCount).toLocaleString();
+    if(d.totalViews !== undefined) document.getElementById('stat-totalViews').textContent = Number(d.totalViews).toLocaleString();
+    if(d.todayViews !== undefined) document.getElementById('stat-todayViews').textContent = Number(d.todayViews).toLocaleString();
+    if(d.orderCount !== undefined) document.getElementById('stat-orderCount').textContent = Number(d.orderCount).toLocaleString();
+    if(d.todayOrders !== undefined) document.getElementById('stat-todayOrders').textContent = Number(d.todayOrders).toLocaleString();
+    if(d.totalRevenue !== undefined) document.getElementById('stat-totalRevenue').textContent = '¥' + Number(d.totalRevenue).toFixed(2);
+    if(d.todayRevenue !== undefined) document.getElementById('stat-todayRevenue').textContent = '¥' + Number(d.todayRevenue).toFixed(2);
+  }).catch(function(){});
+
+  // Uptime
+  fetch('/proc/uptime').then(function(r){return r.text()}).then(function(t){
+    document.getElementById('uptime').textContent = Math.floor(parseFloat(t)) + ' 秒';
+  }).catch(function(){});
+</script>
+
+</body>
+   169|</html>
+   170|

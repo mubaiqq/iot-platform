@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>个人信息</title>
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,sans-serif;background:#f5f6fa;color:#1e293b;padding:16px 14px 60px;min-height:100vh}
+
+/* Profile header card */
+.profile-card{background:#fff;border-radius:16px;border:1px solid #eef0f4;padding:24px 20px;margin-bottom:14px;display:flex;align-items:center;gap:16px}
+.profile-avatar{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;font-weight:700;flex-shrink:0}
+.profile-info{flex:1;min-width:0}
+.profile-name{font-size:18px;font-weight:700;color:#1e293b;margin-bottom:2px}
+.profile-email{font-size:12px;color:#94a3b8}
+.profile-role{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;margin-top:6px}
+.profile-role.user{background:#eff6ff;color:#3b82f6}
+.profile-role.admin{background:#fef3c7;color:#d97706}
+.profile-vip{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;margin-top:6px;margin-left:4px}
+.profile-vip.active{background:#ecfdf5;color:#059669}
+.profile-vip.expired{background:#f1f5f9;color:#94a3b8}
+.profile-vip.none{background:#f8fafc;color:#cbd5e1}
+
+/* Info sections */
+.section-title{font-size:12px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px;padding:0 2px}
+.info-card{background:#fff;border-radius:14px;border:1px solid #eef0f4;overflow:hidden}
+.info-row{display:flex;align-items:center;padding:14px 16px;gap:12px}
+.info-row+.info-row{border-top:1px solid #f1f5f9}
+.info-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.info-icon.blue{background:#eff6ff;color:#3b82f6}
+.info-icon.green{background:#ecfdf5;color:#059669}
+.info-icon.orange{background:#fff7ed;color:#f59e0b}
+.info-icon.purple{background:#f5f3ff;color:#8b5cf6}
+.info-icon.red{background:#fef2f2;color:#ef4444}
+.info-icon.gray{background:#f8fafc;color:#64748b}
+.info-icon.cyan{background:#ecfeff;color:#06b6d4}
+.info-body{flex:1;min-width:0}
+.info-label{font-size:12px;color:#94a3b8;margin-bottom:1px}
+.info-value{font-size:14px;font-weight:600;color:#1e293b}
+.info-value.mono{font-family:monospace}
+.info-value.small{font-size:12px;font-weight:500;color:#475569}
+.info-right{text-align:right;flex-shrink:0}
+.info-right .tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px}
+.info-right .tag.online{background:#ecfdf5;color:#059669}
+.info-right .tag.offline{background:#f1f5f9;color:#94a3b8}
+.info-right .tag.active{background:#ecfdf5;color:#059669}
+.info-right .tag.banned{background:#fef2f2;color:#ef4444}
+
+/* Stats grid */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.stat-box{background:#fff;border:1px solid #eef0f4;border-radius:12px;padding:12px 10px;text-align:center}
+.stat-box .val{font-size:20px;font-weight:800;color:#1e293b;line-height:1.1}
+.stat-box .lbl{font-size:10px;color:#94a3b8;margin-top:3px;font-weight:500}
+.stat-box .val.green{color:#059669}
+.stat-box .val.red{color:#dc2626}
+.stat-box .val.orange{color:#f59e0b}
+.stat-box .val.purple{color:#8b5cf6}
+
+.loading{text-align:center;padding:60px;color:#94a3b8}
+.loading i{font-size:24px;margin-bottom:8px;display:block}
+
+@media(max-width:480px){
+  body{padding:10px 10px 60px}
+  .profile-card{padding:18px 14px}
+  .profile-avatar{width:48px;height:48px;font-size:20px;border-radius:12px}
+  .profile-name{font-size:16px}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<div id="content">
+  <div class="loading"><i class="fas fa-spinner fa-spin"></i>加载中...</div>
+</div>
+
+<script>
+function formatTime(str){
+  if(!str) return '--';
+  var d=new Date(str);
+  var now=new Date();
+  var diff=now-d;
+  if(diff<60000) return '刚刚';
+  if(diff<3600000) return Math.floor(diff/60000)+'分钟前';
+  if(diff<86400000) return Math.floor(diff/3600000)+'小时前';
+  return d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+
+function formatFullTime(str){
+  if(!str) return '--';
+  var d=new Date(str);
+  return d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');
+}
+
+function daysSince(str){
+  if(!str) return '--';
+  var d=Math.floor((Date.now()-new Date(str).getTime())/86400000);
+  if(d===0) return '今天';
+  return d+'天前';
+}
+
+fetch('/api/me').then(function(r){return r.json()}).then(function(data){
+  if(!data.success){document.getElementById('content').innerHTML='<div class="loading"><i class="fas fa-exclamation-circle" style="color:#ef4444"></i>'+data.error+'</div>';return;}
+  var u=data.user;
+  var html='';
+
+  // Profile header
+  var initial=u.username?u.username.charAt(0).toUpperCase():'U';
+  var roleClass=u.role==='admin'?'admin':'user';
+  var roleText=u.role==='admin'?'管理员':'普通用户';
+  var vipHtml='';
+  if(u.is_vip){
+    vipHtml='<span class="profile-vip active"><i class="fas fa-crown"></i> VIP '+u.vip_days_remaining+'天</span>';
+  } else if(u.vip_expire){
+    vipHtml='<span class="profile-vip expired"><i class="fas fa-crown"></i> VIP已过期</span>';
+  }
+
+  html+='<div class="profile-card">';
+  html+='<div class="profile-avatar">'+initial+'</div>';
+  html+='<div class="profile-info">';
+  html+='<div class="profile-name">'+u.username+'</div>';
+  html+='<div class="profile-email">'+u.email+'</div>';
+  html+='<span class="profile-role '+roleClass+'">'+roleText+'</span>'+vipHtml;
+  html+='</div></div>';
+
+  // Device stats
+  html+='<div class="stats-grid">';
+  html+='<div class="stat-box"><div class="val">'+u.device_total+'</div><div class="lbl">设备总数</div></div>';
+  html+='<div class="stat-box"><div class="val green">'+u.device_online+'</div><div class="lbl">在线</div></div>';
+  html+='<div class="stat-box"><div class="val orange">'+u.device_controllers+'</div><div class="lbl">控制器</div></div>';
+  html+='<div class="stat-box"><div class="val purple">'+u.device_sensors+'</div><div class="lbl">传感器</div></div>';
+  html+='</div>';
+
+  // Account info
+  html+='<div class="section-title">账号信息</div>';
+  html+='<div class="info-card">';
+  html+='<div class="info-row"><div class="info-icon blue"><i class="fas fa-hashtag"></i></div><div class="info-body"><div class="info-label">用户ID</div><div class="info-value mono">'+u.id+'</div></div></div>';
+  html+='<div class="info-row"><div class="info-icon green"><i class="fas fa-user"></i></div><div class="info-body"><div class="info-label">用户名</div><div class="info-value">'+u.username+'</div></div></div>';
+  html+='<div class="info-row"><div class="info-icon purple"><i class="fas fa-envelope"></i></div><div class="info-body"><div class="info-label">邮箱</div><div class="info-value small">'+u.email+'</div></div></div>';
+  html+='<div class="info-row"><div class="info-icon orange"><i class="fas fa-shield-halved"></i></div><div class="info-body"><div class="info-label">角色</div><div class="info-value">'+roleText+'</div></div><div class="info-right"><span class="tag active">'+u.role+'</span></div></div>';
+  html+='<div class="info-row"><div class="info-icon gray"><i class="fas fa-circle-check"></i></div><div class="info-body"><div class="info-label">账号状态</div><div class="info-value">'+(u.status==='active'?'正常':'封禁')+'</div></div><div class="info-right"><span class="tag '+(u.status==='active'?'active':'banned')+'">'+(u.status==='active'?'正常':'封禁')+'</span></div></div>';
+  html+='<div class="info-row"><div class="info-icon cyan"><i class="fas fa-clock"></i></div><div class="info-body"><div class="info-label">注册时间</div><div class="info-value small">'+formatFullTime(u.created_at)+'</div></div><div class="info-right" style="font-size:11px;color:#94a3b8">'+daysSince(u.created_at)+'</div></div>';
+  html+='<div class="info-row"><div class="info-icon blue"><i class="fas fa-right-to-bracket"></i></div><div class="info-body"><div class="info-label">最近登录</div><div class="info-value small">'+formatTime(u.last_login)+'</div></div></div>';
+  html+='<div class="info-row"><div class="info-icon green"><i class="fas fa-desktop"></i></div><div class="info-body"><div class="info-label">活跃会话</div><div class="info-value">'+u.active_sessions+' 台设备</div></div></div>';
+  html+='</div>';
+
+  // VIP info
+  html+='<div class="section-title">会员信息</div>';
+  html+='<div class="info-card">';
+  if(u.is_vip){
+    html+='<div class="info-row"><div class="info-icon orange"><i class="fas fa-crown"></i></div><div class="info-body"><div class="info-label">VIP状态</div><div class="info-value" style="color:#059669">VIP会员</div></div><div class="info-right"><span class="tag active">生效中</span></div></div>';
+    html+='<div class="info-row"><div class="info-icon red"><i class="fas fa-calendar-xmark"></i></div><div class="info-body"><div class="info-label">到期时间</div><div class="info-value small">'+formatFullTime(u.vip_expire)+'</div></div><div class="info-right" style="font-size:13px;font-weight:700;color:#f59e0b">'+u.vip_days_remaining+'天</div></div>';
+  } else if(u.vip_expire){
+    html+='<div class="info-row"><div class="info-icon orange"><i class="fas fa-crown"></i></div><div class="info-body"><div class="info-label">VIP状态</div><div class="info-value" style="color:#94a3b8">已过期</div></div></div>';
+    html+='<div class="info-row"><div class="info-icon red"><i class="fas fa-calendar-xmark"></i></div><div class="info-body"><div class="info-label">过期时间</div><div class="info-value small">'+formatFullTime(u.vip_expire)+'</div></div></div>';
+  } else {
+    html+='<div class="info-row"><div class="info-icon orange"><i class="fas fa-crown"></i></div><div class="info-body"><div class="info-label">VIP状态</div><div class="info-value" style="color:#94a3b8">未开通</div></div></div>';
+  }
+  html+='</div>';
+
+  document.getElementById('content').innerHTML=html;
+}).catch(function(e){
+  document.getElementById('content').innerHTML='<div class="loading"><i class="fas fa-exclamation-circle" style="color:#ef4444"></i>加载失败</div>';
+});
+</script>
+</body>
+</html>

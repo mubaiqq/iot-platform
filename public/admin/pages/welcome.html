@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>首页</title>
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,sans-serif;background:#f5f6fa;color:#1e293b;padding:20px 18px 80px;min-height:100vh}
+.page-header{margin-bottom:20px}
+.page-header h1{font-size:18px;font-weight:700;color:#1e293b;margin-bottom:3px}
+.page-header p{font-size:12px;color:#8892a4}
+
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
+.stat-card{background:#fff;border-radius:12px;padding:12px 14px;border:1px solid #eef0f4;transition:all .2s;display:flex;align-items:center;gap:12px}
+.stat-card:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.05)}
+.stat-card .stat-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.stat-card .stat-icon.blue{background:#eef2ff;color:#4f46e5}
+.stat-card .stat-icon.green{background:#ecfdf5;color:#059669}
+.stat-card .stat-icon.orange{background:#fff7ed;color:#ea580c}
+.stat-card .stat-icon.purple{background:#f5f3ff;color:#7c3aed}
+.stat-card .stat-icon.red{background:#fef2f2;color:#dc2626}
+.stat-card .stat-icon.teal{background:#f0fdfa;color:#0d9488}
+.stat-card .stat-info{flex:1;min-width:0}
+.stat-card .stat-label{font-size:12px;color:#8892a4;font-weight:500;margin-bottom:2px}
+.stat-card .stat-value{font-size:20px;font-weight:800;color:#1e293b;letter-spacing:-.5px;line-height:1.1}
+
+.section-title{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.section-title i{color:#a0a8b8;font-size:13px}
+.quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
+.quick-card{background:#fff;border-radius:10px;padding:14px 12px;border:1px solid #eef0f4;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .2s}
+.quick-card:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.04);border-color:#dbeafe}
+.quick-card .qc-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.quick-card .qc-icon.c1{background:#eef2ff;color:#4f46e5}
+.quick-card .qc-icon.c2{background:#ecfdf5;color:#059669}
+.quick-card .qc-icon.c3{background:#fff7ed;color:#ea580c}
+.quick-card .qc-icon.c4{background:#f5f3ff;color:#7c3aed}
+.quick-card .qc-text{font-size:13px;font-weight:600;color:#475569;display:flex;flex-direction:column;gap:2px}
+.quick-card .qc-badge{font-size:11px;font-weight:500;color:#8892a4}
+
+.info-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.info-card{background:#fff;border-radius:12px;padding:16px;border:1px solid #eef0f4}
+.info-card h3{font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;display:flex;align-items:center;gap:5px}
+.info-card h3 i{color:#a0a8b8;font-size:12px}
+.info-item{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f6fa;font-size:12px}
+.info-item:last-child{border-bottom:none}
+.info-item .label{color:#8892a4}
+.info-item .value{font-weight:600;color:#475569}
+
+@media(max-width:768px){
+  body{padding:12px}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .quick-grid{grid-template-columns:repeat(2,1fr)}
+  .info-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1 id="welcomeTitle">👋 欢迎回来，Admin</h1>
+  <p id="dateInfo"></p>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon blue"><i class="fas fa-microchip"></i></div>
+    <div class="stat-info">
+      <div class="stat-label">设备总数</div>
+      <div class="stat-value" id="statDevices">-</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green"><i class="fas fa-signal"></i></div>
+    <div class="stat-info">
+      <div class="stat-label">在线设备</div>
+      <div class="stat-value" id="statOnline">-</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon teal"><i class="fas fa-users"></i></div>
+    <div class="stat-info">
+      <div class="stat-label">用户总数</div>
+      <div class="stat-value" id="statUsers">-</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon red"><i class="fas fa-triangle-exclamation"></i></div>
+    <div class="stat-info">
+      <div class="stat-label">离线设备</div>
+      <div class="stat-value" id="statOffline">-</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon orange"><i class="fas fa-faucet-drip"></i></div>
+    <div class="stat-info">
+      <div class="stat-label">控制器</div>
+      <div class="stat-value" id="statController">-</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon purple"><i class="fas fa-microchip"></i></div>
+    <div class="stat-info">
+      <div class="stat-label">传感器</div>
+      <div class="stat-value" id="statSensor">-</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green"><i class="fas fa-chart-line"></i></div>
+    <div class="stat-info">
+      <div class="stat-label">在线率</div>
+      <div class="stat-value" id="statRate">-</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon blue"><i class="fas fa-server"></i></div>
+    <div class="stat-info">
+      <div class="stat-label">平台状态</div>
+      <div class="stat-value" id="statPlatform" style="color:#059669;font-size:14px">-</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-title"><i class="fas fa-bolt"></i>快捷操作</div>
+<div class="quick-grid">
+  <div class="quick-card" onclick="parent.openTab('device_list','设备列表','fa-list')">
+    <div class="qc-icon c1"><i class="fas fa-list"></i></div>
+    <div class="qc-text">设备列表<span class="qc-badge" id="quickDevices">- 台设备</span></div>
+  </div>
+  <div class="quick-card" onclick="parent.openTab('user_manage','用户列表','fa-users')">
+    <div class="qc-icon c2"><i class="fas fa-users"></i></div>
+    <div class="qc-text">用户管理<span class="qc-badge" id="quickUsers">- 个用户</span></div>
+  </div>
+  <div class="quick-card" onclick="parent.openTab('realtime','实时数据','fa-wave-square')">
+    <div class="qc-icon c3"><i class="fas fa-chart-line"></i></div>
+    <div class="qc-text">实时数据<span class="qc-badge" id="quickOnline">- 台在线</span></div>
+  </div>
+  <div class="quick-card" onclick="parent.openTab('site','站点设置','fa-gears')">
+    <div class="qc-icon c4"><i class="fas fa-cog"></i></div>
+    <div class="qc-text">系统设置<span class="qc-badge" id="quickMqtt">-</span></div>
+  </div>
+</div>
+
+<div class="info-row">
+  <div class="info-card">
+    <h3><i class="fas fa-server"></i> 服务器信息</h3>
+    <div class="info-item"><span class="label">Node.js 版本</span><span class="value" id="nodeVersion">-</span></div>
+    <div class="info-item"><span class="label">MySQL 版本</span><span class="value" id="mysqlVersion">-</span></div>
+    <div class="info-item"><span class="label">服务器软件</span><span class="value">Nginx + Express</span></div>
+    <div class="info-item"><span class="label">操作系统</span><span class="value" id="osVersion">-</span></div>
+    <div class="info-item"><span class="label">进程运行</span><span class="value" id="uptimeInfo">-</span></div>
+    <div class="info-item"><span class="label">内存占用</span><span class="value" id="memoryInfo">-</span></div>
+  </div>
+  <div class="info-card">
+    <h3><i class="fas fa-clock"></i> 运行状态</h3>
+    <div class="info-item"><span class="label">当前时间</span><span class="value" id="currentTime">--:--:--</span></div>
+    <div class="info-item"><span class="label">MQTT 连接</span><span class="value" id="mqttStatus">-</span></div>
+    <div class="info-item"><span class="label">数据库连接</span><span class="value" id="dbStatus">-</span></div>
+    <div class="info-item"><span class="label">设备总数</span><span class="value" id="infoDevices">-</span></div>
+    <div class="info-item"><span class="label">今日日志</span><span class="value" id="infoLogsToday">-</span></div>
+    <div class="info-item"><span class="label">待绑定设备</span><span class="value" id="infoPending">-</span></div>
+  </div>
+</div>
+
+<script>
+function updateTime(){
+  var now=new Date();
+  var h=String(now.getHours()).padStart(2,'0');
+  var m=String(now.getMinutes()).padStart(2,'0');
+  var s=String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('currentTime').textContent=h+':'+m+':'+s;
+}
+setInterval(updateTime,1000);
+updateTime();
+
+var days=['日','一','二','三','四','五','六'];
+var now=new Date();
+document.getElementById('dateInfo').textContent='今天是 '+now.getFullYear()+'年'+String(now.getMonth()+1).padStart(2,'0')+'月'+String(now.getDate()).padStart(2,'0')+'日 星期'+days[now.getDay()]+'，系统运行正常';
+
+try{
+  var user=window.parent.__currentUser||window.__currentUser;
+  if(user&&user.username){
+    document.getElementById('welcomeTitle').textContent='👋 欢迎回来，'+user.username;
+  }
+}catch(e){}
+
+function setText(id, val){
+  var el=document.getElementById(id);
+  if(el) el.textContent=val;
+}
+function setStatus(id, text, ok){
+  var el=document.getElementById(id);
+  if(!el)return;
+  el.textContent=text;
+  el.style.color=ok ? '#059669' : '#dc2626';
+}
+function fmt(n){return Number(n||0).toLocaleString();}
+function fmtBytes(bytes){
+  bytes=Number(bytes)||0;
+  if(bytes>=1024*1024*1024)return (bytes/1024/1024/1024).toFixed(1)+'GB';
+  if(bytes>=1024*1024)return (bytes/1024/1024).toFixed(1)+'MB';
+  if(bytes>=1024)return (bytes/1024).toFixed(1)+'KB';
+  return bytes+'B';
+}
+function fmtUptime(sec){
+  sec=Number(sec)||0;
+  var d=Math.floor(sec/86400); sec%=86400;
+  var h=Math.floor(sec/3600); sec%=3600;
+  var m=Math.floor(sec/60);
+  if(d>0)return d+'天 '+h+'小时';
+  if(h>0)return h+'小时 '+m+'分';
+  return Math.max(m,1)+'分钟';
+}
+
+async function loadDashboard(){
+  try{
+    var res=await fetch('/api/admin/dashboard',{cache:'no-store'});
+    var data=await res.json();
+    if(!data.success) throw new Error(data.error||'获取失败');
+    var s=data.stats||{}, d=s.devices||{}, u=s.users||{}, logs=s.logs||{}, sys=data.system||{}, sv=data.services||{};
+
+    setText('statDevices',fmt(d.total));
+    setText('statOnline',fmt(d.online));
+    setText('statUsers',fmt(u.total));
+    setText('statOffline',fmt(d.offline));
+    setText('statController',fmt(d.controllers));
+    setText('statSensor',fmt(d.sensors));
+    setText('statRate',(d.online_rate||0)+'%');
+    setText('statPlatform',sv.app||'正常');
+
+    setText('quickDevices',fmt(d.total)+' 台设备');
+    setText('quickUsers',fmt(u.total)+' 个用户 / '+fmt(u.active)+' 正常');
+    setText('quickOnline',fmt(d.online)+' 台在线');
+    setText('quickMqtt',sv.mqtt_broker ? sv.mqtt_broker : (sv.mqtt||'未配置'));
+
+    setText('nodeVersion',sys.node_version||'-');
+    setText('mysqlVersion',sys.mysql_version||'-');
+    setText('osVersion',sys.platform||'-');
+    setText('uptimeInfo',fmtUptime(sys.uptime_seconds));
+    setText('memoryInfo',fmtBytes(sys.memory&&sys.memory.rss));
+    setStatus('mqttStatus',sv.mqtt_broker ? '已配置：'+sv.mqtt_broker : (sv.mqtt||'未配置'), !!sv.mqtt_broker);
+    setStatus('dbStatus',sv.database||'正常', true);
+    setText('infoDevices',fmt(d.total)+' 台（在线 '+fmt(d.online)+' / 离线 '+fmt(d.offline)+'）');
+    setText('infoLogsToday',fmt(logs.today)+' 条');
+    setText('infoPending',fmt(s.pending_devices)+' 台');
+  }catch(e){
+    console.error(e);
+    setStatus('statPlatform','异常',false);
+    setStatus('dbStatus','获取失败',false);
+  }
+}
+loadDashboard();
+setInterval(loadDashboard,30000);
+window.loadDashboard=loadDashboard;
+</script>
+</body>
+</html>

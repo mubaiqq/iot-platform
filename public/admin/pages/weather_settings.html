@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>天气设置</title>
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f5f6fa;color:#1e293b;min-height:100vh;padding:20px}
+.container{max-width:640px;margin:0 auto}
+h2{font-size:20px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+h2 i{color:#3b82f6}
+
+/* Cards */
+.card{background:#fff;border-radius:14px;border:1px solid #eef0f4;padding:20px;margin-bottom:16px}
+.card-title{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px;color:#334155}
+.card-title i{color:#3b82f6;font-size:13px}
+
+/* Key input row */
+.key-row{display:flex;gap:8px;align-items:center}
+.key-input-wrap{flex:1;position:relative}
+.key-input-wrap input{
+  width:100%;border:1.5px solid #e2e8f0;border-radius:10px;
+  padding:9px 38px 9px 14px;font-size:13px;outline:none;
+  font-family:'Inter',sans-serif;transition:border-color .2s;background:#fff;
+}
+.key-input-wrap input:focus{border-color:#3b82f6}
+.key-input-wrap .eye-btn{
+  position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:#94a3b8;cursor:pointer;font-size:13px;
+  padding:4px;transition:color .2s;
+}
+.key-input-wrap .eye-btn:hover{color:#475569}
+.btn{border:none;border-radius:8px;padding:8px 14px;font-weight:600;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-primary{background:#3b82f6;color:#fff}
+.btn-primary:hover{background:#2563eb}
+.btn-ghost{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0}
+.btn-ghost:hover{background:#e2e8f0}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-sm{padding:7px 12px;font-size:11px;border-radius:7px}
+
+/* Note */
+.note{background:#f8fafc;border:1px solid #eef0f4;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#64748b;line-height:1.5}
+.note a{color:#3b82f6;text-decoration:none;font-weight:500}
+.note a:hover{text-decoration:underline}
+
+/* Status */
+.status-msg{font-size:12px;margin-top:8px;padding:6px 10px;border-radius:8px;display:none;line-height:1.4}
+.status-msg.show{display:flex;align-items:center;gap:6px}
+.status-msg i{font-size:11px}
+.status-msg.success{background:#ecfdf5;color:#059669}
+.status-msg.error{background:#fef2f2;color:#dc2626}
+
+/* Search input */
+.search-wrap{position:relative}
+.search-wrap input{
+  width:100%;border:1.5px solid #e2e8f0;border-radius:10px;
+  padding:10px 14px 10px 36px;font-size:13px;outline:none;
+  font-family:'Inter',sans-serif;transition:border-color .2s;background:#fff;
+}
+.search-wrap input:focus{border-color:#3b82f6}
+.search-wrap .search-icon{
+  position:absolute;left:12px;top:50%;transform:translateY(-50%);
+  color:#94a3b8;font-size:13px;pointer-events:none;
+}
+.search-wrap .clear-btn{
+  position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:12px;
+  padding:4px;display:none;transition:color .2s;
+}
+.search-wrap .clear-btn.show{display:block}
+.search-wrap .clear-btn:hover{color:#64748b}
+.search-hint{font-size:11px;color:#94a3b8;margin-top:6px;display:flex;align-items:center;gap:4px}
+.search-hint i{font-size:10px}
+
+/* Dropdown */
+.dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;max-height:260px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:100;display:none;margin-top:4px}
+.dropdown.show{display:block}
+.dropdown-item{padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f5f9;transition:background .15s;display:flex;align-items:center;gap:10px}
+.dropdown-item:last-child{border-bottom:none}
+.dropdown-item:hover{background:#f0f4ff}
+.dropdown-item .loc-icon{color:#3b82f6;font-size:12px;flex-shrink:0;width:16px;text-align:center}
+.dropdown-item .loc-info{flex:1;min-width:0}
+.dropdown-item .loc-name{font-weight:600;color:#1e293b;font-size:13px}
+.dropdown-item .loc-detail{font-size:11px;color:#94a3b8;margin-top:1px}
+.dropdown-empty{padding:16px;text-align:center;color:#94a3b8;font-size:12px}
+.dropdown-empty i{display:block;font-size:20px;margin-bottom:6px;opacity:.4}
+
+/* Weather */
+.weather-hero{text-align:center;padding:20px 0 10px}
+.weather-emoji{font-size:56px;line-height:1.2}
+.weather-text{font-size:16px;font-weight:600;color:#334155;margin-top:6px}
+.weather-temp-big{font-size:48px;font-weight:700;color:#1e293b;margin-top:2px;line-height:1}
+.weather-temp-big .unit{font-size:20px;font-weight:500;color:#94a3b8}
+.weather-link{font-size:11px;color:#3b82f6;text-decoration:none;margin-top:8px;display:inline-flex;align-items:center;gap:4px}
+.weather-link:hover{text-decoration:underline}
+.info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
+.info-item{background:#f8fafc;border-radius:10px;padding:10px 8px;text-align:center}
+.info-item .label{font-size:10px;color:#94a3b8;margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px}
+.info-item .value{font-size:14px;font-weight:600;color:#334155}
+.forecast-title{font-size:13px;font-weight:600;color:#475569;margin-top:18px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.forecast-title i{color:#3b82f6;font-size:12px}
+.forecast-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.forecast-card{background:#f8fafc;border-radius:12px;padding:14px 10px;text-align:center}
+.forecast-card .fc-date{font-size:11px;color:#94a3b8;font-weight:500}
+.forecast-card .fc-emoji{font-size:28px;margin:6px 0}
+.forecast-card .fc-text{font-size:11px;color:#475569;font-weight:500}
+.forecast-card .fc-temp{font-size:13px;font-weight:700;color:#1e293b;margin:4px 0}
+.forecast-card .fc-temp span{font-size:11px;font-weight:400;color:#94a3b8}
+.forecast-card .fc-info{font-size:10px;color:#94a3b8;line-height:1.6}
+.weather-result{display:none}
+.weather-result.show{display:block}
+
+/* Loading */
+.loading{text-align:center;padding:30px;color:#94a3b8;font-size:13px}
+.loading i{animation:spin 1s linear infinite;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Toast */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:#1e293b;color:#fff;padding:10px 20px;border-radius:10px;font-size:12px;font-weight:500;z-index:9999;transition:transform .3s ease;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.success{background:#059669}
+.toast.error{background:#dc2626}
+
+@media(max-width:768px){
+  body{padding:12px}
+  .key-input-wrap input,.search-wrap input{font-size:16px}
+  .info-grid{grid-template-columns:repeat(2,1fr)}
+  .forecast-row{grid-template-columns:1fr}
+  .weather-temp-big{font-size:40px}
+  .weather-emoji{font-size:46px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h2><i class="fas fa-cloud-sun"></i> 天气设置</h2>
+
+  <!-- API Key Card -->
+  <div class="card">
+    <div class="card-title"><i class="fas fa-key"></i> API Key</div>
+    <div class="note">前往 <a href="https://dev.qweather.com/" target="_blank">和风天气开发平台</a> 获取免费 Key，填入下方即可使用</div>
+    <div class="key-row">
+      <div class="key-input-wrap">
+        <input type="password" id="apiKeyInput" placeholder="粘贴你的 API Key" autocomplete="off">
+        <button class="eye-btn" onclick="toggleKeyVis()" title="显示/隐藏"><i class="fas fa-eye" id="eyeIcon"></i></button>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="saveKeyBtn" onclick="saveKey()"><i class="fas fa-save"></i> 保存</button>
+      <button class="btn btn-ghost btn-sm" id="testKeyBtn" onclick="testKey()"><i class="fas fa-vial"></i> 测试</button>
+    </div>
+    <div class="status-msg" id="keyStatus"></div>
+  </div>
+
+  <!-- Search Card -->
+  <div class="card">
+    <div class="card-title"><i class="fas fa-map-marker-alt"></i> 查询天气</div>
+    <div class="search-wrap">
+      <i class="fas fa-search search-icon"></i>
+      <input type="text" id="cityInput" placeholder="输入城市名称..." autocomplete="off">
+      <button class="clear-btn" id="clearBtn" onclick="clearSearch()"><i class="fas fa-times"></i></button>
+      <div class="dropdown" id="cityDropdown"></div>
+    </div>
+    <div class="search-hint"><i class="fas fa-info-circle"></i> 输入后自动搜索，点击城市查看天气</div>
+  </div>
+
+  <!-- Weather Result -->
+  <div class="card weather-result" id="weatherCard">
+    <div id="weatherContent"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const EMOJI_MAP = {
+  '晴':'☀️','多云':'⛅','阴':'☁️','小雨':'🌦️','中雨':'🌧️','大雨':'🌧️','暴雨':'⛈️',
+  '雷阵雨':'⛈️','小雪':'🌨️','中雪':'🌨️','大雪':'❄️','暴雪':'❄️','雨夹雪':'🌨️',
+  '雾':'🌫️','霾':'🌫️','沙尘暴':'🌪️','浮尘':'🌫️','扬沙':'🌫️','阵雨':'🌦️',
+  '阵雪':'🌨️','冻雨':'🌧️','特大暴雨':'⛈️','大暴雨':'⛈️','冰雹':'🌨️',
+  '晴间多云':'🌤️','局部多云':'🌤️','少云':'🌤️'
+};
+
+function getEmoji(text) {
+  if (!text) return '🌈';
+  for (const [k, v] of Object.entries(EMOJI_MAP)) {
+    if (text.includes(k)) return v;
+  }
+  return '🌈';
+}
+
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.className = 'toast', 2500);
+}
+
+function showKeyStatus(msg, type) {
+  const el = document.getElementById('keyStatus');
+  const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+  el.innerHTML = '<i class="fas ' + icon + '"></i> ' + msg;
+  el.className = 'status-msg show ' + type;
+  clearTimeout(el._tid);
+  el._tid = setTimeout(() => el.className = 'status-msg', 3000);
+}
+
+function toggleKeyVis() {
+  const inp = document.getElementById('apiKeyInput');
+  const icon = document.getElementById('eyeIcon');
+  if (inp.type === 'password') { inp.type = 'text'; icon.className = 'fas fa-eye-slash'; }
+  else { inp.type = 'password'; icon.className = 'fas fa-eye'; }
+}
+
+// Load saved key (admin uses global settings)
+async function loadKey() {
+  try {
+    const res = await fetch('/api/settings/qweather_api_key');
+    const data = await res.json();
+    if (data.value) document.getElementById('apiKeyInput').value = data.value;
+  } catch (e) {}
+}
+
+async function saveKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) return showKeyStatus('请输入 API Key', 'error');
+  const btn = document.getElementById('saveKeyBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({key: 'qweather_api_key', value: key})
+    });
+    const data = await res.json();
+    if (data.success) {
+      showKeyStatus('保存成功', 'success');
+      showToast('保存成功', 'success');
+    } else {
+      showKeyStatus(data.error || '保存失败', 'error');
+    }
+  } catch (e) {
+    showKeyStatus('网络错误', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function testKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) return showKeyStatus('请先输入 API Key', 'error');
+  const btn = document.getElementById('testKeyBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  try {
+    const res = await fetch('/api/weather/test', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({api_key: key})
+    });
+    const data = await res.json();
+    if (data.success) {
+      showKeyStatus(data.message || '验证通过', 'success');
+      showToast('Key 有效', 'success');
+    } else {
+      showKeyStatus(data.error || '验证失败', 'error');
+    }
+  } catch (e) {
+    showKeyStatus('网络错误', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-vial"></i> 测试';
+  }
+}
+
+// --- City search (auto) ---
+let searchTimer = null;
+const cityInput = document.getElementById('cityInput');
+const dropdown = document.getElementById('cityDropdown');
+const clearBtn = document.getElementById('clearBtn');
+
+cityInput.addEventListener('input', () => {
+  const v = cityInput.value.trim();
+  clearBtn.classList.toggle('show', v.length > 0);
+  clearTimeout(searchTimer);
+  if (v.length >= 2) {
+    searchTimer = setTimeout(searchCity, 350);
+  } else {
+    hideDropdown();
+  }
+});
+cityInput.addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(searchTimer); searchCity(); }});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrap')) hideDropdown();
+});
+
+function hideDropdown() { dropdown.classList.remove('show'); dropdown.innerHTML = ''; }
+
+function clearSearch() {
+  cityInput.value = '';
+  clearBtn.classList.remove('show');
+  hideDropdown();
+  cityInput.focus();
+}
+
+async function searchCity() {
+  const q = cityInput.value.trim();
+  if (!q) return;
+  try {
+    const res = await fetch('/api/weather/search?location=' + encodeURIComponent(q));
+    const data = await res.json();
+    if (data.success && data.locations && data.locations.length > 0) {
+      dropdown.innerHTML = data.locations.map(loc => `
+        <div class="dropdown-item" onclick="selectCity('${loc.id}','${loc.name}')">
+          <i class="fas fa-map-marker-alt loc-icon"></i>
+          <div class="loc-info">
+            <div class="loc-name">${loc.name}</div>
+            <div class="loc-detail">${loc.fullName || (loc.adm1 + ', ' + loc.country)}</div>
+          </div>
+        </div>
+      `).join('');
+      dropdown.classList.add('show');
+    } else {
+      dropdown.innerHTML = '<div class="dropdown-empty"><i class="fas fa-map-marker-alt"></i>未找到匹配城市</div>';
+      dropdown.classList.add('show');
+    }
+  } catch (e) {
+    showToast('搜索失败', 'error');
+  }
+}
+
+function selectCity(id, name) {
+  cityInput.value = name;
+  hideDropdown();
+  queryWeather(id);
+}
+
+async function queryWeather(locationId) {
+  const card = document.getElementById('weatherCard');
+  const content = document.getElementById('weatherContent');
+  card.classList.add('show');
+  content.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> 正在查询...</div>';
+  try {
+    const res = await fetch('/api/weather/now?location=' + locationId);
+    const data = await res.json();
+    if (!data.success) {
+      content.innerHTML = '<div class="loading" style="color:#dc2626"><i class="fas fa-exclamation-circle"></i>' + (data.error || '查询失败') + '</div>';
+      return;
+    }
+    renderWeather(data);
+  } catch (e) {
+    content.innerHTML = '<div class="loading" style="color:#dc2626"><i class="fas fa-exclamation-circle"></i>网络错误</div>';
+  }
+}
+
+function renderWeather(data) {
+  const n = data.now;
+  const emoji = getEmoji(n.text);
+  const fc = data.forecast || [];
+  const todayFc = fc[0] || {};
+
+  // Build transition text: textDay转textNight
+  const todayText = todayFc.textDay
+    ? (todayFc.textDay === todayFc.textNight ? todayFc.textDay : todayFc.textDay + '转' + todayFc.textNight)
+    : n.text;
+
+  let html = `
+    <div class="weather-hero">
+      <div class="weather-emoji">${emoji}</div>
+      <div class="weather-text">${todayText}</div>
+      <div class="weather-temp-big">${n.temp}<span class="unit">°C</span></div>
+      ${data.fxLink ? '<a class="weather-link" href="'+data.fxLink+'" target="_blank"><i class="fas fa-external-link-alt"></i> 和风天气详情</a>' : ''}
+    </div>
+    <div class="info-grid">
+      ${todayFc.tempMax ? `<div class="info-item"><div class="label">温度</div><div class="value">${todayFc.tempMin}~${todayFc.tempMax}°</div></div>` : ''}
+      <div class="info-item"><div class="label">体感</div><div class="value">${n.feelsLike}°</div></div>
+      <div class="info-item"><div class="label">湿度</div><div class="value">${n.humidity}%</div></div>
+      <div class="info-item"><div class="label">风力</div><div class="value">${n.windDir} ${n.windScale}级</div></div>
+      <div class="info-item"><div class="label">降水</div><div class="value">${n.precip}mm</div></div>
+      <div class="info-item"><div class="label">能见度</div><div class="value">${n.vis}km</div></div>
+    </div>`;
+
+  if (fc.length > 0) {
+    html += `<div class="forecast-title"><i class="fas fa-calendar-alt"></i> 三日预报</div>`;
+    html += `<div class="forecast-row">`;
+    fc.forEach(d => {
+      html += `
+        <div class="forecast-card">
+          <div class="fc-date">${d.date}</div>
+          <div class="fc-emoji">${getEmoji(d.textDay)}</div>
+          <div class="fc-text">${d.textDay === d.textNight ? d.textDay : d.textDay + '转' + d.textNight}</div>
+          <div class="fc-temp">${d.tempMax}° <span>/ ${d.tempMin}°</span></div>
+          <div class="fc-info">
+            💧${d.humidity}% 🌧${d.precip}mm<br>
+            💨${d.windDirDay} ${d.windScaleDay}级
+            ${d.sunrise ? '<br>🌅'+d.sunrise+' 🌇'+d.sunset : ''}
+          </div>
+        </div>`;
+    });
+    html += `</div>`;
+  }
+
+  document.getElementById('weatherContent').innerHTML = html;
+}
+
+loadKey();
+</script>
+</body>
+</html>

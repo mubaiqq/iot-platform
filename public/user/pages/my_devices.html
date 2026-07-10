@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的设备</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #f5f6fa; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; padding: 16px; min-height: 100vh; }
+
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.header h1 { font-size: 20px; font-weight: 700; color: #1e293b; }
+.btn-add { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: #3b82f6; color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .2s; font-family: inherit; }
+.btn-add:hover { background: #2563eb; }
+
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 1024px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+
+.card {
+  background: #fff; border: 1px solid #e8e9ee; border-radius: 14px;
+  padding: 14px; cursor: pointer; transition: box-shadow .2s, transform .2s;
+  aspect-ratio: 1 / 1.1; display: flex; flex-direction: column; position: relative;
+}
+.card:hover { box-shadow: 0 6px 20px rgba(0,0,0,.08); transform: translateY(-2px); }
+
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.device-name { font-size: 13px; font-weight: 700; color: #1e293b; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #94a3b8; white-space: nowrap; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: #94a3b8; }
+.status.online .status-dot { background: #22c55e; }
+.status.online { color: #22c55e; }
+
+.card-center { flex: 1; display: flex; align-items: center; justify-content: center; }
+.card-center i { font-size: 36px; color: #3b82f6; }
+
+.card-bottom { font-size: 11px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 480px) {
+  .device-name { font-size: 12px; }
+  .card-center i { font-size: 28px; }
+  .card-bottom { font-size: 10px; }
+  .status { font-size: 10px; }
+  .card { padding: 10px; }
+  .header h1 { font-size: 17px; }
+}
+
+/* Empty state */
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px; color: #94a3b8; }
+.empty i { font-size: 48px; margin-bottom: 16px; }
+.empty p { font-size: 14px; margin-bottom: 16px; }
+
+.loading { text-align: center; padding: 60px; color: #94a3b8; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>我的设备</h1>
+  <button class="btn-add" onclick="addDevice()"><i class="fa-solid fa-plus"></i> 添加设备</button>
+</div>
+<div id="container"><div class="loading"><i class="fa-solid fa-spinner fa-spin"></i> 加载中...</div></div>
+
+<script>
+function addDevice() {
+  try { parent.openModal('/user/pages/add_device.html', '添加设备'); } catch(e) { window.open('/user/pages/add_device.html', '_blank'); }
+}
+function openDevice(id, name, icon) {
+  try { parent.openTab('device_'+id, name, icon, true, '/user/device/'+id); } catch(e) { window.open('/user/device/'+id, '_blank'); }
+}
+
+function getDeviceIcon(device) {
+  if (device.device_type === 'sensor' || (device.device_name && device.device_name.includes('传感器'))) return 'fa-microchip';
+  return 'fa-faucet-drip';
+}
+
+function renderCards(devices) {
+  const c = document.getElementById('container');
+  if (!devices || devices.length === 0) {
+    c.innerHTML = '<div class="empty"><i class="fa-solid fa-cube"></i><p>暂未添加设备</p><button class="btn-add" onclick="addDevice()"><i class="fa-solid fa-plus"></i> 添加设备</button></div>';
+    return;
+  }
+  c.innerHTML = '<div class="grid">' + devices.map(d => {
+    const online = d.status === 'online' || d.status === 1;
+    return `<div class="card" onclick="openDevice(${d.id},'${(d.device_name||'设备').replace(/'/g,"\\'")}','${getDeviceIcon(d)}')">
+      <div class="card-top">
+        <span class="device-name">${d.device_name || '未命名设备'}</span>
+        <span class="status ${online?'online':''}"><span class="status-dot"></span>${online?'在线':'离线'}</span>
+      </div>
+      <div class="card-center"><i class="fa-solid ${getDeviceIcon(d)}"></i></div>
+      <div class="card-bottom">${d.device_code || ''}</div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+async function loadDevices() {
+  try {
+    const resp = await fetch('/api/devices');
+    const data = await resp.json();
+    renderCards(Array.isArray(data) ? data : (data.devices || data.data || []));
+  } catch(e) {
+    document.getElementById('container').innerHTML = '<div class="empty"><i class="fa-solid fa-exclamation-circle"></i><p>加载失败，请重试</p></div>';
+  }
+}
+
+loadDevices();
+window.loadDevices=loadDevices;
+window.addEventListener('focus',loadDevices);
+window.addEventListener('storage',function(e){if(e.key==='iot_devices_changed')loadDevices();});
+setInterval(loadDevices, 5000);
+</script>
+</body>
+</html>

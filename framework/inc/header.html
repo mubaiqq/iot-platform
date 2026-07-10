@@ -1,0 +1,36 @@
+    <header class="header">
+      <button class="btn-toggle" id="btnToggle"><i class="fas fa-bars"></i></button>
+      <button class="header-btn" onclick="window.open('/','_blank')" title="访问前台"><i class="fas fa-house"></i></button>
+      <div class="header-right">
+        <button class="header-btn" onclick="refreshCurrent()" title="刷新"><i class="fas fa-rotate-right"></i></button>
+        <button class="header-btn" onclick="clearCache()" title="清理缓存"><i class="fas fa-trash-can"></i></button>
+        <button class="header-btn fullscreen-btn" onclick="toggleFullscreen()" title="全屏"><i class="fas fa-expand"></i></button>
+        <button class="header-btn" onclick="toggleThemePanel()" title="主题设置"><i class="fas fa-palette"></i></button>
+        <div class="user-menu">
+          <button class="user-btn" onclick="toggleUserMenu(event)">
+            <div class="user-avatar"><i class="fas fa-user-shield"></i></div>
+            <span>Admin</span>
+            <i class="fas fa-chevron-down" style="font-size:9px;color:#b0b8c8"></i>
+          </button>
+          <div class="user-dropdown" id="userDropdown">
+            <a href="/logout" target="_top"><i class="fas fa-right-from-bracket"></i>退出登录</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="tab-bar">
+      <div class="tab-list" id="tabList"></div>
+      <div class="tab-bar-right">
+        <div class="tab-dropdown-wrap">
+          <button class="tab-bar-btn" id="tabDropBtn" title="标签操作"><i class="fas fa-chevron-down"></i></button>
+          <div class="tab-dropdown" id="tabDropMenu">
+            <a href="javascript:;" onclick="closeTab(activeTab);closeDropMenu()"><i class="fas fa-xmark"></i>关闭当前</a>
+            <a href="javascript:;" onclick="closeOtherTabs();closeDropMenu()"><i class="fas fa-xmark"></i>关闭其他</a>
+            <a href="javascript:;" onclick="closeAllTabs();closeDropMenu()"><i class="fas fa-trash"></i>关闭全部</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content" id="contentArea"></div>

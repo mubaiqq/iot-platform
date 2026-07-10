@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESP32 接入文档</title>
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f5f6fa;color:#1e293b;padding:16px;line-height:1.7}
+
+.page-title{font-size:20px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.page-title .badge{font-size:11px;font-weight:600;background:#ecfdf5;color:#059669;padding:3px 10px;border-radius:20px}
+.page-desc{font-size:12px;color:#94a3b8;margin-bottom:20px}
+
+/* TOC */
+.toc{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin-bottom:20px}
+.toc-title{font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.toc-title i{color:#3b82f6}
+.toc-list{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:4px 20px}
+.toc-list a{font-size:13px;color:#3b82f6;text-decoration:none;display:flex;align-items:center;gap:6px;padding:4px 0}
+.toc-list a:hover{color:#2563eb}
+.toc-list a .num{display:inline-flex;width:20px;height:20px;border-radius:6px;background:#eff6ff;color:#3b82f6;font-size:11px;font-weight:600;align-items:center;justify-content:center;flex-shrink:0}
+
+/* Section */
+.section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:16px}
+.section-title{font-size:16px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:1px solid #f1f5f9}
+.section-title i{color:#3b82f6;font-size:15px}
+.section-title .step{display:inline-flex;width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;font-size:12px;font-weight:700;align-items:center;justify-content:center;flex-shrink:0}
+
+/* Cards */
+.info-card{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;color:#1e40af;line-height:1.8}
+.info-card i{margin-right:4px}
+.info-card strong{color:#1e3a8a}
+
+.warn-card{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;color:#92400e;line-height:1.8}
+.warn-card i{margin-right:4px}
+
+.success-card{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;color:#166534;line-height:1.8}
+
+/* Steps */
+.step-list{counter-reset:step}
+.step-item{display:flex;gap:14px;margin-bottom:18px;position:relative}
+.step-item:last-child{margin-bottom:0}
+.step-num{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-body{flex:1;min-width:0}
+.step-body h4{font-size:14px;font-weight:600;margin-bottom:4px}
+.step-body p{font-size:13px;color:#64748b}
+
+/* Code block */
+.code-block{background:#1e293b;border-radius:10px;overflow:hidden;margin:12px 0}
+.code-header{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:#0f172a}
+.code-header .title{font-size:12px;font-weight:500;color:#94a3b8;display:flex;align-items:center;gap:6px}
+.code-header .title i{color:#3b82f6}
+.btn-copy{padding:5px 10px;border:none;border-radius:6px;background:#3b82f6;color:#fff;font-size:11px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;display:flex;align-items:center;gap:4px}
+.btn-copy:hover{background:#2563eb}
+.btn-copy.copied{background:#059669}
+.code-body{padding:14px;overflow-x:auto}
+pre{margin:0;font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;line-height:1.6;color:#e2e8f0;white-space:pre;tab-size:2}
+
+/* Inline code */
+code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#e11d48}
+
+/* Table */
+.doc-table{width:100%;border-collapse:collapse;font-size:13px;margin:12px 0}
+.doc-table th{text-align:left;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;padding:8px 12px;border-bottom:2px solid #e2e8f0;background:#f8fafc}
+.doc-table td{padding:10px 12px;border-bottom:1px solid #f1f5f9;vertical-align:top}
+.doc-table td:first-child{font-family:'JetBrains Mono',monospace;font-size:12px;color:#3b82f6;font-weight:600;white-space:nowrap}
+.doc-table tr:last-child td{border-bottom:none}
+
+/* MQTT topic table */
+.topic-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;font-family:'JetBrains Mono',monospace}
+.topic-pub{background:#ecfdf5;color:#059669}
+.topic-sub{background:#eff6ff;color:#3b82f6}
+
+/* Flow diagram */
+.flow{display:flex;flex-direction:column;align-items:center;gap:0;margin:16px 0}
+.flow-step{background:#fff;border:2px solid #e2e8f0;border-radius:12px;padding:12px 20px;text-align:center;font-size:13px;font-weight:500;min-width:200px;position:relative}
+.flow-step.active{border-color:#3b82f6;background:#eff6ff}
+.flow-step i{margin-right:6px}
+.flow-arrow{color:#94a3b8;font-size:18px;padding:4px 0}
+
+/* Responsive */
+@media(max-width:768px){
+  body{padding:12px}
+  .toc-list{grid-template-columns:1fr}
+  .section{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<div class="page-title">
+  <i class="fas fa-book" style="color:#3b82f6"></i>
+  ESP32 接入文档
+  <span class="badge">v2.0</span>
+</div>
+<div class="page-desc">从零开始将 ESP32 接入木白云 IoT 平台的完整指南</div>
+
+<!-- TOC -->
+<div class="toc">
+  <div class="toc-title"><i class="fas fa-list"></i> 目录</div>
+  <ol class="toc-list">
+    <li><a href="#overview"><span class="num">1</span> 概述</a></li>
+    <li><a href="#hardware"><span class="num">2</span> 硬件准备</a></li>
+    <li><a href="#software"><span class="num">3</span> 软件环境</a></li>
+    <li><a href="#flash"><span class="num">4</span> 烧录固件</a></li>
+    <li><a href="#config"><span class="num">5</span> 配网流程</a></li>
+    <li><a href="#mqtt"><span class="num">6</span> MQTT 协议</a></li>
+    <li><a href="#heartbeat"><span class="num">7</span> 心跳机制</a></li>
+    <li><a href="#watering"><span class="num">8</span> 浇水控制</a></li>
+    <li><a href="#schedule"><span class="num">9</span> 计划任务</a></li>
+    <li><a href="#sensor"><span class="num">10</span> 传感器扩展</a></li>
+    <li><a href="#troubleshoot"><span class="num">11</span> 常见问题</a></li>
+  </ol>
+</div>
+
+<!-- 1. 概述 -->
+<div class="section" id="overview">
+  <div class="section-title"><span class="step">1</span><i class="fas fa-info-circle"></i> 概述</div>
+  <p style="font-size:13px;color:#475569;margin-bottom:14px">
+    木白云 IoT 平台使用 <strong>MQTT 协议</strong>与 ESP32 设备通信。设备固件基于 Arduino 框架，支持 AP 自助配网、MQTT 自动注册、远程浇水控制、定时计划任务等功能。
+  </p>
+  <div class="info-card">
+    <i class="fas fa-star"></i> <strong>核心特性：</strong><br>
+    ✅ AP 热点配网（无需写死 WiFi）<br>
+    ✅ MQTT 自动注册设备码<br>
+    ✅ 心跳上报 + 传感器数据<br>
+    ✅ 远程浇水控制（手动 / 定时 / 智能AI）<br>
+    ✅ 计划任务本地执行 + NTP 校时<br>
+    ✅ 断线自动重连 + 闪存持久化
+  </div>
+
+  <div class="flow">
+    <div class="flow-step active"><i class="fas fa-microchip"></i> ESP32 设备</div>
+    <div class="flow-arrow">↕ WiFi</div>
+    <div class="flow-step"><i class="fas fa-tower-broadcast"></i> MQTT Broker（mqtt.mcoud.cn）</div>
+    <div class="flow-arrow">↕ 订阅/发布</div>
+    <div class="flow-step active"><i class="fas fa-cloud"></i> 木白云 IoT 平台</div>
+    <div class="flow-arrow">↕ 浏览器</div>
+    <div class="flow-step"><i class="fas fa-user"></i> 用户控制台</div>
+  </div>
+</div>
+
+<!-- 2. 硬件准备 -->
+<div class="section" id="hardware">
+  <div class="section-title"><span class="step">2</span><i class="fas fa-microchip"></i> 硬件准备</div>
+  <table class="doc-table">
+    <thead><tr><th>组件</th><th>说明</th><th>备注</th></tr></thead>
+    <tbody>
+      <tr><td>ESP32 开发板</td><td>任意 ESP32-WROOM / ESP32-S3</td><td>推荐 ESP32-DevKitC</td></tr>
+      <tr><td>继电器模块</td><td>5V 单路继电器</td><td>默认 GPIO 26</td></tr>
+      <tr><td>电磁阀 / 水泵</td><td>12V 常闭电磁阀</td><td>通过继电器控制</td></tr>
+      <tr><td>电源</td><td>5V 2A USB 供电</td><td>建议带稳压</td></tr>
+      <tr><td><span style="color:#94a3b8">（可选）土壤湿度传感器</span></td><td>电容式土壤湿度</td><td>接 ADC 引脚</td></tr>
+      <tr><td><span style="color:#94a3b8">（可选）DHT11 温湿度</span></td><td>温湿度传感器</td><td>接任意 GPIO</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn-card">
+    <i class="fas fa-exclamation-triangle"></i> <strong>接线注意：</strong>
+    继电器控制端接 ESP32 的 GPIO 26，继电器 COM 端接电源正极，NO 端接电磁阀正极，电磁阀负极接电源负极。请确认继电器是 <b>低电平触发</b> 还是 <b>高电平触发</b>，代码默认 <b>高电平触发</b>（<code>HIGH</code> = 开启）。
+  </div>
+</div>
+
+<!-- 3. 软件环境 -->
+<div class="section" id="software">
+  <div class="section-title"><span class="step">3</span><i class="fas fa-laptop-code"></i> 软件环境</div>
+  <div class="step-list">
+    <div class="step-item">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>安装 Arduino IDE</h4>
+        <p>下载 <a href="https://www.arduino.cc/en/software" target="_blank" style="color:#3b82f6">Arduino IDE 2.x</a>，安装完成后打开。</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>添加 ESP32 开发板支持</h4>
+        <p>打开 <b>文件 → 首选项 → 附加开发板管理器网址</b>，填入：</p>
+        <div class="code-block">
+          <div class="code-header"><div class="title"><i class="fas fa-link"></i> 开发板 URL</div><button class="btn-copy" onclick="copyText(this)"><i class="fas fa-copy"></i> 复制</button></div>
+          <div class="code-body"><pre>https://espressif.github.io/arduino-esp32/package_esp32_index.json</pre></div>
+        </div>
+        <p>然后打开 <b>工具 → 开发板 → 开发板管理器</b>，搜索 <code>esp32</code> 并安装。</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>安装依赖库</h4>
+        <p>打开 <b>工具 → 管理库</b>，搜索并安装：</p>
+        <table class="doc-table" style="margin:8px 0">
+          <thead><tr><th>库名</th><th>用途</th></tr></thead>
+          <tbody>
+            <tr><td>PubSubClient</td><td>MQTT 客户端</td></tr>
+            <tr><td>ArduinoJson</td><td>JSON 解析（选 v6.x）</td></tr>
+          </tbody>
+        </table>
+        <p style="color:#94a3b8;font-size:12px">WiFi.h / WebServer.h / Preferences.h 为 ESP32 SDK 自带，无需额外安装。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 4. 烧录固件 -->
+<div class="section" id="flash">
+  <div class="section-title"><span class="step">4</span><i class="fas fa-bolt"></i> 烧录固件</div>
+  <p style="font-size:13px;color:#475569;margin-bottom:12px">在用户中心的 <b>「数据中心 → ESP32代码」</b> 页面可以一键复制完整固件代码，或直接点击下方按钮：</p>
+
+  <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+    <a href="javascript:void(0)" onclick="parent.openTab('esp32_code','ESP32代码','fa-microchip')" style="display:inline-flex;align-items:center;gap:6px;padding:10px 18px;background:#3b82f6;color:#fff;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;transition:all .2s">
+      <i class="fas fa-code"></i> 查看 ESP32 固件代码
+    </a>
+  </div>
+
+  <div class="step-list">
+    <div class="step-item">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>复制代码到 Arduino IDE</h4>
+        <p>新建项目，将代码粘贴进去，保存为 <code>mubaiyun_iot.ino</code></p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>选择开发板和端口</h4>
+        <p><b>工具 → 开发板</b> 选择 <code>ESP32 Dev Module</code>，<b>端口</b> 选择对应的 COM 口。</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>点击上传</h4>
+        <p>点击 <b>→</b> 上传按钮，等待烧录完成。首次烧录约需 30 秒。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 5. 配网流程 -->
+<div class="section" id="config">
+  <div class="section-title"><span class="step">5</span><i class="fas fa-wifi"></i> 配网流程</div>
+  <p style="font-size:13px;color:#475569;margin-bottom:14px">ESP32 首次启动（或 WiFi 连接失败时）会自动进入 AP 配网模式：</p>
+
+  <div class="flow">
+    <div class="flow-step"><i class="fas fa-power-off"></i> ESP32 首次上电</div>
+    <div class="flow-arrow">↓ 自动</div>
+    <div class="flow-step active"><i class="fas fa-wifi"></i> 开启热点「木白云IoT-配网」</div>
+    <div class="flow-arrow">↓ 手机连接</div>
+    <div class="flow-step"><i class="fas fa-mobile-screen"></i> 自动弹出配网页面</div>
+    <div class="flow-arrow">↓ 选择 WiFi + 填写信息</div>
+    <div class="flow-step"><i class="fas fa-floppy-disk"></i> 保存并重启</div>
+    <div class="flow-arrow">↓ 自动</div>
+    <div class="flow-step active"><i class="fas fa-link"></i> 连接 WiFi + MQTT 注册</div>
+  </div>
+
+  <div class="info-card">
+    <i class="fas fa-lightbulb"></i> <strong>配网页面说明：</strong><br>
+    • <b>WiFi 网络</b>：自动扫描周围 WiFi，点击选择<br>
+    • <b>WiFi 密码</b>：输入所选 WiFi 的密码<br>
+    • <b>MQTT 服务器</b>：默认已填好 <code>mqtt.mcoud.cn</code>，一般无需修改<br>
+    • <b>用户名</b>（选填）：填写后设备会自动关联到你的平台账号
+  </div>
+
+  <div class="warn-card">
+    <i class="fas fa-exclamation-triangle"></i> <strong>重新配网：</strong>
+    如果需要更换 WiFi，将 ESP32 重新上电或长按重置按钮，WiFi 连接失败 30 秒后会自动重新进入配网模式。
+  </div>
+</div>
+
+<!-- 6. MQTT 协议 -->
+<div class="section" id="mqtt">
+  <div class="section-title"><span class="step">6</span><i class="fas fa-tower-broadcast"></i> MQTT 协议</div>
+  <p style="font-size:13px;color:#475569;margin-bottom:14px">设备通过 MQTT 与平台通信，以下是完整的 Topic 规范：</p>
+
+  <table class="doc-table">
+    <thead><tr><th>Topic</th><th>方向</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>device/{code}/register</td>
+        <td><span class="topic-badge topic-pub">发布</span></td>
+        <td>首次连接时注册设备</td>
+      </tr>
+      <tr>
+        <td>device/{code}/heartbeat</td>
+        <td><span class="topic-badge topic-pub">发布</span></td>
+        <td>每 30 秒上报心跳 + 传感器数据</td>
+      </tr>
+      <tr>
+        <td>device/{code}/status</td>
+        <td><span class="topic-badge topic-pub">发布</span></td>
+        <td>浇水确认 / 计划任务确认</td>
+      </tr>
+      <tr>
+        <td>device/{code}/watering_complete</td>
+        <td><span class="topic-badge topic-pub">发布</span></td>
+        <td>浇水完成后上报执行结果</td>
+      </tr>
+      <tr>
+        <td>device/{code}/watering_request</td>
+        <td><span class="topic-badge topic-pub">发布</span></td>
+        <td>智能浇水请求（等待 AI 判断）</td>
+      </tr>
+      <tr>
+        <td>device/{code}/command</td>
+        <td><span class="topic-badge topic-sub">订阅</span></td>
+        <td>接收平台下发的控制指令</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top:14px">
+    <h4 style="font-size:14px;font-weight:600;margin-bottom:8px">📡 注册消息格式</h4>
+    <div class="code-block">
+      <div class="code-header"><div class="title"><i class="fas fa-paper-plane"></i> device/{code}/register</div><button class="btn-copy" onclick="copyText(this)"><i class="fas fa-copy"></i> 复制</button></div>
+      <div class="code-body"><pre>{
+  "device_code": "Kxxxxxxxxxx",
+  "username": "your_username"
+}</pre></div>
+    </div>
+  </div>
+
+  <div style="margin-top:14px">
+    <h4 style="font-size:14px;font-weight:600;margin-bottom:8px">💓 心跳消息格式</h4>
+    <div class="code-block">
+      <div class="code-header"><div class="title"><i class="fas fa-heartbeat"></i> device/{code}/heartbeat</div><button class="btn-copy" onclick="copyText(this)"><i class="fas fa-copy"></i> 复制</button></div>
+      <div class="code-body"><pre>{
+  "device_code": "Kxxxxxxxxxx",
+  "timestamp": "",
+  "sensor_data": {
+    "soil_moisture": 65
+  },
+  "schedule_count": 2,
+  "current_time": "14:30"
+}</pre></div>
+    </div>
+  </div>
+</div>
+
+<!-- 7. 心跳机制 -->
+<div class="section" id="heartbeat">
+  <div class="section-title"><span class="step">7</span><i class="fas fa-heartbeat"></i> 心跳机制</div>
+  <p style="font-size:13px;color:#475569;margin-bottom:14px">
+    设备每 <b>30 秒</b> 向平台发送一次心跳，平台通过心跳判断设备是否在线。
+  </p>
+  <div class="info-card">
+    <i class="fas fa-clock"></i> <strong>心跳内容包含：</strong><br>
+    • 设备码（device_code）<br>
+    • 传感器数据（如有接传感器）<br>
+    • 当前计划任务数量<br>
+    • 设备本地时间
+  </div>
+  <div class="warn-card">
+    <i class="fas fa-exclamation-triangle"></i> <strong>超时判定：</strong>
+    平台如果 <b>90 秒</b>（3 个心跳周期）未收到心跳，会将设备标记为离线。
+  </div>
+</div>
+
+<!-- 8. 浇水控制 -->
+<div class="section" id="watering">
+  <div class="section-title"><span class="step">8</span><i class="fas fa-faucet-drip"></i> 浇水控制</div>
+  <p style="font-size:13px;color:#475569;margin-bottom:14px">平台通过 MQTT 下发浇水指令到设备：</p>
+
+  <h4 style="font-size:14px;font-weight:600;margin-bottom:8px">🟢 开启浇水</h4>
+  <div class="code-block">
+    <div class="code-header"><div class="title"><i class="fas fa-paper-plane"></i> 平台 → 设备 command</div><button class="btn-copy" onclick="copyText(this)"><i class="fas fa-copy"></i> 复制</button></div>
+    <div class="code-body"><pre>{
+  "water": true,
+  "duration": 30
+}</pre></div>
+  </div>
+  <p style="font-size:12px;color:#64748b;margin-bottom:14px"><code>duration</code> 单位为秒，范围 1-600，默认 30 秒。</p>
+
+  <h4 style="font-size:14px;font-weight:600;margin-bottom:8px">🔴 停止浇水</h4>
+  <div class="code-block">
+    <div class="code-header"><div class="title"><i class="fas fa-paper-plane"></i> 平台 → 设备 command</div><button class="btn-copy" onclick="copyText(this)"><i class="fas fa-copy"></i> 复制</button></div>
+    <div class="code-body"><pre>{
+  "water": false
+}</pre></div>
+  </div>
+
+  <h4 style="font-size:14px;font-weight:600;margin-bottom:8px;margin-top:14px">✅ 设备回复</h4>
+  <div class="code-block">
+    <div class="code-header"><div class="title"><i class="fas fa-reply"></i> 设备 → 平台 status</div><button class="btn-copy" onclick="copyText(this)"><i class="fas fa-copy"></i> 复制</button></div>
+    <div class="code-body"><pre>{
+  "success": true,
+  "water": true,
+  "duration": 30
+}</pre></div>
+  </div>
+
+  <h4 style="font-size:14px;font-weight:600;margin-bottom:8px;margin-top:14px">📋 执行结果上报</h4>
+  <div class="code-block">
+    <div class="code-header"><div class="title"><i class="fas fa-check-circle"></i> 设备 → 平台 watering_complete</div><button class="btn-copy" onclick="copyText(this)"><i class="fas fa-copy"></i> 复制</button></div>
+    <div class="code-body"><pre>{
+  "timestamp": "",
+  "duration": 30,
+  "source": "manual"
+}</pre></div>
+  </div>
+  <p style="font-size:12px;color:#64748b"><code>source</code> 取值：<code>manual</code>（手动）、<code>schedule</code>（计划任务）、<code>schedule_ai_failed</code>（AI 判断失败）</p>
+</div>
+
+<!-- 9. 计划任务 -->
+<div class="section" id="schedule">
+  <div class="section-title"><span class="step">9</span><i class="fas fa-calendar-check"></i> 计划任务</div>
+  <p style="font-size:13px;color:#475569;margin-bottom:14px">
+    平台可以向设备同步定时浇水计划，设备通过 NTP 自动校时，到点自动执行。
+  </p>
+
+  <h4 style="font-size:14px;font-weight:600;margin-bottom:8px">📅 平台下发计划任务</h4>
+  <div class="code-block">
+    <div class="code-header"><div class="title"><i class="fas fa-calendar"></i> 平台 → 设备 command</div><button class="btn-copy" onclick="copyText(this)"><i class="fas fa-copy"></i> 复制</button></div>
+    <div class="code-body"><pre>{
+  "command": "schedule",
+  "tasks": [
+    {
+      "time": "08:00",
+      "duration": 60,
+      "enabled": true,
+      "fixed_watering": true
+    },
+    {
+      "time": "18:00",
+      "duration": 30,
+      "enabled": true,
+      "fixed_watering": false
+    }
+  ]
+}</pre></div>
+  </div>
+
+  <table class="doc-table" style="margin:12px 0">
+    <thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>time</td><td>string</td><td>执行时间，格式 HH:MM（24小时制）</td></tr>
+      <tr><td>duration</td><td>int</td><td>浇水时长（秒）</td></tr>
+      <tr><td>enabled</td><td>bool</td><td>是否启用</td></tr>
+      <tr><td>fixed_watering</td><td>bool</td><td>true=固定浇水，false=智能AI判断</td></tr>
+    </tbody>
+  </table>
+
+  <div class="info-card">
+    <i class="fas fa-robot"></i> <strong>智能浇水 vs 固定浇水：</strong><br>
+    • <b>固定浇水</b>（fixed_watering=true）：到时间直接执行<br>
+    • <b>智能浇水</b>（fixed_watering=false）：到时间先请求 AI 判断，AI 回复 <code>{"water":true}</code> 才执行；超时 60 秒重试 1 次，共等 160 秒
+  </div>
+</div>
+
+<!-- 10. 传感器扩展 -->
+<div class="section" id="sensor">
+  <div class="section-title"><span class="step">10</span><i class="fas fa-temperature-half"></i> 传感器扩展</div>
+  <p style="font-size:13px;color:#475569;margin-bottom:14px">固件支持接入传感器，数据会随心跳自动上报：</p>
+
+  <table class="doc-table">
+    <thead><tr><th>传感器</th><th>引脚</th><th>数据字段</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>土壤湿度</td><td>ADC（默认 34）</td><td>soil_moisture</td><td>0-100 百分比</td></tr>
+      <tr><td>DHT11 温湿度</td><td>任意 GPIO</td><td>temperature, air_humidity</td><td>需取消代码注释</td></tr>
+    </tbody>
+  </table>
+
+  <div class="code-block">
+    <div class="code-header"><div class="title"><i class="fas fa-code"></i> 启用传感器（在配置区域添加）</div><button class="btn-copy" onclick="copyText(this)"><i class="fas fa-copy"></i> 复制</button></div>
+    <div class="code-body"><pre>// 取消注释以启用传感器
+#define SOIL_PIN 34     // 土壤湿度传感器引脚
+// #define DHT_PIN 4    // DHT11 温湿度传感器引脚</pre></div>
+  </div>
+</div>
+
+<!-- 11. 常见问题 -->
+<div class="section" id="troubleshoot">
+  <div class="section-title"><span class="step">11</span><i class="fas fa-circle-question"></i> 常见问题</div>
+
+  <div style="margin-bottom:16px">
+    <h4 style="font-size:14px;font-weight:600;margin-bottom:6px">❓ 设备一直显示离线？</h4>
+    <p style="font-size:13px;color:#64748b">
+      1. 检查 WiFi 信号是否稳定<br>
+      2. 检查 MQTT 服务器地址是否正确（<code>mqtt.mcoud.cn</code>）<br>
+      3. 打开 Arduino IDE 串口监视器（波特率 115200）查看日志<br>
+      4. 如果显示 <code>rc=-2</code>，说明 MQTT 连接被拒绝，检查网络
+    </p>
+  </div>
+
+  <div style="margin-bottom:16px">
+    <h4 style="font-size:14px;font-weight:600;margin-bottom:6px">❓ 如何重新配网？</h4>
+    <p style="font-size:13px;color:#64748b">
+      方法 1：长按重置按钮 5 秒，清除闪存配置后重启<br>
+      方法 2：将 ESP32 断电，在新 WiFi 环境下重新上电，连接失败会自动进入配网
+    </p>
+  </div>
+
+  <div style="margin-bottom:16px">
+    <h4 style="font-size:14px;font-weight:600;margin-bottom:6px">❓ 继电器不动作？</h4>
+    <p style="font-size:13px;color:#64748b">
+      1. 确认继电器触发方式（高/低电平），代码默认 <code>HIGH</code> 触发<br>
+      2. 检查 GPIO 引脚号是否正确（默认 26）<br>
+      3. 串口查看是否收到浇水指令
+    </p>
+  </div>
+
+  <div>
+    <h4 style="font-size:14px;font-weight:600;margin-bottom:6px">❓ 计划任务没有执行？</h4>
+    <p style="font-size:13px;color:#64748b">
+      1. 确认 NTP 时间同步成功（串口会打印当前时间）<br>
+      2. 确认计划任务已同步到设备（串口显示 <code>[计划] 收到 X 个计划任务</code>）<br>
+      3. 同一时间点的任务每天只执行一次，不会重复触发
+    </p>
+  </div>
+</div>
+
+<div style="text-align:center;padding:20px 0;font-size:12px;color:#94a3b8">
+  <i class="fas fa-cloud"></i> 木白云 IoT · ESP32 接入文档 v2.0 · 最后更新 2026-06
+</div>
+
+<script>
+function copyText(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = '<i class="fas fa-check"></i> 已复制';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = '<i class="fas fa-copy"></i> 复制';
+    }, 2000);
+  });
+}
+</script>
+</body>
+</html>

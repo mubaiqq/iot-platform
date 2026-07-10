@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>传感器固件</title>
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f5f6fa;color:#1e293b;padding:16px}
+.page-title{font-size:18px;font-weight:700;margin-bottom:4px}
+.page-desc{font-size:12px;color:#94a3b8;margin-bottom:16px}
+
+.tabs{display:flex;gap:4px;margin-bottom:14px;overflow-x:auto}
+.tab{padding:8px 14px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;transition:all .2s;font-family:'Inter',sans-serif}
+.tab.active{background:#059669;color:#fff;border-color:#059669}
+.tab:hover:not(.active){border-color:#6ee7b7}
+
+.code-section{background:#1e293b;border-radius:12px;overflow:hidden;margin-bottom:14px}
+.code-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#0f172a}
+.code-header .title{font-size:12px;font-weight:500;color:#94a3b8;display:flex;align-items:center;gap:6px}
+.code-header .title i{color:#059669}
+.btn-copy{padding:6px 12px;border:none;border-radius:6px;background:#059669;color:#fff;font-size:11px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;display:flex;align-items:center;gap:4px}
+.btn-copy:hover{background:#047857}
+.btn-copy.copied{background:#3b82f6}
+.code-body{padding:14px;overflow-x:auto;max-height:700px;overflow-y:auto}
+.code-body::-webkit-scrollbar{width:6px;height:6px}
+.code-body::-webkit-scrollbar-thumb{background:#334155;border-radius:3px}
+pre{margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;color:#e2e8f0;white-space:pre;tab-size:2}
+
+.info-card{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:14px;margin-bottom:14px;font-size:12px;color:#065f46;line-height:1.7}
+.info-card i{margin-right:4px}
+.info-card strong{color:#064e3b}
+
+.wiring-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:14px}
+.wiring-title{font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.wiring-title i{color:#059669}
+.wiring-table{width:100%;border-collapse:collapse;font-size:12px}
+.wiring-table th{text-align:left;padding:6px 10px;background:#f8fafc;color:#64748b;font-weight:500;border-bottom:1px solid #e2e8f0}
+.wiring-table td{padding:6px 10px;border-bottom:1px solid #f1f5f9}
+.wiring-table code{background:#ecfdf5;color:#065f46;padding:2px 6px;border-radius:4px;font-size:11px;font-family:'JetBrains Mono',monospace}
+
+.loading{text-align:center;padding:40px;color:#94a3b8}
+.loading i{font-size:24px;margin-bottom:8px;display:block}
+
+#toast{position:fixed;top:10px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:8px 18px;border-radius:8px;font-size:12px;font-weight:500;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+#toast.show{opacity:1}
+#toast.success{background:#059669}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+
+<div class="page-title"><i class="fas fa-satellite-dish" style="color:#059669"></i> 传感器固件代码</div>
+<div class="page-desc">复制以下代码到 Arduino IDE，烧录到 ESP32 即可作为传感器使用</div>
+
+<div class="info-card">
+  <i class="fas fa-info-circle"></i> <strong>使用说明：</strong><br>
+  1. 安装 Arduino IDE，添加 ESP32 开发板支持<br>
+  2. 安装库：<b>PubSubClient</b>（MQTT）、<b>ArduinoJson</b>（v6）<br>
+  3. 按下方接线连接土壤湿度传感器：AO 接 GPIO34，供电脚接 GPIO25<br>
+  4. 烧录后首次启动会打开 AP 热点 <b>木白云IoT-传感器</b>（密码 12345678），连接后自动弹出配网页面<br>
+  5. 配网成功后自动通过MQTT注册设备码并上报土壤湿度数据，设备码以 <b>C</b> 开头
+</div>
+
+<div class="wiring-card">
+  <div class="wiring-title"><i class="fas fa-plug"></i> 默认接线</div>
+  <table class="wiring-table">
+    <tr><th>传感器</th><th>引脚</th><th>说明</th></tr>
+    <tr><td>土壤湿度 AO</td><td><code>GPIO 34</code></td><td>ADC 输入，按旧平台接线</td></tr>
+    <tr><td>传感器 VCC/电源控制</td><td><code>GPIO 25</code></td><td>采样前拉高供电，采样后关闭，降低电腐蚀和功耗</td></tr>
+    <tr><td>传感器 GND</td><td><code>GND</code></td><td>接 ESP32 GND</td></tr>
+  </table>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('main', this)"><i class="fas fa-code"></i> 主程序 (main)</div>
+  <div class="tab" onclick="showTab('config', this)"><i class="fas fa-gear"></i> 配置说明</div>
+</div>
+
+<div id="tab-main" class="code-section">
+  <div class="code-header">
+    <div class="title"><i class="fas fa-file-code"></i> mubaiyun_sensor.ino</div>
+    <button class="btn-copy" onclick="copyCode()"><i class="fas fa-copy"></i> 复制代码</button>
+  </div>
+  <div class="code-body">
+    <div id="loading" class="loading"><i class="fas fa-spinner fa-spin"></i> 加载代码中...</div>
+    <pre id="code-main" style="display:none"></pre>
+  </div>
+</div>
+
+<div id="tab-config" style="display:none">
+  <div class="info-card" style="background:#f0fdf4;border-color:#bbf7d0;color:#166534">
+    <i class="fas fa-cog"></i> <strong>可修改的配置项：</strong><br><br>
+    <b>MQTT_SERVER</b> — MQTT服务器地址，如 <code>mqtt.mcoud.cn</code><br>
+    <b>MQTT_PORT</b> — MQTT端口，默认 <code>1883</code><br><br>
+    <b>土壤湿度接线：</b><br>
+    <b>SOIL_SENSOR_PIN</b> — 土壤湿度 AO 引脚，默认 <code>GPIO 34</code><br>
+    <b>SENSOR_POWER_PIN</b> — 传感器供电控制脚，默认 <code>GPIO 25</code><br><br>
+    <b>校准参数：</b><br>
+    <b>DEFAULT_DRY_ADC</b> — 干燥 ADC，默认 <code>2320</code><br>
+    <b>DEFAULT_WET_ADC</b> — 湿润 ADC，默认 <code>475</code><br>
+    <b>NUM_READINGS</b> — 每次采样次数，默认 <code>30</code><br><br>
+    <b>休眠周期：</b><br>
+    <b>DEFAULT_SLEEP_SECONDS</b> — 默认休眠时间，默认 <code>30秒</code>；平台 <code>/user/pages/sensor_setting</code> 保存后会通过 MQTT 下发新的休眠时间<br><br>
+    <i class="fas fa-redo"></i> <strong>恢复出厂：</strong><br>
+    串口发送 <code>FACTORY_RESET</code> 即可清空配网信息，重新进入AP配网模式<br>
+    串口发送 <code>SHOW_CAL</code> 可查看当前 Dry/Wet 校准值
+  </div>
+</div>
+
+<script>
+let firmwareCode = '';
+
+fetch('/api/esp32/sensor-firmware')
+  .then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.text();
+  })
+  .then(code => {
+    firmwareCode = code;
+    document.getElementById('code-main').textContent = code;
+    document.getElementById('code-main').style.display = 'block';
+    document.getElementById('loading').style.display = 'none';
+  })
+  .catch(e => {
+    document.getElementById('loading').innerHTML = '<i class="fas fa-exclamation-circle" style="color:#ef4444"></i> 加载失败: ' + e.message;
+  });
+
+function showTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('[id^="tab-"]').forEach(d => d.style.display = 'none');
+  document.getElementById('tab-' + name).style.display = 'block';
+  if (el) el.classList.add('active');
+}
+
+function copyCode() {
+  if (!firmwareCode) { showToast('代码未加载', 'error'); return; }
+  const btn = event.target.closest('.btn-copy');
+  navigator.clipboard.writeText(firmwareCode).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = '<i class="fas fa-check"></i> 已复制';
+    showToast('已复制到剪贴板', 'success');
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = '<i class="fas fa-copy"></i> 复制代码';
+    }, 2000);
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = firmwareCode;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.classList.add('copied');
+    btn.innerHTML = '<i class="fas fa-check"></i> 已复制';
+    showToast('已复制到剪贴板', 'success');
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = '<i class="fas fa-copy"></i> 复制代码';
+    }, 2000);
+  });
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type === 'success' ? ' success' : '');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.className = '', 2500);
+}
+</script>
+</body>
+</html>

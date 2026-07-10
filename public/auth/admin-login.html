@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理后台登录 - 木白云iot</title>
+  <link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .auth-container { width: 100%; max-width: 420px; }
+    .auth-header { text-align: center; margin-bottom: 32px; }
+    .auth-logo { display: inline-flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .logo-icon {
+      width: 52px; height: 52px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      border-radius: 14px; display: flex; align-items: center;
+      justify-content: center; color: #fff; font-size: 24px;
+      box-shadow: 0 8px 24px rgba(59,130,246,0.3);
+    }
+    .logo-text { font-size: 26px; font-weight: 700; color: #f1f5f9; }
+    .auth-header p { font-size: 14px; color: #94a3b8; }
+    .auth-card {
+      background: rgba(30,41,59,0.8);
+      backdrop-filter: blur(20px);
+      border-radius: 20px; padding: 36px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .form-group { margin-bottom: 20px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; color: #94a3b8; margin-bottom: 8px; }
+    .form-input {
+      width: 100%; padding: 14px 16px; 
+      border: 1.5px solid rgba(255,255,255,0.1);
+      border-radius: 12px; font-size: 14px; font-family: inherit;
+      transition: all 0.2s; 
+      background: rgba(0,0,0,0.2);
+      color: #f1f5f9;
+    }
+    .form-input:focus { 
+      outline: none; 
+      border-color: #3b82f6; 
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
+      background: rgba(0,0,0,0.3);
+    }
+    .form-input::placeholder { color: #64748b; }
+    .input-wrap { position: relative; }
+    .password-toggle {
+      position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: #64748b; cursor: pointer; font-size: 16px;
+    }
+    .password-toggle:hover { color: #94a3b8; }
+    .btn {
+      width: 100%; padding: 14px; border: none; border-radius: 12px;
+      font-size: 15px; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .btn-primary { 
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(59,130,246,0.3);
+    }
+    .btn-primary:hover { 
+      background: linear-gradient(135deg, #60a5fa, #3b82f6);
+      box-shadow: 0 6px 20px rgba(59,130,246,0.4);
+      transform: translateY(-1px);
+    }
+    .btn-primary:disabled { 
+      background: #475569; cursor: not-allowed; 
+      box-shadow: none; transform: none;
+    }
+    .auth-footer { text-align: center; margin-top: 24px; font-size: 13px; color: #64748b; }
+    .auth-footer a { color: #60a5fa; text-decoration: none; font-weight: 600; }
+    .auth-footer a:hover { text-decoration: underline; }
+    .error-msg {
+      background: rgba(220,38,38,0.15);
+      border: 1px solid rgba(220,38,38,0.3);
+      color: #fca5a5;
+      padding: 12px 16px; border-radius: 12px; font-size: 13px;
+      margin-bottom: 20px; display: none; align-items: center; gap: 10px;
+    }
+    .error-msg.show { display: flex; }
+    .admin-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(234,179,8,0.15);
+      border: 1px solid rgba(234,179,8,0.3);
+      color: #fbbf24;
+      padding: 6px 14px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+      margin-bottom: 20px;
+    }
+  @media(max-width:768px){input,select,textarea{font-size:16px!important}}
+</style>
+</head>
+<body>
+
+<div class="auth-container">
+  <div class="auth-header">
+    <div class="auth-logo">
+      <div class="logo-icon"><i class="fas fa-shield-halved"></i></div>
+      <span class="logo-text">木白云iot</span>
+    </div>
+    <p>物联网设备管理平台</p>
+  </div>
+  
+  <div class="auth-card">
+    <div style="text-align:center">
+      <span class="admin-badge"><i class="fas fa-lock"></i> 管理后台登录</span>
+    </div>
+    
+    <div class="error-msg" id="errorMsg">
+      <i class="fas fa-exclamation-circle"></i>
+      <span id="errorText"></span>
+    </div>
+    
+    <form id="loginForm">
+      <div class="form-group">
+        <label class="form-label">管理员账号</label>
+        <input type="text" class="form-input" id="username" placeholder="请输入管理员用户名" required autofocus>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">密码</label>
+        <div class="input-wrap">
+          <input type="password" class="form-input" id="password" placeholder="请输入密码" required>
+          <button type="button" class="password-toggle" onclick="togglePassword()">
+            <i class="fas fa-eye" id="eyeIcon"></i>
+          </button>
+        </div>
+      </div>
+      
+      <button type="submit" class="btn btn-primary" id="submitBtn">
+        <i class="fas fa-right-to-bracket"></i> 登录管理后台
+      </button>
+    </form>
+    
+    <div class="auth-footer">
+      <a href="/login">← 返回用户登录</a>
+    </div>
+  </div>
+</div>
+
+<script>
+function togglePassword() {
+  const input = document.getElementById('password');
+  const icon = document.getElementById('eyeIcon');
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.className = 'fas fa-eye-slash';
+  } else {
+    input.type = 'password';
+    icon.className = 'fas fa-eye';
+  }
+}
+
+function showError(msg) {
+  document.getElementById('errorMsg').classList.add('show');
+  document.getElementById('errorText').textContent = msg;
+}
+
+function hideError() {
+  document.getElementById('errorMsg').classList.remove('show');
+}
+
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  hideError();
+  
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  
+  if (!username || !password) {
+    showError('请填写完整信息');
+    return;
+  }
+  
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
+  
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    
+    const data = await res.json();
+    
+    if (data.success) {
+      if (data.user.role === 'admin') {
+        btn.innerHTML = '<i class="fas fa-check-circle"></i> 登录成功';
+        btn.style.background = '#059669';
+        setTimeout(() => { window.location.href = '/admin/'; }, 800);
+      } else {
+        showError('该账号不是管理员，无法登录管理后台');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> 登录管理后台';
+      }
+    } else {
+      showError(data.error || '登录失败');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> 登录管理后台';
+    }
+  } catch (err) {
+    showError('网络错误，请重试');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> 登录管理后台';
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MQTT配置</title>
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f5f6fa;color:#1e293b;min-height:100vh;padding:20px}
+.container{max-width:640px;margin:0 auto}
+h2{font-size:20px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+h2 i{color:#3b82f6}
+
+.card{background:#fff;border-radius:14px;border:1px solid #eef0f4;padding:20px;margin-bottom:16px}
+.card-title{font-size:14px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px;color:#334155}
+.card-title i{color:#3b82f6;font-size:13px}
+
+/* Form */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-grid .full{grid-column:1/-1}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group label{font-size:12px;font-weight:500;color:#64748b}
+.form-group label .required{color:#ef4444;margin-left:2px}
+.form-group input,.form-group select{
+  border:1.5px solid #e2e8f0;border-radius:8px;padding:9px 12px;
+  font-size:13px;outline:none;font-family:'Inter',sans-serif;
+  transition:border-color .2s;background:#fff;color:#1e293b;
+}
+.form-group input:focus,.form-group select:focus{border-color:#3b82f6}
+.form-group input::placeholder{color:#cbd5e1}
+
+/* Toggle */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0}
+.toggle-row label{font-size:12px;font-weight:500;color:#64748b}
+.toggle{position:relative;width:40px;height:22px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle .slider{position:absolute;inset:0;background:#e2e8f0;border-radius:22px;cursor:pointer;transition:.2s}
+.toggle .slider::before{content:'';position:absolute;left:3px;top:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s}
+.toggle input:checked+.slider{background:#3b82f6}
+.toggle input:checked+.slider::before{transform:translateX(18px)}
+
+/* Buttons */
+.btn-row{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.btn{border:none;border-radius:8px;padding:9px 18px;font-weight:600;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-primary{background:#3b82f6;color:#fff}
+.btn-primary:hover{background:#2563eb}
+.btn-ghost{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0}
+.btn-ghost:hover{background:#e2e8f0}
+.btn-success{background:#059669;color:#fff}
+.btn-success:hover{background:#047857}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* Status indicator */
+.status-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;font-size:12px;margin-bottom:14px;font-weight:500}
+.status-bar.connected{background:#ecfdf5;color:#059669;border:1px solid #a7f3d0}
+.status-bar.disconnected{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+.status-bar.unknown{background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.status-bar.connected .status-dot{background:#059669}
+.status-bar.disconnected .status-dot{background:#dc2626}
+.status-bar.unknown .status-dot{background:#94a3b8}
+
+/* Toast */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:#1e293b;color:#fff;padding:10px 20px;border-radius:10px;font-size:12px;font-weight:500;z-index:9999;transition:transform .3s ease;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.success{background:#059669}
+.toast.error{background:#dc2626}
+
+/* Note */
+.note{background:#f8fafc;border:1px solid #eef0f4;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#64748b;line-height:1.6}
+.note i{color:#3b82f6;margin-right:4px}
+
+@media(max-width:768px){
+  body{padding:12px}
+  .form-grid{grid-template-columns:1fr}
+  .form-group input,.form-group select{font-size:16px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h2><i class="fas fa-tower-broadcast"></i> MQTT 配置</h2>
+
+  <!-- Connection Status -->
+  <div class="status-bar unknown" id="statusBar">
+    <span class="status-dot"></span>
+    <span id="statusText">未测试连接</span>
+  </div>
+
+  <!-- Broker Settings -->
+  <div class="card">
+    <div class="card-title"><i class="fas fa-server"></i> Broker 连接</div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Broker 地址 <span class="required">*</span></label>
+        <input type="text" id="mqttBroker" placeholder="例: broker.emqx.io 或 192.168.1.100">
+      </div>
+      <div class="form-group">
+        <label>端口</label>
+        <input type="text" id="mqttPort" placeholder="1883">
+      </div>
+      <div class="form-group">
+        <label>协议</label>
+        <select id="mqttProtocol">
+          <option value="mqtt">MQTT (TCP)</option>
+          <option value="ws">WebSocket</option>
+          <option value="wss">WebSocket Secure</option>
+          <option value="mqtts">MQTT Secure (TLS)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Authentication -->
+  <div class="card">
+    <div class="card-title"><i class="fas fa-shield-halved"></i> 认证信息</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" id="mqttUsername" placeholder="留空表示匿名">
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" id="mqttPassword" placeholder="留空表示无密码">
+      </div>
+      <div class="form-group full">
+        <label>Client ID 前缀</label>
+        <input type="text" id="mqttClientId" placeholder="例: mubaiyun_iot (自动追加随机后缀)">
+      </div>
+    </div>
+  </div>
+
+  <!-- Advanced -->
+  <div class="card">
+    <div class="card-title"><i class="fas fa-sliders"></i> 高级设置</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>保活间隔 (秒)</label>
+        <input type="text" id="mqttKeepalive" placeholder="60">
+      </div>
+      <div class="form-group">
+        <label>QoS 等级</label>
+        <select id="mqttQos">
+          <option value="0">0 - 最多一次</option>
+          <option value="1">1 - 至少一次</option>
+          <option value="2">2 - 恰好一次</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <div class="toggle-row">
+          <label>清除会话 (Clean Session)</label>
+          <div class="toggle"><input type="checkbox" id="mqttClean" checked><span class="slider"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="btn-row">
+    <button class="btn btn-ghost" id="testBtn" onclick="testConnection()"><i class="fas fa-vial"></i> 测试连接</button>
+    <button class="btn btn-primary" id="saveBtn" onclick="saveConfig()"><i class="fas fa-save"></i> 保存配置</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const FIELDS = {
+  mqttBroker:    'mqtt_broker',
+  mqttPort:      'mqtt_port',
+  mqttProtocol:  'mqtt_protocol',
+  mqttUsername:   'mqtt_username',
+  mqttPassword:  'mqtt_password',
+  mqttClientId:  'mqtt_client_id',
+  mqttKeepalive: 'mqtt_keepalive',
+  mqttQos:       'mqtt_qos',
+  mqttClean:     'mqtt_clean_session'
+};
+
+const DEFAULTS = {
+  mqtt_port: '1883',
+  mqtt_protocol: 'mqtt',
+  mqtt_keepalive: '60',
+  mqtt_qos: '0',
+  mqtt_clean_session: '1'
+};
+
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.className = 'toast', 2500);
+}
+
+function setStatus(type, text) {
+  const bar = document.getElementById('statusBar');
+  bar.className = 'status-bar ' + type;
+  document.getElementById('statusText').textContent = text;
+}
+
+// Load config
+async function loadConfig() {
+  try {
+    const res = await fetch('/api/mqtt/config');
+    const data = await res.json();
+    if (!data.success) return;
+    const c = data.config || {};
+    for (const [elemId, key] of Object.entries(FIELDS)) {
+      const el = document.getElementById(elemId);
+      const val = c[key] || DEFAULTS[key] || '';
+      if (el.type === 'checkbox') {
+        el.checked = val === '1' || val === 'true';
+      } else {
+        el.value = val;
+      }
+    }
+  } catch (e) {}
+}
+
+// Save config
+async function saveConfig() {
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  const body = {};
+  for (const [elemId, key] of Object.entries(FIELDS)) {
+    const el = document.getElementById(elemId);
+    body[key] = el.type === 'checkbox' ? (el.checked ? '1' : '0') : el.value.trim();
+  }
+  try {
+    const res = await fetch('/api/mqtt/config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('配置已保存', 'success');
+    } else {
+      showToast(data.error || '保存失败', 'error');
+    }
+  } catch (e) {
+    showToast('网络错误', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// Test connection
+async function testConnection() {
+  const broker = document.getElementById('mqttBroker').value.trim();
+  if (!broker) { showToast('请先填写 Broker 地址', 'error'); return; }
+  const btn = document.getElementById('testBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 连接中...';
+  setStatus('unknown', '正在测试连接...');
+  try {
+    const res = await fetch('/api/mqtt/test', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        broker,
+        port: document.getElementById('mqttPort').value.trim() || '1883',
+        protocol: document.getElementById('mqttProtocol').value,
+        username: document.getElementById('mqttUsername').value.trim(),
+        password: document.getElementById('mqttPassword').value,
+        client_id: document.getElementById('mqttClientId').value.trim()
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      setStatus('connected', data.message || '连接成功');
+      showToast('连接成功', 'success');
+    } else {
+      setStatus('disconnected', data.error || '连接失败');
+      showToast(data.error || '连接失败', 'error');
+    }
+  } catch (e) {
+    setStatus('disconnected', '网络错误');
+    showToast('请求失败', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-vial"></i> 测试连接';
+  }
+}
+
+loadConfig();
+</script>
+</body>
+</html>

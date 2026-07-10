@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Runtime / logs
+*.log
+logs/
+.pm2/
+
+# Local config / secrets
+.env
+.env.*
+!.env.example
+
+# Backups and temporary files
+backups/
+*.bak
+*.bak_*
+*.tmp
+*.temp
+
+# Upload/runtime data
+uploads/
+public/uploads/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Build/cache
+.cache/
+dist/
+build/
+coverage/

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>工作台</title>
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css"></noscript>
+<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f6f8fb;--card:#fff;--text:#1b2430;--sub:#64748b;--weak:#9aa4b2;--line:#e9eef5;
+  --blue:#2563eb;--green:#059669;--red:#dc2626;--orange:#d97706;--purple:#7c3aed;--cyan:#0891b2;
+  --soft-blue:#eff6ff;--soft-green:#ecfdf5;--soft-purple:#f5f3ff;--soft-red:#fef2f2;--soft-orange:#fff7ed;
+}
+html{background:var(--bg);min-height:100%}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:radial-gradient(circle at 88% -8%,rgba(96,165,250,.14),transparent 30%),linear-gradient(180deg,#f8fbff 0%,#f6f8fb 42%,#f6f8fb 100%);color:var(--text);padding:16px 16px 72px;min-height:100vh;overflow-x:hidden}
+button,input{font-family:inherit;font-size:16px}button{-webkit-tap-highlight-color:transparent}
+.app-shell{max-width:1120px;margin:0 auto}
+.hero-card{position:relative;overflow:hidden;background:rgba(255,255,255,.76);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(226,236,248,.86);border-radius:24px;padding:18px;margin-bottom:14px;box-shadow:0 10px 28px rgba(30,64,175,.045)}.hero-card:before{content:'';position:absolute;right:-34px;bottom:-50px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(96,165,250,.16),rgba(167,139,250,.07) 45%,transparent 72%);pointer-events:none}.hero-card:after{content:'';position:absolute;right:34px;bottom:18px;width:46px;height:46px;border-radius:18px;background:linear-gradient(135deg,rgba(59,130,246,.10),rgba(16,185,129,.07));transform:rotate(12deg);pointer-events:none}.hero-card>*{position:relative;z-index:1}
+.hero-main{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.hero-left{min-width:0;flex:1}
+.eyebrow{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 10px;border-radius:999px;background:var(--soft-blue);color:var(--blue);font-size:11px;font-weight:800;margin-bottom:10px}.eyebrow i{font-size:11px}
+#welcomeTitle{font-size:24px;font-weight:850;letter-spacing:-.035em;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#111827}
+#dateInfo{font-size:12px;color:#64748b;font-weight:650;margin-top:6px}
+.btn-add{height:38px;padding:0 15px;border:0;border-radius:13px;background:#2563eb;color:#fff;font-size:13px;font-weight:750;display:flex;align-items:center;gap:7px;cursor:pointer;transition:background .18s,transform .18s;flex-shrink:0;box-shadow:none}.btn-add:hover{background:#1d4ed8}.btn-add:active{transform:scale(.98)}
+.stats-bar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:14px}
+.stat-pill{min-width:0;height:28px;display:flex;align-items:center;justify-content:center;gap:5px;background:transparent;border:0;border-radius:0;padding:0;box-shadow:none}
+.stat-pill .dot{width:18px;height:18px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}.stat-pill .dot:before{font-family:'Font Awesome 6 Free';font-weight:900;font-size:9px}.dot.total{background:var(--soft-blue);color:var(--blue)}.dot.total:before{content:'\f1b2'}.dot.online{background:var(--soft-green);color:var(--green)}.dot.online:before{content:'\f058'}.dot.offline{background:var(--soft-red);color:var(--red)}.dot.offline:before{content:'\f057'}.dot.controller{background:var(--soft-orange);color:var(--orange)}.dot.controller:before{content:'\f043'}.dot.sensor{background:var(--soft-purple);color:var(--purple)}.dot.sensor:before{content:'\f2db'}
+.stat-meta{min-width:0;display:flex;align-items:center;gap:3px}.stat-pill .label{display:block;font-size:10px;color:#64748b;font-weight:650;white-space:nowrap}.stat-pill .val{display:block;font-size:13px;font-weight:850;color:#111827;line-height:1;letter-spacing:-.025em}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin:14px 2px 8px}.section-head .title{font-size:16px;font-weight:850;color:#172033;display:flex;align-items:center;gap:8px;letter-spacing:-.02em}.section-head .title i{color:#64748b;font-size:13px}.section-head .count{font-size:12px;color:#64748b;font-weight:700;background:#fff;border:1px solid var(--line);border-radius:999px;padding:5px 10px}
+.device-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:9px;align-items:start}.device-card{background:rgba(255,255,255,.78);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(226,236,248,.88);border-radius:18px;padding:11px 12px;cursor:pointer;transition:background .16s,transform .16s,border-color .16s;min-height:96px;display:flex;flex-direction:column;gap:7px;position:relative;overflow:hidden;box-shadow:0 8px 22px rgba(15,23,42,.035)}.device-card:before{content:'';position:absolute;right:-28px;top:-34px;width:92px;height:92px;border-radius:50%;background:radial-gradient(circle,rgba(96,165,250,.12),transparent 70%);pointer-events:none}.device-card>*{position:relative;z-index:1}.device-card:hover{background:rgba(255,255,255,.9);border-color:#dce5f0}.device-card:active{transform:scale(.99)}
+.device-main-row{display:flex;align-items:center;gap:10px;min-width:0}.device-icon{width:38px;height:38px;border-radius:14px;background:var(--soft-blue);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0}.device-card.sensor .device-icon{background:var(--soft-purple);color:var(--purple)}.device-card.offline .device-icon{background:#f1f5f9;color:#94a3b8}.device-icon i{font-size:16px}.device-info{min-width:0;flex:1}.device-title-line{display:flex;align-items:center;gap:8px;min-width:0}.device-card-name{font-size:14px;font-weight:800;color:#172033;line-height:1.28;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.015em}.device-code{display:block;margin-top:3px;font-size:10px;color:#94a3b8;font-weight:700;letter-spacing:.025em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.status-dot{width:8px;height:8px;border-radius:50%;background:#cbd5e1;flex-shrink:0}.device-card.online .status-dot{background:var(--green)}
+.status-text{font-size:10px;font-weight:750;color:#94a3b8;background:#f1f5f9;border-radius:999px;padding:3px 8px;flex-shrink:0}.device-card.online .status-text{color:var(--green);background:var(--soft-green)}.chev{color:#cbd5e1;font-size:12px;flex-shrink:0}.device-sub-row{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#64748b;font-size:10px;font-weight:650;padding-left:48px}.device-type{display:flex;align-items:center;gap:6px;min-width:0}.device-type i{font-size:11px}.last-seen{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%;text-align:right;color:#94a3b8}
+.metric-grid{display:flex;align-items:center;gap:5px;overflow-x:auto;padding-left:48px;scrollbar-width:none}.metric-grid::-webkit-scrollbar{display:none}.metric{height:23px;min-width:max-content;border-radius:999px;background:#f8fafc;border:1px solid #eef2f7;display:flex;align-items:center;gap:5px;padding:0 7px;color:#64748b}.metric i{font-size:10px;flex-shrink:0}.metric i.soil{color:var(--blue)}.metric i.humid{color:var(--cyan)}.metric i.temp{color:var(--red)}.metric i.light{color:var(--orange)}.metric .m-label{font-size:9px;font-weight:650;color:#94a3b8}.metric .m-val{font-size:10px;font-weight:800;color:#334155;white-space:nowrap;line-height:1}.no-data{height:23px;border-radius:999px;background:#f8fafc;border:1px solid #eef2f7;color:#94a3b8;font-size:10px;font-weight:700;display:flex;align-items:center;gap:5px;padding:0 8px;margin-left:48px;overflow:hidden}.no-data span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.empty-state{text-align:center;padding:60px 20px;color:#94a3b8;background:#fff;border:1px solid var(--line);border-radius:22px;grid-column:1/-1}.empty-state i{font-size:32px;margin-bottom:12px;display:block;color:#cbd5e1}.empty-state p{font-size:14px;font-weight:750}.empty-state .btn-add{margin:16px auto 0}
+.pending-stack{position:fixed;right:14px;bottom:14px;z-index:80;display:flex;flex-direction:column;gap:9px;align-items:flex-end;pointer-events:none;max-width:min(380px,calc(100vw - 24px))}.pending-card{width:350px;max-width:100%;background:rgba(255,255,255,.98);border:1px solid var(--line);border-radius:18px;padding:12px 42px 12px 13px;box-shadow:0 12px 30px rgba(15,23,42,.10);display:flex;align-items:center;gap:11px;pointer-events:auto;animation:pendingIn .28s ease;backdrop-filter:blur(10px);position:relative}.pending-icon{width:38px;height:38px;border-radius:14px;background:var(--soft-blue);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0}.pending-icon.sensor{background:var(--soft-purple);color:var(--purple)}.pending-main{flex:1;min-width:0}.pending-title{font-size:14px;font-weight:800;color:#172033;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pending-sub{font-size:12px;color:#64748b;font-weight:650;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pending-actions{display:flex;align-items:center;gap:5px;flex-shrink:0}.pending-bind{height:30px;border:0;border-radius:11px;background:#2563eb;color:#fff;font-size:12px;font-weight:800;padding:0 11px;cursor:pointer}.pending-close{position:absolute;right:9px;top:8px;width:24px;height:24px;border:0;border-radius:50%;background:#f3f6fb;color:#94a3b8;display:flex;align-items:center;justify-content:center;cursor:pointer}.pending-close:hover{background:#eef2f7;color:#64748b}.pending-close:active,.pending-bind:active{transform:scale(.96)}@keyframes pendingIn{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:820px){.stats-bar{grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}.stat-pill{height:24px;gap:3px}.stat-pill .dot{width:16px;height:16px;border-radius:6px}.stat-pill .dot:before{font-size:8px}.stat-pill .label{font-size:9px}.stat-pill .val{font-size:12px}.device-grid{grid-template-columns:1fr;gap:9px}}
+@media(max-width:560px){body{padding:12px 10px 64px}.hero-card{border-radius:20px;padding:15px;margin-bottom:14px}.hero-main{align-items:flex-start}.eyebrow{height:24px;font-size:10px;margin-bottom:9px}#welcomeTitle{font-size:21px}#dateInfo{font-size:11px}.btn-add{height:34px;padding:0 12px;border-radius:12px;font-size:12px}.stats-bar{margin-top:13px;gap:3px}.stat-pill{height:22px;gap:2px}.stat-pill .dot{display:flex;width:14px;height:14px;border-radius:5px}.stat-pill .dot:before{font-size:7px}.stat-pill .label{font-size:8px}.stat-pill .val{font-size:11px}.section-head{margin:16px 2px 8px}.device-card{min-height:92px;padding:10px 11px;border-radius:17px}.device-icon{width:36px;height:36px;border-radius:13px}.device-icon i{font-size:16px}.device-card-name{font-size:13px}.device-code{font-size:10px}.status-text{font-size:10px;padding:4px 8px}.device-sub-row{padding-left:46px;font-size:10px}.metric-grid{padding-left:46px;gap:4px}.metric{height:22px;padding:0 6px}.metric .m-label{font-size:9px}.metric .m-val{font-size:10px}.no-data{margin-left:46px;height:22px;font-size:10px}.pending-stack{left:auto;right:10px;bottom:12px;width:68vw;min-width:235px;max-width:310px;align-items:flex-end}.pending-card{width:100%;border-radius:16px;padding:11px 38px 11px 12px;gap:9px}.pending-icon{width:34px;height:34px;border-radius:13px}.pending-title{font-size:13px}.pending-sub{font-size:11px}.pending-bind{height:29px;padding:0 10px;font-size:11px}.pending-close{width:23px;height:23px;right:8px;top:7px}}
+@media(max-width:380px){.hero-main{flex-direction:column}.btn-add{align-self:flex-start}.stats-bar{margin-top:13px;gap:2px}.stat-pill{height:22px}.stat-pill .dot{width:13px;height:13px}.stat-pill .label{font-size:8px}.stat-pill .val{font-size:11px}}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <section class="hero-card">
+    <div class="hero-main">
+      <div class="hero-left">
+        <div class="eyebrow"><i class="fas fa-seedling"></i><span>木白云 IoT 工作台</span></div>
+        <h1 id="welcomeTitle">欢迎回来</h1>
+        <p id="dateInfo"></p>
+      </div>
+      <button class="btn-add" onclick="addDevice()"><i class="fas fa-plus"></i> 添加设备</button>
+    </div>
+    <div class="stats-bar">
+      <div class="stat-pill"><span class="dot total"></span><span class="stat-meta"><span class="label">全部设备</span><span class="val" id="statTotal">-</span></span></div>
+      <div class="stat-pill"><span class="dot online"></span><span class="stat-meta"><span class="label">在线</span><span class="val" id="statOnline">-</span></span></div>
+      <div class="stat-pill"><span class="dot offline"></span><span class="stat-meta"><span class="label">离线</span><span class="val" id="statOffline">-</span></span></div>
+      <div class="stat-pill"><span class="dot controller"></span><span class="stat-meta"><span class="label">控制器</span><span class="val" id="statController">-</span></span></div>
+      <div class="stat-pill"><span class="dot sensor"></span><span class="stat-meta"><span class="label">传感器</span><span class="val" id="statSensor">-</span></span></div>
+    </div>
+  </section>
+  <div class="section-head"><div class="title"><i class="fas fa-layer-group"></i> 设备列表</div><div class="count" id="deviceCount"></div></div>
+  <div class="device-grid" id="deviceGrid"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>加载中...</p></div></div>
+</div>
+<div class="pending-stack" id="pendingStack"></div>
+<script>
+var days=['日','一','二','三','四','五','六'];
+function updateDateTime(){
+  var now=new Date();
+  document.getElementById('dateInfo').textContent=now.getFullYear()+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+String(now.getDate()).padStart(2,'0')+' 周'+days[now.getDay()]+' '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')+':'+String(now.getSeconds()).padStart(2,'0');
+}
+updateDateTime();
+try{var user=window.parent.__currentUser||window.__currentUser;if(user&&user.username){document.getElementById('welcomeTitle').textContent='欢迎回来，'+user.username;}}catch(e){}
+function addDevice(){try{parent.openModal('/user/pages/add_device.html','添加设备');}catch(e){window.open('/user/pages/add_device.html','_blank');}}
+function bindPendingDevice(id, code){
+  try{
+    sessionStorage.removeItem('iot_pending_dismiss_'+id);
+    sessionStorage.removeItem('iot_pending_closed_'+id);
+    localStorage.setItem('iot_pending_bind', JSON.stringify({id:id, device_code:code, time:Date.now()}));
+  }catch(e){}
+  var el=document.querySelector('.pending-card[data-id="'+id+'"]');
+  if(el) el.remove();
+  addDevice();
+}
+function dismissPending(id){
+  try{sessionStorage.setItem('iot_pending_closed_'+id, '1');}catch(e){}
+  var el=document.querySelector('.pending-card[data-id="'+id+'"]');
+  if(el) el.remove();
+}
+function pendingIcon(code){return String(code||'').toUpperCase().startsWith('C')?'fa-microchip':'fa-faucet-drip';}
+function renderPendingDevices(list){
+  var stack=document.getElementById('pendingStack'); if(!stack)return;
+  list=(list||[]).filter(function(d){try{return !sessionStorage.getItem('iot_pending_closed_'+d.id);}catch(e){return true;}}).slice(0,5);
+  if(!list.length){stack.innerHTML='';return;}
+  stack.innerHTML=list.map(function(d){
+    var code=esc(d.device_code||''), raw=jsStr(d.device_code||''), sensor=String(d.device_code||'').toUpperCase().startsWith('C');
+    var time=d.created_at?new Date(d.created_at).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'刚刚';
+    return '<div class="pending-card" data-id="'+d.id+'"><div class="pending-icon '+(sensor?'sensor':'')+'"><i class="fas '+pendingIcon(d.device_code)+'"></i></div><div class="pending-main"><div class="pending-title">发现待绑定设备</div><div class="pending-sub">'+code+' · '+esc(time)+'</div></div><div class="pending-actions"><button class="pending-bind" onclick="bindPendingDevice('+d.id+',\''+raw+'\')">去绑定</button><button class="pending-close" onclick="dismissPending('+d.id+')"><i class="fas fa-xmark"></i></button></div></div>';
+  }).join('');
+}
+async function checkPendingDevices(){
+  try{var res=await fetch('/api/esp32/pending',{credentials:'same-origin'});var data=await res.json();if(data.success)renderPendingDevices(data.devices||[]);}catch(e){}
+}
+function openDevice(id,name,icon){try{parent.openTab('device_'+id,name,icon,true,'/user/device/'+id);}catch(e){window.open('/user/device/'+id,'_blank');}}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function jsStr(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,' ');}
+function parseSensorData(v){if(!v)return null;if(typeof v==='object')return v;try{return JSON.parse(v);}catch(e){return null;}}
+function isSensor(d){return d.device_type==='sensor'||(d.device_code&&d.device_code.charAt(0).toUpperCase()==='C');}
+function getDeviceIcon(d){return isSensor(d)?'fa-microchip':'fa-faucet-drip';}
+function fmtNum(v,suffix){if(v===undefined||v===null||v==='')return '--';var n=Number(v);var out=isNaN(n)?String(v):(Math.round(n*10)/10);return out+(suffix||'');}
+function lastSeenText(d){var t=d.last_heartbeat||d.updated_at||d.last_seen;if(!t)return '';var ms=Date.now()-new Date(t).getTime();if(isNaN(ms))return '';var m=Math.max(0,Math.floor(ms/60000));if(m<1)return '刚刚';if(m<60)return m+'分钟前';var h=Math.floor(m/60);if(h<24)return h+'小时前';return Math.floor(h/24)+'天前';}
+function metricHtml(icon,cls,label,val){return '<div class="metric"><i class="fas '+icon+' '+cls+'"></i><span class="m-label">'+esc(label)+'</span><span class="m-val">'+esc(val)+'</span></div>';}
+function sensorHtml(d){
+  var sd=parseSensorData(d.sensor_data);
+  if(!sd){return '<div class="no-data"><i class="fas fa-barcode"></i><span>'+esc(d.device_code||'暂无数据')+'</span></div>';}
+  var parts=[];
+  if(sd.soil_moisture!==undefined)parts.push(metricHtml('fa-droplet','soil','土壤',fmtNum(sd.soil_moisture,'%')));
+  if(sd.air_humidity!==undefined)parts.push(metricHtml('fa-wind','humid','空气',fmtNum(sd.air_humidity,'%')));
+  if(sd.temperature!==undefined)parts.push(metricHtml('fa-temperature-half','temp','温度',fmtNum(sd.temperature,'℃')));
+  if(sd.light!==undefined)parts.push(metricHtml('fa-sun','light','光照',fmtNum(sd.light,'')));
+  if(!parts.length)return '<div class="no-data"><i class="fas fa-barcode"></i><span>'+esc(d.device_code||'暂无数据')+'</span></div>';
+  return '<div class="metric-grid">'+parts.join('')+'</div>';
+}
+function renderDevices(devices){
+  var total=devices.length,online=devices.filter(function(d){return d.status==='online'||d.status===1}).length,sensors=devices.filter(isSensor).length,controllers=total-sensors;
+  document.getElementById('statTotal').textContent=total;document.getElementById('statOnline').textContent=online;document.getElementById('statOffline').textContent=total-online;document.getElementById('statController').textContent=controllers;document.getElementById('statSensor').textContent=sensors;document.getElementById('deviceCount').textContent=total?total+'台设备':'';
+  var gridEl=document.getElementById('deviceGrid');
+  if(total===0){gridEl.innerHTML='<div class="empty-state"><i class="fas fa-microchip"></i><p>暂无设备</p><button class="btn-add" onclick="addDevice()"><i class="fas fa-plus"></i> 添加设备</button></div>';return;}
+  gridEl.innerHTML=devices.map(function(d){
+    var onlineState=d.status==='online'||d.status===1,sensor=isSensor(d),icon=getDeviceIcon(d),name=d.device_name||'未命名设备',typeText=sensor?'传感器':'控制器',seen=lastSeenText(d);
+    return '<div class="device-card '+(onlineState?'online':'offline')+' '+(sensor?'sensor':'controller')+'" onclick="openDevice('+d.id+',\''+jsStr(name)+'\',\''+icon+'\')">'
+      +'<div class="device-main-row"><div class="device-icon"><i class="fas '+icon+'"></i></div><div class="device-info"><div class="device-title-line"><span class="status-dot"></span><span class="device-card-name">'+esc(name)+'</span></div><span class="device-code">'+esc(d.device_code||'未绑定编码')+'</span></div><span class="status-text">'+(onlineState?'在线':'离线')+'</span><i class="fas fa-chevron-right chev"></i></div>'
+      +'<div class="device-sub-row"><span class="device-type"><i class="fas '+(sensor?'fa-satellite-dish':'fa-seedling')+'"></i>'+typeText+'</span><span class="last-seen">'+esc(seen)+'</span></div>'+sensorHtml(d)+'</div>';
+  }).join('');
+}
+function loadDashboard(){return fetch('/api/devices',{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(data){var devices=data.devices||data.data||data||[];if(!Array.isArray(devices))devices=[];renderDevices(devices);}).catch(function(){document.getElementById('deviceGrid').innerHTML='<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>加载失败，请稍后重试</p></div>';});}
+window.loadDashboard=loadDashboard;
+window.loadDevices=loadDashboard;
+window.addEventListener('focus',loadDashboard);
+window.addEventListener('storage',function(e){if(e.key==='iot_devices_changed'){loadDashboard();checkPendingDevices();}});
+loadDashboard();checkPendingDevices();setInterval(updateDateTime,1000);setInterval(loadDashboard,5000);setInterval(checkPendingDevices,10000);
+</script>
+</body>
+</html>
