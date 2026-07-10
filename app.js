@@ -11,6 +11,7 @@ const { initGlobalMqtt, publishToDevice, waitForDeviceAck } = require('./mqtt_ha
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
+app.set('trust proxy', 1);
 
 // Middleware
 app.use(express.json());
@@ -140,11 +141,20 @@ function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+function createSessionCookieOptions(req) {
+  const secure = !!(req?.secure || req?.headers?.['x-forwarded-proto'] === 'https');
+  return {
+    httpOnly: true,
+    secure,
+    sameSite: secure ? 'none' : 'lax',
+    expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+  };
+}
+
 function createSessionCookie() {
   const token = generateToken();
   const hashedToken = hashToken(token);
-  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  return { token, hashedToken, expires };
+  return { token, hashedToken };
 }
 
 // Auth middleware
@@ -301,16 +311,11 @@ app.post('/api/register', async (req, res) => {
     );
     
     // Auto login
-    const { token, hashedToken, expires } = createSessionCookie();
+    const { token, hashedToken } = createSessionCookie();
     await pool.query('INSERT INTO login_tokens (user_id, token_hash) VALUES (?, ?)', [result.insertId, hashedToken]);
     await pool.query('UPDATE users SET last_login = NOW() WHERE id = ?', [result.insertId]);
     
-    res.cookie('session_token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      expires
-    });
+    res.cookie('session_token', token, createSessionCookieOptions(req));
     
     res.json({ success: true, message: '注册成功' });
   } catch (e) {
@@ -348,7 +353,7 @@ app.post('/api/login', async (req, res) => {
     }
     
     // Generate token
-    const { token, hashedToken, expires } = createSessionCookie();
+    const { token, hashedToken } = createSessionCookie();
     // 检查多设备登录设置
     const [mlSetting] = await pool.query('SELECT setting_value FROM user_settings WHERE user_id = ? AND setting_key = "multi_login"', [user.id]);
     if (mlSetting.length === 0 || mlSetting[0].setting_value === '0') {
@@ -357,12 +362,7 @@ app.post('/api/login', async (req, res) => {
     await pool.query('INSERT INTO login_tokens (user_id, token_hash) VALUES (?, ?)', [user.id, hashedToken]);
     await pool.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
     
-    res.cookie('session_token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      expires
-    });
+    res.cookie('session_token', token, createSessionCookieOptions(req));
     
     res.json({ 
       success: true, 
@@ -627,15 +627,10 @@ app.get('/admin/impersonate-login', async (req, res) => {
     if (!canImpersonateUser(adminUser, target)) return res.status(403).send('无权登录该用户');
     if (Number(adminUser.id) === Number(target.id)) return res.status(403).send('不能代登录当前账号');
 
-    const { token, hashedToken, expires } = createSessionCookie();
+    const { token, hashedToken } = createSessionCookie();
     await pool.query('INSERT INTO login_tokens (user_id, token_hash) VALUES (?, ?)', [target.id, hashedToken]);
     await pool.query('UPDATE users SET last_login = NOW() WHERE id = ?', [target.id]);
-    res.cookie('session_token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      expires
-    });
+    res.cookie('session_token', token, createSessionCookieOptions(req));
     res.redirect('/user');
   } catch (e) {
     console.error('[Impersonate Login Error]', e);
