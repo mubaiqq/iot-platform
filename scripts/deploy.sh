@@ -18,7 +18,7 @@ need_cmd() {
 install_base_tools() {
   if need_cmd apt-get; then
     $SUDO apt-get update
-    $SUDO apt-get install -y git curl ca-certificates rsync
+    $SUDO apt-get install -y git curl ca-certificates rsync openssl
   fi
 }
 
@@ -81,14 +81,39 @@ write_env() {
   if [ ! -f .env ]; then
     cat > .env <<EOF
 APP_PORT=${APP_PORT}
-NODE_IMAGE=${NODE_IMAGE:-node:20-alpine}
+NODE_IMAGE=${NODE_IMAGE:-docker.m.daocloud.io/library/node:20-alpine}
+MYSQL_IMAGE=${MYSQL_IMAGE:-docker.m.daocloud.io/library/mysql:8.4.4}
+MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-$(openssl rand -base64 24 | tr -d '/+=' | head -c 20)}
+DB_NAME=${DB_NAME:-iot_platform}
+DB_USER=${DB_USER:-iot_user}
+DB_PASSWORD=${DB_PASSWORD:-$(openssl rand -base64 24 | tr -d '/+=' | head -c 20)}
 EOF
-    echo "[deploy] 已生成 .env"
+    echo "[deploy] 已生成 .env（包含内置 MySQL 配置）"
   else
     echo "[deploy] 已存在 .env，保留原配置"
     if ! grep -q '^NODE_IMAGE=' .env; then
-      echo "NODE_IMAGE=${NODE_IMAGE:-node:20-alpine}" >> .env
-      echo "[deploy] 已追加 NODE_IMAGE=node:20-alpine（可改为私有镜像源地址）"
+      echo "NODE_IMAGE=${NODE_IMAGE:-docker.m.daocloud.io/library/node:20-alpine}" >> .env
+      echo "[deploy] 已追加 NODE_IMAGE"
+    fi
+    if ! grep -q '^MYSQL_IMAGE=' .env; then
+      echo "MYSQL_IMAGE=${MYSQL_IMAGE:-docker.m.daocloud.io/library/mysql:8.4.4}" >> .env
+      echo "[deploy] 已追加 MYSQL_IMAGE"
+    fi
+    if ! grep -q '^MYSQL_ROOT_PASSWORD=' .env; then
+      echo "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-$(openssl rand -base64 24 | tr -d '/+=' | head -c 20)}" >> .env
+      echo "[deploy] 已追加 MYSQL_ROOT_PASSWORD"
+    fi
+    if ! grep -q '^DB_NAME=' .env; then
+      echo "DB_NAME=${DB_NAME:-iot_platform}" >> .env
+      echo "[deploy] 已追加 DB_NAME"
+    fi
+    if ! grep -q '^DB_USER=' .env; then
+      echo "DB_USER=${DB_USER:-iot_user}" >> .env
+      echo "[deploy] 已追加 DB_USER"
+    fi
+    if ! grep -q '^DB_PASSWORD=' .env; then
+      echo "DB_PASSWORD=${DB_PASSWORD:-$(openssl rand -base64 24 | tr -d '/+=' | head -c 20)}" >> .env
+      echo "[deploy] 已追加 DB_PASSWORD"
     fi
   fi
 }
@@ -107,7 +132,8 @@ print_result() {
   echo
   echo "部署完成"
   echo "访问地址: http://服务器IP:${APP_PORT}"
-  echo "首次安装: 打开上面的地址，填写本地/远程 MySQL 信息后完成初始化。"
+  echo "首次安装: 打开上面的地址；内置 MySQL 已自动配置，通常无需再填写数据库信息。"
+  echo "数据库数据卷: docker volume iot-platform_mysql_data（会随 compose 持久化）"
   echo "默认管理员: admin"
   echo "默认密码: admin123"
   echo "请登录后立即修改默认密码，并在后台配置天气/API/大模型等参数。"
