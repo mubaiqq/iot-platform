@@ -1,6 +1,9 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:20-alpine}
     image: iot-platform:latest
     container_name: iot-platform-app
     restart: unless-stopped

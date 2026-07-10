@@ -51,10 +51,15 @@ write_env() {
   if [ ! -f .env ]; then
     cat > .env <<EOF
 APP_PORT=${APP_PORT}
+NODE_IMAGE=${NODE_IMAGE:-node:20-alpine}
 EOF
     echo "[deploy] 已生成 .env"
   else
     echo "[deploy] 已存在 .env，保留原配置"
+    if ! grep -q '^NODE_IMAGE=' .env; then
+      echo "NODE_IMAGE=${NODE_IMAGE:-node:20-alpine}" >> .env
+      echo "[deploy] 已追加 NODE_IMAGE=node:20-alpine（可改为私有镜像源地址）"
+    fi
   fi
 }
 
