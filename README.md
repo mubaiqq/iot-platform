@@ -107,6 +107,16 @@ DB_NAME=iot_platform
 DB_HOST=127.0.0.1 DB_USER=root DB_PASSWORD=xxx DB_NAME=iot_platform node app.js
 ```
 
+## 开发与更新规范
+
+详细规范见根目录：
+
+```text
+DEVELOPMENT.md
+```
+
+包含开发规范、Docker 部署规范、更新命令、数据库变更注意事项、GitHub 发布流程和故障排查。
+
 ## 注意
 
 - 本仓库不包含 `node_modules/`、`backups/`、`.env`、上传文件等运行时内容。
