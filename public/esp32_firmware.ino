@@ -1,7 +1,7 @@
 // ============================================
-// 木白云IoT - ESP32 固件 v2.1.1
+// 木白云IoT - ESP32 固件 v2.1.2
 // 功能：AP配网 + MQTT通信 + 浇水控制 + 计划任务 + 旧设备GPIO16兼容
-// v2.1.1：兼容旧控制器接线(GPIO16，高电平触发)，增加继电器串口测试命令和 water=false 安全停泵
+// v2.1.2：兼容旧控制器接线(GPIO16，高电平触发)，water=false 安全停泵，计划任务不补执行错过时间
 // ============================================
 
 #include <WiFi.h>
@@ -34,7 +34,7 @@ const int MQTT_PORT = 1883;
 #define WDT_TIMEOUT_SECONDS 15
 #define MAX_WATERING_SECONDS 600
 #define AUTO_COOLDOWN_MULTIPLIER 3
-#define SCHEDULE_MISSED_GRACE_MINUTES 2
+#define SCHEDULE_MISSED_GRACE_MINUTES 0
 #define REPORT_RETRY_INTERVAL 10000
 // 计划任务检查间隔(毫秒)
 #define SCHEDULE_CHECK_INTERVAL 10000
@@ -587,7 +587,9 @@ void checkSchedules() {
     }
     int lateMinutes = nowMinute - taskMinute;
     if (lateMinutes < 0) continue;
+    // 浇水设备不补执行错过的计划：只在计划所在分钟执行，重启后超过该分钟直接跳过
     if (lateMinutes > SCHEDULE_MISSED_GRACE_MINUTES) {
+      Serial.println("[计划] #" + String(i+1) + " 已错过 " + String(lateMinutes) + " 分钟，跳过不补执行");
       executedToday[i] = true;
       continue;
     }
@@ -950,7 +952,7 @@ void setup() {
   pinMode(RELAY_PIN, OUTPUT);
   setRelayOff();
   setupWatchdog();
-  Serial.println("\n========== 木白云IoT v2.1.1 ==========");
+  Serial.println("\n========== 木白云IoT v2.1.2 ==========");
   Serial.println("[serial] send FACTORY_RESET to clear config and restart");
   Serial.println("[serial] relay commands: RELAY_ON / RELAY_OFF / RELAY_TEST");
   Serial.println("[relay] GPIO" + String(RELAY_PIN) + ", ON=" + String(RELAY_ACTIVE_LEVEL == HIGH ? "HIGH" : "LOW") + ", OFF=" + String(RELAY_INACTIVE_LEVEL == HIGH ? "HIGH" : "LOW"));

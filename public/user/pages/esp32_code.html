@@ -55,8 +55,8 @@ pre{margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1
 <body>
 <div id="toast"></div>
 
-<div class="page-title"><i class="fas fa-microchip" style="color:#3b82f6"></i> ESP32 固件代码 v2.1.1</div>
-<div class="page-desc">复制以下 v2.1.1 代码到 Arduino IDE，烧录到 ESP32 即可使用；v2.1.1 已兼容旧控制器 GPIO16 继电器接线，并增加 water=false 安全停泵</div>
+<div class="page-title"><i class="fas fa-microchip" style="color:#3b82f6"></i> ESP32 固件代码 v2.1.2</div>
+<div class="page-desc">复制以下 v2.1.2 代码到 Arduino IDE，烧录到 ESP32 即可使用；v2.1.2 已兼容旧控制器 GPIO16 继电器接线，增加 water=false 安全停泵，并且计划任务不补执行错过时间</div>
 
 <div class="info-card">
   <i class="fas fa-info-circle"></i> <strong>使用说明：</strong><br>
@@ -76,7 +76,7 @@ pre{margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1
 <!-- Main Code -->
 <div id="tab-main" class="code-section">
   <div class="code-header">
-    <div class="title"><i class="fas fa-file-code"></i> mubaiyun_iot_v2.1.1.ino</div>
+    <div class="title"><i class="fas fa-file-code"></i> mubaiyun_iot_v2.1.2.ino</div>
     <button class="btn-copy" onclick="copyCode()"><i class="fas fa-copy"></i> 复制代码</button>
   </div>
   <div class="code-body">
@@ -97,7 +97,8 @@ pre{margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1
     &bull; 旧程序的继电器引脚 <code>GPIO16</code><br>
     &bull; 旧程序的最大浇水时长 <code>600秒</code><br>
     &bull; 旧程序的智能/自动浇水冷却：浇水时长 × <code>3</code><br>
-    &bull; 心跳附带 WiFi连接状态、设备IP、RSSI、继电器引脚、当前浇水状态<br><br>
+    &bull; 心跳附带 WiFi连接状态、设备IP、RSSI、继电器引脚、当前浇水状态<br>
+    &bull; 计划任务只在设定时间所在分钟执行；设备重启后如果已错过时间，不会补执行<br><br>
     <b>可选配置：</b><br>
     <b>HEARTBEAT_INTERVAL</b> — 心跳间隔(毫秒)，默认 30000 (30秒)<br>
     <b>SOIL_PIN</b> — 土壤湿度传感器引脚 (ADC)<br>
