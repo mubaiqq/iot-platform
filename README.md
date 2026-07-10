@@ -48,6 +48,23 @@ http://服务器IP:32180
 APP_PORT=18080 INSTALL_DIR=/opt/iot-platform bash /tmp/iot-deploy-host.sh
 ```
 
+## 宿主机一键更新（Node.js + PM2）
+
+已经用上面的宿主机方式部署后，后续更新直接执行：
+
+```bash
+curl -fsSL --connect-timeout 10 --max-time 30 https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/update-host.sh -o /tmp/iot-update-host.sh
+bash /tmp/iot-update-host.sh
+```
+
+如果 GitHub raw 下载慢或无响应，先下载到文件检查再运行；更新脚本内部会在 `git fetch` 失败时自动尝试源码包镜像。默认部署目录是 `/opt/iot-platform`，如果你部署到了其它目录：
+
+```bash
+INSTALL_DIR=/你的部署目录 bash /tmp/iot-update-host.sh
+```
+
+更新脚本会保留现有 `.env`、`data/`、`node_modules/`、`backups/`，更新源码和生产依赖，执行 `node -c app.js` / `node -c mqtt_handler.js`，然后用 PM2 重启并 `pm2 save`。
+
 ## Docker 一键部署（内置 MySQL 容器）
 
 服务器上执行：
@@ -110,21 +127,6 @@ systemctl status pm2-root --no-pager
 ```
 
 如果不是 root 用户部署，把 `root` 和 `/root` 换成对应用户和家目录。
-
-### 宿主机部署：更新程序
-
-宿主机部署后续更新执行：
-
-```bash
-curl -fsSL --connect-timeout 10 --max-time 30 https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/update-host.sh -o /tmp/iot-update-host.sh
-bash /tmp/iot-update-host.sh
-```
-
-如果部署目录不是默认的 `/opt/iot-platform`：
-
-```bash
-INSTALL_DIR=/你的部署目录 bash /tmp/iot-update-host.sh
-```
 
 ### Docker 部署：更新程序
 
