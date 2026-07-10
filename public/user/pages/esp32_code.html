@@ -55,8 +55,8 @@ pre{margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1
 <body>
 <div id="toast"></div>
 
-<div class="page-title"><i class="fas fa-microchip" style="color:#3b82f6"></i> ESP32 固件代码</div>
-<div class="page-desc">复制以下代码到 Arduino IDE，烧录到 ESP32 即可使用</div>
+<div class="page-title"><i class="fas fa-microchip" style="color:#3b82f6"></i> ESP32 固件代码 v2.1</div>
+<div class="page-desc">复制以下 v2.1 代码到 Arduino IDE，烧录到 ESP32 即可使用；v2.1 已兼容旧控制器 GPIO16 继电器接线</div>
 
 <div class="info-card">
   <i class="fas fa-info-circle"></i> <strong>使用说明：</strong><br>
@@ -76,7 +76,7 @@ pre{margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1
 <!-- Main Code -->
 <div id="tab-main" class="code-section">
   <div class="code-header">
-    <div class="title"><i class="fas fa-file-code"></i> mubaiyun_iot.ino</div>
+    <div class="title"><i class="fas fa-file-code"></i> mubaiyun_iot_v2.1.ino</div>
     <button class="btn-copy" onclick="copyCode()"><i class="fas fa-copy"></i> 复制代码</button>
   </div>
   <div class="code-body">
@@ -91,7 +91,13 @@ pre{margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1
     <i class="fas fa-cog"></i> <strong>需要修改的配置项：</strong><br><br>
     <b>MQTT_SERVER</b> — MQTT服务器地址，如 <code>mqtt.mcoud.cn</code><br>
     <b>MQTT_PORT</b> — MQTT端口，默认 <code>1883</code><br>
-    <b>RELAY_PIN</b> — 继电器引脚，默认 <code>GPIO 26</code><br><br>
+    <b>RELAY_PIN</b> — 继电器引脚，已按旧设备改为 <code>GPIO 16</code><br>
+    <b>RELAY_ACTIVE_LEVEL</b> — 继电器开启电平，已按旧程序保持 <code>HIGH</code> 开启、<code>LOW</code> 关闭<br><br>
+    <b>已兼容旧设备逻辑：</b><br>
+    &bull; 旧程序的继电器引脚 <code>GPIO16</code><br>
+    &bull; 旧程序的最大浇水时长 <code>600秒</code><br>
+    &bull; 旧程序的智能/自动浇水冷却：浇水时长 × <code>3</code><br>
+    &bull; 心跳附带 WiFi连接状态、设备IP、RSSI、继电器引脚、当前浇水状态<br><br>
     <b>可选配置：</b><br>
     <b>HEARTBEAT_INTERVAL</b> — 心跳间隔(毫秒)，默认 30000 (30秒)<br>
     <b>SOIL_PIN</b> — 土壤湿度传感器引脚 (ADC)<br>

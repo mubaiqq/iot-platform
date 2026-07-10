@@ -1,6 +1,7 @@
 // ============================================
-// 木白云IoT - ESP32 固件 v2
-// 功能：AP配网 + MQTT通信 + 浇水控制 + 计划任务
+// 木白云IoT - ESP32 固件 v2.1
+// 功能：AP配网 + MQTT通信 + 浇水控制 + 计划任务 + 旧设备GPIO16兼容
+// v2.1：兼容旧控制器接线(GPIO16，高电平触发)，增加继电器串口测试命令
 // ============================================
 
 #include <WiFi.h>
@@ -17,7 +18,9 @@
 // ========== 配置区域 ==========
 const char* MQTT_SERVER = "mqtt.mcoud.cn";
 const int MQTT_PORT = 1883;
-#define RELAY_PIN 26
+#define RELAY_PIN 16
+#define RELAY_ACTIVE_LEVEL HIGH
+#define RELAY_INACTIVE_LEVEL LOW
 #define HEARTBEAT_INTERVAL 30000
 // NTP服务器（北京时间 UTC+8）
 #define NTP_SERVER "ntp.aliyun.com"
@@ -30,6 +33,7 @@ const int MQTT_PORT = 1883;
 #define MQTT_KEEPALIVE 30
 #define WDT_TIMEOUT_SECONDS 15
 #define MAX_WATERING_SECONDS 600
+#define AUTO_COOLDOWN_MULTIPLIER 3
 #define SCHEDULE_MISSED_GRACE_MINUTES 2
 #define REPORT_RETRY_INTERVAL 10000
 // 计划任务检查间隔(毫秒)
@@ -83,6 +87,8 @@ unsigned long lastReportRetry = 0;
 bool apStarted = false;
 unsigned long lastWifiReconnect = 0;
 int wifiReconnectAttempts = 0;
+unsigned long lastAutoWateringEnd = 0;
+unsigned long autoCooldownUntil = 0;
 
 // ========== 计划任务 ==========
 #define MAX_SCHEDULES 10
@@ -173,6 +179,23 @@ void publishStatusEvent(const char* event, bool success, const char* reason) {
   serializeJson(doc, out);
   String topic = "device/" + deviceCode + "/status";
   mqtt.publish(topic.c_str(), out.c_str(), false);
+}
+
+bool isAutoSource(const String& source) {
+  return source == "auto" || source == "ai" || source == "schedule_ai";
+}
+
+bool isInAutoCooldown() {
+  if (lastAutoWateringEnd == 0) return false;
+  return (long)(millis() - autoCooldownUntil) < 0;
+}
+
+void setRelayOn() {
+  digitalWrite(RELAY_PIN, RELAY_ACTIVE_LEVEL);
+}
+
+void setRelayOff() {
+  digitalWrite(RELAY_PIN, RELAY_INACTIVE_LEVEL);
 }
 
 void setupWatchdog() {
@@ -472,7 +495,7 @@ void publishWateringStarted(int duration, bool isSchedule) {
   doc["event"] = "watering_started";
   doc["success"] = true;
   doc["water"] = true;
-  doc["request_id"] = currentWateringRequestId;
+  if (currentWateringRequestId.length() && currentWateringRequestId != "null") doc["request_id"] = currentWateringRequestId;
   doc["duration"] = duration;
   doc["source"] = currentWateringSource.length() ? currentWateringSource : (isSchedule ? "schedule" : "manual");
   String out;
@@ -607,7 +630,12 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       if (duration > MAX_WATERING_SECONDS) duration = MAX_WATERING_SECONDS;
       bool isSchedule = waitingForAI; // 智能浇水的AI回复也算计划
       if (waitingForAI) waitingForAI = false;
-      nextWateringRequestId = doc["request_id"].as<String>();
+      if (doc.containsKey("request_id")) {
+        nextWateringRequestId = doc["request_id"].as<String>();
+      } else {
+        nextWateringRequestId = "";
+      }
+      if (nextWateringRequestId == "null") nextWateringRequestId = "";
       if (nextWateringRequestId.length() == 0) nextWateringRequestId = String((uint32_t)esp_random(), HEX);
       nextWateringSource = isSchedule ? "schedule_ai" : "manual";
       bool started = startWatering(duration, isSchedule);
@@ -620,7 +648,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       ackDoc["success"] = true;
       ackDoc["water"] = true;
       ackDoc["duration"] = duration;
-      ackDoc["request_id"] = currentWateringRequestId;
+      if (currentWateringRequestId.length() && currentWateringRequestId != "null") ackDoc["request_id"] = currentWateringRequestId;
       String ack;
       serializeJson(ackDoc, ack);
       bool ackOk = mqtt.publish(statusTopic.c_str(), ack.c_str());
@@ -692,13 +720,21 @@ bool startWatering(int seconds, bool isSchedule) {
   }
   if (seconds < 1) seconds = 30;
   if (seconds > MAX_WATERING_SECONDS) seconds = MAX_WATERING_SECONDS;
-  Serial.println("[浇水] 开始浇水 " + String(seconds) + "秒" + (isSchedule ? " (计划)" : " (手动)"));
-  digitalWrite(RELAY_PIN, HIGH);
+
+  String source = nextWateringSource.length() ? nextWateringSource : (isSchedule ? "schedule" : "manual");
+  if (isAutoSource(source) && isInAutoCooldown()) {
+    Serial.println("[浇水] 智能浇水冷却中，拒绝自动浇水");
+    publishStatusEvent("watering_ack", false, "auto watering cooldown");
+    return false;
+  }
+
+  Serial.println("[浇水] 开始浇水 " + String(seconds) + "秒" + (isSchedule ? " (计划)" : " (手动)") + ", source=" + source);
+  setRelayOn();
   isWatering = true;
   currentWateringDuration = seconds;
   currentWateringIsSchedule = isSchedule;
   currentWateringRequestId = nextWateringRequestId.length() ? nextWateringRequestId : String((uint32_t)esp_random(), HEX);
-  currentWateringSource = nextWateringSource.length() ? nextWateringSource : (isSchedule ? "schedule" : "manual");
+  currentWateringSource = source;
   nextWateringRequestId = "";
   nextWateringSource = "";
   wateringEndTime = millis() + (unsigned long)seconds * 1000;
@@ -707,12 +743,17 @@ bool startWatering(int seconds, bool isSchedule) {
 }
 
 void stopWatering() {
-  digitalWrite(RELAY_PIN, LOW);
+  setRelayOff();
   isWatering = false;
   Serial.println("[浇水] 浇水完成");
 
   // 发送执行结果报告
   reportWateringResult(currentWateringDuration, currentWateringIsSchedule);
+  if (isAutoSource(currentWateringSource)) {
+    lastAutoWateringEnd = millis();
+    autoCooldownUntil = millis() + (unsigned long)currentWateringDuration * 1000UL * AUTO_COOLDOWN_MULTIPLIER;
+    Serial.println("[浇水] 智能浇水冷却 " + String(currentWateringDuration * AUTO_COOLDOWN_MULTIPLIER) + "秒");
+  }
   currentWateringDuration = 0;
   currentWateringIsSchedule = false;
   currentWateringRequestId = "";
@@ -728,9 +769,17 @@ void sendHeartbeat() {
   if (!mqtt.connected()) return;
   heartbeatCount++;
   String topic = "device/" + deviceCode + "/heartbeat";
-  DynamicJsonDocument doc(512);
+  DynamicJsonDocument doc(768);
   doc["device_code"] = deviceCode;
   doc["timestamp"] = "";
+  doc["wifi_connected"] = WiFi.status() == WL_CONNECTED;
+  doc["device_ip"] = WiFi.localIP().toString();
+  doc["wifi_rssi"] = WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : -100;
+  doc["relay_pin"] = RELAY_PIN;
+  doc["relay_active_level"] = RELAY_ACTIVE_LEVEL == HIGH ? "HIGH" : "LOW";
+  doc["watering"] = isWatering;
+  doc["current_duration"] = currentWateringDuration;
+  doc["auto_cooldown"] = isInAutoCooldown();
   JsonObject sensor = doc.createNestedObject("sensor_data");
   #ifdef SOIL_PIN
     sensor["soil_moisture"] = map(analogRead(SOIL_PIN), 4095, 0, 0, 100);
@@ -784,7 +833,7 @@ void connectMQTT() {
 
 void factoryReset() {
   Serial.println("[factory] clearing NVS and restarting...");
-  digitalWrite(RELAY_PIN, LOW);
+  setRelayOff();
   isWatering = false;
   mqtt.disconnect();
   WiFi.disconnect(true, true);
@@ -805,9 +854,21 @@ void handleSerialCommands() {
       serialCommand.toUpperCase();
       if (serialCommand == "FACTORY_RESET") {
         factoryReset();
+      } else if (serialCommand == "RELAY_ON") {
+        setRelayOn();
+        Serial.println("[serial] relay on: GPIO" + String(RELAY_PIN) + " level=" + String(RELAY_ACTIVE_LEVEL == HIGH ? "HIGH" : "LOW"));
+      } else if (serialCommand == "RELAY_OFF") {
+        setRelayOff();
+        Serial.println("[serial] relay off: GPIO" + String(RELAY_PIN) + " level=" + String(RELAY_INACTIVE_LEVEL == HIGH ? "HIGH" : "LOW"));
+      } else if (serialCommand == "RELAY_TEST") {
+        Serial.println("[serial] relay test: ON 3s then OFF, GPIO" + String(RELAY_PIN));
+        setRelayOn();
+        delay(3000);
+        setRelayOff();
+        Serial.println("[serial] relay test done");
       } else if (serialCommand.length() > 0) {
         Serial.println("[serial] unknown command: " + serialCommand);
-        Serial.println("[serial] available: FACTORY_RESET");
+        Serial.println("[serial] available: FACTORY_RESET, RELAY_ON, RELAY_OFF, RELAY_TEST");
       }
       serialCommand = "";
     } else if (serialCommand.length() < 64) {
@@ -820,10 +881,12 @@ void handleSerialCommands() {
 void setup() {
   Serial.begin(115200);
   setupWatchdog();
-  Serial.println("\n========== 木白云IoT v2 ==========");
+  Serial.println("\n========== 木白云IoT v2.1 ==========");
   Serial.println("[serial] send FACTORY_RESET to clear config and restart");
+  Serial.println("[serial] relay commands: RELAY_ON / RELAY_OFF / RELAY_TEST");
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, LOW);
+  setRelayOff();
+  Serial.println("[relay] GPIO" + String(RELAY_PIN) + ", ON=" + String(RELAY_ACTIVE_LEVEL == HIGH ? "HIGH" : "LOW") + ", OFF=" + String(RELAY_INACTIVE_LEVEL == HIGH ? "HIGH" : "LOW"));
 
   prefs.begin("iot", true);
   isConfigured = prefs.getBool("configured", false);

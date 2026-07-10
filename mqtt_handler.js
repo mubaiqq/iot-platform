@@ -411,7 +411,15 @@ async function handleWateringRequest(pool, deviceCode, payload) {
     );
     
     if (!devices.length) {
-      console.log(`[浇水判断] 设备 ${deviceCode} 不存在`);
+      console.log(`[浇水判断] 设备 ${deviceCode} 不存在或未绑定`);
+      const reason = '设备未绑定，请先在平台添加设备后再使用AI浇水';
+      const [pendingRows] = await pool.query('SELECT id FROM esp32_pending_devices WHERE device_code = ? LIMIT 1', [deviceCode]);
+      if (pendingRows.length) {
+        console.log(`[浇水判断] 设备 ${deviceCode} 当前在待绑定列表，pending_id=${pendingRows[0].id}`);
+      }
+      const reply = { water: false, reason };
+      if (requestId) reply.request_id = requestId;
+      publishToDevice(deviceCode, reply);
       return;
     }
     
@@ -578,8 +586,13 @@ async function handleWateringRequest(pool, deviceCode, payload) {
     // 4. 调用大模型API
     let aiResult = null;
     let aiRawResponse = '';
+    let aiError = '';
     try {
-      const llmRes = await fetch(llmConfig.api_url, {
+      // 与 /api/llm-test 保持一致：允许用户填写 base URL，自动补 /chat/completions
+      let llmUrl = (llmConfig.api_url || '').replace(/\/+$/, '');
+      if (!llmUrl.endsWith('/chat/completions')) llmUrl += '/chat/completions';
+
+      const llmRes = await fetch(llmUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -588,26 +601,56 @@ async function handleWateringRequest(pool, deviceCode, payload) {
         body: JSON.stringify({
           model: llmConfig.model_id,
           messages: [
-            { role: 'system', content: '你是一个智能浇花助手，只返回JSON格式结果。' },
+            { role: 'system', content: '你是一个智能浇花助手，只返回JSON格式结果。只输出 {"should_water":true或false,"reason":"简短原因"}，不要输出Markdown。' },
             { role: 'user', content: prompt }
           ],
           temperature: 0.3
-        })
+        }),
+        signal: AbortSignal.timeout(30000)
       });
-      
-      const llmData = await llmRes.json();
-      const content = llmData.choices && llmData.choices[0] && llmData.choices[0].message ? llmData.choices[0].message.content : '';
-      aiRawResponse = content;
-      
+
+      const rawText = await llmRes.text();
+      let llmData = null;
       try {
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          aiResult = JSON.parse(jsonMatch[0]);
+        llmData = rawText ? JSON.parse(rawText) : null;
+      } catch (jsonErr) {
+        aiError = '大模型响应不是JSON: HTTP ' + llmRes.status;
+        aiRawResponse = rawText.slice(0, 2000);
+        console.error('[AI] 响应JSON解析失败:', jsonErr.message, 'status=', llmRes.status, 'raw=', rawText.slice(0, 300));
+      }
+
+      if (llmData) {
+        if (!llmRes.ok || llmData.error) {
+          const errMsg = llmData.error?.message || llmData.error || ('HTTP ' + llmRes.status);
+          aiError = typeof errMsg === 'string' ? errMsg : JSON.stringify(errMsg);
+          aiRawResponse = JSON.stringify(llmData).slice(0, 2000);
+          console.error('[AI] 调用返回错误:', aiError);
+        } else {
+          let content = '';
+          if (llmData.choices && llmData.choices.length > 0) {
+            const c = llmData.choices[0];
+            content = c.message?.content || c.text || c.content || '';
+          }
+          if (!content && llmData.content) content = llmData.content;
+          if (!content && llmData.result) content = llmData.result;
+          aiRawResponse = content || JSON.stringify(llmData).slice(0, 2000);
+
+          try {
+            const jsonMatch = aiRawResponse.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              aiResult = JSON.parse(jsonMatch[0]);
+            } else {
+              aiError = '大模型未返回JSON判断结果';
+              console.error('[AI] 未找到JSON结果, response=', aiRawResponse.slice(0, 300));
+            }
+          } catch (e) {
+            aiError = 'AI结果JSON解析失败: ' + e.message;
+            console.error('[AI] 解析结果失败:', e.message, 'response=', aiRawResponse.slice(0, 300));
+          }
         }
-      } catch (e) {
-        console.error('[AI] 解析结果失败:', e.message);
       }
     } catch (e) {
+      aiError = e.message;
       console.error('[AI] 调用失败:', e.message);
     }
     
@@ -618,7 +661,7 @@ async function handleWateringRequest(pool, deviceCode, payload) {
     
     await pool.query(
       'INSERT INTO device_logs (device_id, log_type, content, prompt_content, ai_response, result) VALUES (?, ?, ?, ?, ?, ?)',
-      [device.id, 'watering_judge', logContent, prompt, aiRawResponse, JSON.stringify({ ...(aiResult || { error: 'AI判断失败' }), request_id: requestId })]
+      [device.id, 'watering_judge', logContent, prompt, aiRawResponse, JSON.stringify({ ...(aiResult || { error: aiError || 'AI判断失败' }), request_id: requestId })]
     );
     
     // 6. 发送AI回复：真实控制器会带 request_id，测试页/旧请求可能没有；没有时不下发 null 字段
