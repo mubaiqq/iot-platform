@@ -472,7 +472,9 @@ async function handleWateringRequest(pool, deviceCode, payload) {
             
             if (weatherData.code === '200') {
               const now = weatherData.now;
-              weatherInfo = now.text + '，温度' + now.temp + '℃，湿度' + now.humidity + '%，风向' + now.windDir + '，风力' + now.windScale + '级';
+              weatherInfo = now.text + '，温度' + now.temp + '℃，湿度' + now.humidity + '%';
+              if (now.precip !== undefined) weatherInfo += '，当前降水' + now.precip + 'mm';
+              weatherInfo += '，风向' + now.windDir + '，风力' + now.windScale + '级';
             }
             
             if (forecastData.code === '200' && forecastData.daily) {

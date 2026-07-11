@@ -1727,7 +1727,8 @@ app.post('/user/pages/device_prompt', requireAuth, async (req, res) => {
     weather: '预览时未获取到实时天气',
     temperature: '--',
     humidity: '--',
-    wind: '--'
+    wind: '--',
+    precip: '--'
   };
   try {
     const settings = d.settings || {};
@@ -1767,11 +1768,14 @@ app.post('/user/pages/device_prompt', requireAuth, async (req, res) => {
 
           if (weatherData.code === '200') {
             const now = weatherData.now;
-            preview.weather_current = now.text + '，温度' + now.temp + '℃，湿度' + now.humidity + '%，风向' + now.windDir + '，风力' + now.windScale + '级';
+            preview.weather_current = now.text + '，温度' + now.temp + '℃，湿度' + now.humidity + '%';
+            if (now.precip !== undefined) preview.weather_current += '，当前降水' + now.precip + 'mm';
+            preview.weather_current += '，风向' + now.windDir + '，风力' + now.windScale + '级';
             preview.weather = preview.weather_current;
             preview.temperature = now.temp + '℃';
             preview.humidity = now.humidity + '%';
             preview.wind = now.windDir + now.windScale + '级';
+            preview.precip = now.precip !== undefined ? now.precip + 'mm' : '--';
           }
 
           if (forecastData.code === '200' && forecastData.daily) {
