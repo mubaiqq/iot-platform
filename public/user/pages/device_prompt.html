@@ -41,10 +41,12 @@ body{font-family:'Inter',sans-serif;background:#f5f6fa;color:#1e293b;padding:16p
 .var-btn.copy:hover{background:#cbd5e1}
 
 /* 模板选择 */
-.template-bar{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
-.template-btn{padding:6px 12px;border:1px solid #e2e8f0;border-radius:6px;background:#fff;font-size:11px;font-weight:500;cursor:pointer;transition:all .2s;font-family:'Inter',sans-serif}
-.template-btn:hover{border-color:#3b82f6;color:#3b82f6}
-.template-btn.active{background:#3b82f6;color:#fff;border-color:#3b82f6}
+.template-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.template-card{padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;cursor:pointer;transition:all .2s;text-align:left;font-family:'Inter',sans-serif}
+.template-card:hover{border-color:#3b82f6;background:#eff6ff}
+.template-card.active{border-color:#3b82f6;background:#dbeafe}
+.template-card-title{font-size:13px;font-weight:700;color:#1e293b;margin-bottom:5px;display:flex;align-items:center;gap:6px}
+.template-card-desc{font-size:11px;color:#64748b;line-height:1.45}
 
 /* 文本框 */
 .prompt-section{display:flex;flex-direction:column;min-height:0}
@@ -58,8 +60,8 @@ textarea::placeholder{color:#cbd5e1}
 .preview-content{font-size:12px;color:#a5f3fc;font-family:monospace;line-height:1.6;white-space:pre-wrap;word-break:break-word}
 
 /* 悬浮按钮 */
-.btn-row{position:fixed;left:0;right:0;bottom:0;z-index:900;display:flex;gap:8px;margin:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:rgba(245,246,250,.92);backdrop-filter:blur(12px);border-top:1px solid rgba(226,232,240,.9);box-shadow:0 -8px 24px rgba(15,23,42,.06)}
-.btn{flex:1;height:40px;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-row{position:fixed;left:0;right:0;bottom:0;z-index:900;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:rgba(245,246,250,.92);backdrop-filter:blur(12px);border-top:1px solid rgba(226,232,240,.9);box-shadow:0 -8px 24px rgba(15,23,42,.06)}
+.btn{min-width:0;height:40px;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
 .btn-primary{background:#3b82f6;color:#fff}
 .btn-primary:hover{background:#2563eb}
 .btn-ghost{background:#fff;color:#475569;border:1px solid #e2e8f0}
@@ -76,6 +78,7 @@ textarea::placeholder{color:#cbd5e1}
   body{padding:12px 12px 86px}
   textarea{font-size:16px;min-height:220px}
   .btn-row{padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+  .btn{font-size:12px;gap:4px;padding:0 4px}
   .var-modal{padding:12px}
   .var-modal-content{max-width:none;max-height:86vh;border-radius:14px}
   .var-grid{grid-template-columns:1fr}
@@ -99,19 +102,17 @@ textarea::placeholder{color:#cbd5e1}
   </div>
 </div>
 
-<!-- 变量按钮 -->
-<div class="section">
-  <button class="var-trigger" onclick="openVarModal()">
-    <i class="fas fa-code"></i>
-    <span>可用变量</span>
-    <span class="count" id="varCount">0</span>
-  </button>
-</div>
-
-<!-- 模板选择 -->
-<div class="section">
-  <div class="section-title"><i class="fas fa-file-lines"></i> 快速模板</div>
-  <div class="template-bar" id="templateBar"></div>
+<!-- 模板弹窗 -->
+<div class="var-modal" id="templateModal" onclick="if(event.target===this)closeTemplateModal()">
+  <div class="var-modal-content">
+    <div class="var-modal-header">
+      <h3>快速模板</h3>
+      <button class="var-modal-close" onclick="closeTemplateModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="var-modal-body">
+      <div class="template-grid" id="templateGrid"></div>
+    </div>
+  </div>
 </div>
 
 <!-- 提示词编辑 -->
@@ -128,6 +129,8 @@ textarea::placeholder{color:#cbd5e1}
 
 <!-- 按钮 -->
 <div class="btn-row">
+  <button class="btn btn-ghost" onclick="openVarModal()"><i class="fas fa-code"></i> 变量</button>
+  <button class="btn btn-ghost" onclick="openTemplateModal()"><i class="fas fa-file-lines"></i> 模板</button>
   <button class="btn btn-ghost" onclick="togglePreview()"><i class="fas fa-eye"></i> 预览</button>
   <button class="btn btn-primary" onclick="save()" id="saveBtn"><i class="fas fa-check"></i> 保存</button>
 </div>
@@ -232,6 +235,16 @@ function closeVarModal() {
   document.getElementById('varModal').classList.remove('show');
 }
 
+// 打开模板弹窗
+function openTemplateModal() {
+  document.getElementById('templateModal').classList.add('show');
+}
+
+// 关闭模板弹窗
+function closeTemplateModal() {
+  document.getElementById('templateModal').classList.remove('show');
+}
+
 // 初始化变量面板
 function initVarGrid() {
   const grid = document.getElementById('varGrid');
@@ -251,9 +264,12 @@ function initVarGrid() {
 
 // 初始化模板栏
 function initTemplateBar() {
-  const bar = document.getElementById('templateBar');
-  bar.innerHTML = TEMPLATES.map((t, i) => `
-    <button class="template-btn" onclick="applyTemplate(${i})">${t.name}</button>
+  const grid = document.getElementById('templateGrid');
+  grid.innerHTML = TEMPLATES.map((t, i) => `
+    <button class="template-card" onclick="applyTemplate(${i})">
+      <div class="template-card-title"><i class="fas fa-file-lines"></i>${t.name}</div>
+      <div class="template-card-desc">应用一套完整的浇水判断提示词模板</div>
+    </button>
   `).join('');
 }
 
@@ -284,9 +300,10 @@ function applyTemplate(index) {
   autoGrowPrompt();
   
   // 更新按钮状态
-  document.querySelectorAll('.template-btn').forEach((btn, i) => {
+  document.querySelectorAll('.template-card').forEach((btn, i) => {
     btn.classList.toggle('active', i === index);
   });
+  closeTemplateModal();
   
   showToast('已应用模板: ' + template.name, 'success');
 }
@@ -381,7 +398,10 @@ document.getElementById('promptInput').addEventListener('input', () => {
 
 // ESC关闭弹窗
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeVarModal();
+  if (e.key === 'Escape') {
+    closeVarModal();
+    closeTemplateModal();
+  }
 });
 </script>
 </body>
