@@ -472,7 +472,7 @@ async function handleWateringRequest(pool, deviceCode, payload) {
             
             if (weatherData.code === '200') {
               const now = weatherData.now;
-              weatherInfo = '当前天气：' + now.text + '，温度' + now.temp + '℃，湿度' + now.humidity + '%，风向' + now.windDir + '，风力' + now.windScale + '级';
+              weatherInfo = now.text + '，温度' + now.temp + '℃，湿度' + now.humidity + '%，风向' + now.windDir + '，风力' + now.windScale + '级';
             }
             
             if (forecastData.code === '200' && forecastData.daily) {
@@ -553,13 +553,12 @@ async function handleWateringRequest(pool, deviceCode, payload) {
         .replace(/\{\{weather_tomorrow\}\}/g, weatherTomorrow)
         .replace(/\{\{weather_day_after\}\}/g, weatherDayAfter)
         .replace(/\{\{weather\}\}/g, weatherInfo)
-        .replace(/\{\{temperature\}\}/g, currentWeatherData?.now?.temp ? currentWeatherData.now.temp + '℃' : '--')
         .replace(/\{\{humidity\}\}/g, currentWeatherData?.now?.humidity ? currentWeatherData.now.humidity + '%' : '--')
         .replace(/\{\{wind\}\}/g, currentWeatherData?.now ? currentWeatherData.now.windDir + currentWeatherData.now.windScale + '级' : '--')
-        .replace(/\{\{soil_moisture\}\}/g, device.sensor_data?.soil_moisture ? device.sensor_data.soil_moisture + '%' : '--')
-        .replace(/\{\{air_humidity\}\}/g, device.sensor_data?.air_humidity ? device.sensor_data.air_humidity + '%' : '--')
-        .replace(/\{\{temperature\}\}/g, device.sensor_data?.temperature ? device.sensor_data.temperature + '℃' : '--')
-        .replace(/\{\{light\}\}/g, device.sensor_data?.light ? device.sensor_data.light + 'lux' : '--');
+        .replace(/\{\{soil_moisture\}\}/g, device.sensor_data?.soil_moisture !== undefined ? device.sensor_data.soil_moisture + '%' : '--')
+        .replace(/\{\{air_humidity\}\}/g, device.sensor_data?.air_humidity !== undefined ? device.sensor_data.air_humidity + '%' : '--')
+        .replace(/\{\{temperature\}\}/g, device.sensor_data?.temperature !== undefined ? device.sensor_data.temperature + '℃' : (currentWeatherData?.now?.temp ? currentWeatherData.now.temp + '℃' : '--'))
+        .replace(/\{\{light\}\}/g, device.sensor_data?.light !== undefined ? device.sensor_data.light + 'lux' : '--');
 
       // 替换外部传感器变量 {{sensor_CODE_field}}
       const sensorVarPattern = /\{\{sensor_(\w+)_(soil_moisture|air_humidity|temperature|light)\}\}/g;

@@ -1712,10 +1712,97 @@ app.post('/user/pages/sensor_setting', requireAuth, async (req, res) => {
 
 app.post('/user/pages/device_prompt', requireAuth, async (req, res) => {
   const { device_id } = req.body;
-  const [rows] = await pool.query('SELECT id, device_name, device_code, device_type, settings FROM devices WHERE id = ? AND user_id = ?', [device_id, req.user.id]);
+  const [rows] = await pool.query('SELECT id, device_name, device_code, device_type, settings, sensor_data FROM devices WHERE id = ? AND user_id = ?', [device_id, req.user.id]);
   if (!rows.length) return res.status(404).send('设备不存在');
   const d = rows[0];
   d.settings = typeof d.settings === 'string' ? JSON.parse(d.settings) : (d.settings || {});
+  d.sensor_data = typeof d.sensor_data === 'string' ? JSON.parse(d.sensor_data) : (d.sensor_data || {});
+
+  // 生成与真实浇水判断一致的预览变量，避免预览页显示固定示例值
+  const preview = {
+    weather_current: '预览时未获取到实时天气',
+    weather_today: '--',
+    weather_tomorrow: '--',
+    weather_day_after: '--',
+    weather: '预览时未获取到实时天气',
+    temperature: '--',
+    humidity: '--',
+    wind: '--'
+  };
+  try {
+    const settings = d.settings || {};
+    const weatherSource = settings.weather_api || 'official';
+    const location = settings.location_name || '';
+    if (!location) {
+      preview.weather_current = '设备未设置所在地，无法获取天气';
+      preview.weather = preview.weather_current;
+    } else {
+      let apiKey = null;
+      const isVip = req.user.role === 'admin' || (req.user.vip_expire && new Date(req.user.vip_expire) > new Date());
+      if (weatherSource === 'official') {
+        if (!isVip) {
+          preview.weather_current = 'VIP已过期，官方天气不可用';
+          preview.weather = preview.weather_current;
+        } else {
+          const [adminWeather] = await pool.query('SELECT setting_value FROM settings WHERE setting_key = "qweather_api_key"');
+          apiKey = adminWeather[0]?.setting_value;
+        }
+      } else {
+        const [userWeather] = await pool.query(
+          'SELECT setting_value FROM user_settings WHERE user_id = ? AND setting_key = "qweather_api_key"',
+          [req.user.id]
+        );
+        apiKey = userWeather[0]?.setting_value;
+      }
+
+      if (apiKey) {
+        const geoRes = await fetch('https://geoapi.qweather.com/v2/city/lookup?location=' + encodeURIComponent(location) + '&key=' + apiKey);
+        const geoData = await geoRes.json();
+        if (geoData.code === '200' && geoData.location && geoData.location.length) {
+          const cityId = geoData.location[0].id;
+          const weatherRes = await fetch('https://devapi.qweather.com/v7/weather/now?location=' + cityId + '&key=' + apiKey);
+          const weatherData = await weatherRes.json();
+          const forecastRes = await fetch('https://devapi.qweather.com/v7/weather/3d?location=' + cityId + '&key=' + apiKey);
+          const forecastData = await forecastRes.json();
+
+          if (weatherData.code === '200') {
+            const now = weatherData.now;
+            preview.weather_current = now.text + '，温度' + now.temp + '℃，湿度' + now.humidity + '%，风向' + now.windDir + '，风力' + now.windScale + '级';
+            preview.weather = preview.weather_current;
+            preview.temperature = now.temp + '℃';
+            preview.humidity = now.humidity + '%';
+            preview.wind = now.windDir + now.windScale + '级';
+          }
+
+          if (forecastData.code === '200' && forecastData.daily) {
+            const dayNames = ['今天', '明天', '后天'];
+            forecastData.daily.slice(0, 3).forEach((day, i) => {
+              const dayText = day.textDay === day.textNight ? day.textDay : day.textDay + '转' + day.textNight;
+              let info = dayNames[i] + '（' + day.fxDate + '）：' + dayText;
+              info += '，' + day.tempMin + '°/' + day.tempMax + '°';
+              info += '，湿度' + day.humidity + '%';
+              if (day.precip && parseFloat(day.precip) > 0) info += '，降水' + day.precip + 'mm';
+              info += '，' + day.windDirDay + day.windScaleDay + '级';
+              if (i === 0) preview.weather_today = info;
+              else if (i === 1) preview.weather_tomorrow = info;
+              else if (i === 2) preview.weather_day_after = info;
+            });
+          }
+        } else {
+          preview.weather_current = '城市定位失败，无法获取天气';
+          preview.weather = preview.weather_current;
+        }
+      } else if (preview.weather_current === '预览时未获取到实时天气') {
+        preview.weather_current = '未配置天气API Key';
+        preview.weather = preview.weather_current;
+      }
+    }
+  } catch (e) {
+    console.error('[提示词预览天气] 获取失败:', e.message);
+    preview.weather_current = '天气数据获取失败';
+    preview.weather = preview.weather_current;
+  }
+
   // 加载该用户的所有传感器设备
   const [sensors] = await pool.query(
     'SELECT id, device_code, device_name, sensor_data FROM devices WHERE user_id = ? AND device_type = "sensor" ORDER BY created_at',
@@ -1724,7 +1811,7 @@ app.post('/user/pages/device_prompt', requireAuth, async (req, res) => {
   sensors.forEach(s => {
     s.sensor_data = typeof s.sensor_data === 'string' ? JSON.parse(s.sensor_data) : (s.sensor_data || {});
   });
-  serveModalPage('public/user/pages/device_prompt.html', { device: d, sensors }, res);
+  serveModalPage('public/user/pages/device_prompt.html', { device: d, sensors, preview }, res);
 });
 
 app.post('/user/pages/device_log', requireAuth, async (req, res) => {
