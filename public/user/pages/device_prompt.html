@@ -7,7 +7,8 @@
 <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:#f5f6fa;color:#1e293b;padding:16px;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+html{min-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch}
+body{font-family:'Inter',sans-serif;background:#f5f6fa;color:#1e293b;padding:16px;display:flex;flex-direction:column;min-height:100vh;height:auto;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .section{margin-bottom:16px;flex-shrink:0}
 .section-title{font-size:13px;font-weight:600;color:#334155;margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .section-title i{color:#3b82f6;font-size:12px}
@@ -46,15 +47,15 @@ body{font-family:'Inter',sans-serif;background:#f5f6fa;color:#1e293b;padding:16p
 .template-btn.active{background:#3b82f6;color:#fff;border-color:#3b82f6}
 
 /* 文本框 */
-.prompt-section{flex:1;display:flex;flex-direction:column;min-height:0}
-textarea{width:100%;flex:1;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px;font-size:13px;font-family:monospace;outline:none;resize:none;transition:border-color .2s;line-height:1.7;background:#fff;min-height:120px}
+.prompt-section{display:flex;flex-direction:column;min-height:0}
+textarea{width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px;font-size:13px;font-family:monospace;outline:none;resize:vertical;transition:border-color .2s;line-height:1.7;background:#fff;min-height:240px;overflow:hidden}
 textarea:focus{border-color:#3b82f6}
 textarea::placeholder{color:#cbd5e1}
 
 /* 预览区 */
-.preview{background:#1e293b;border-radius:10px;padding:12px;margin-top:12px;display:none}
-.preview-title{font-size:11px;color:#64748b;margin-bottom:8px;font-weight:500}
-.preview-content{font-size:12px;color:#a5f3fc;font-family:monospace;line-height:1.6;white-space:pre-wrap;word-break:break-all}
+.preview{background:#1e293b;border-radius:10px;padding:12px;margin-top:12px;display:none;flex-shrink:0;overflow:visible}
+.preview-title{font-size:11px;color:#94a3b8;margin-bottom:8px;font-weight:500}
+.preview-content{font-size:12px;color:#a5f3fc;font-family:monospace;line-height:1.6;white-space:pre-wrap;word-break:break-word}
 
 /* 按钮 */
 .btn-row{display:flex;gap:8px;margin-top:14px;flex-shrink:0}
@@ -72,6 +73,8 @@ textarea::placeholder{color:#cbd5e1}
 #toast.error{background:#dc2626}
 
 @media(max-width:560px){
+  body{padding:12px;padding-bottom:18px}
+  textarea{font-size:16px;min-height:220px}
   .var-modal{padding:12px}
   .var-modal-content{max-width:none;max-height:86vh;border-radius:14px}
   .var-grid{grid-template-columns:1fr}
@@ -276,6 +279,7 @@ function copyVar(varName) {
 function applyTemplate(index) {
   const template = TEMPLATES[index];
   document.getElementById('promptInput').value = template.content;
+  autoGrowPrompt();
   
   // 更新按钮状态
   document.querySelectorAll('.template-btn').forEach((btn, i) => {
@@ -283,6 +287,12 @@ function applyTemplate(index) {
   });
   
   showToast('已应用模板: ' + template.name, 'success');
+}
+
+function autoGrowPrompt() {
+  const textarea = document.getElementById('promptInput');
+  textarea.style.height = 'auto';
+  textarea.style.height = Math.max(textarea.scrollHeight, window.innerWidth <= 560 ? 220 : 240) + 'px';
 }
 
 // 预览
@@ -293,6 +303,9 @@ function togglePreview() {
   
   if (show) {
     updatePreview();
+    setTimeout(() => {
+      try { preview.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(e) {}
+    }, 30);
   }
 }
 
@@ -354,9 +367,11 @@ initTemplateBar();
 
 // 加载已保存的提示词
 document.getElementById('promptInput').value = s.prompt || '';
+autoGrowPrompt();
 
 // 输入时实时更新预览
 document.getElementById('promptInput').addEventListener('input', () => {
+  autoGrowPrompt();
   if (document.getElementById('preview').style.display === 'block') {
     updatePreview();
   }
