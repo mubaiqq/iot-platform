@@ -1785,7 +1785,7 @@ app.post('/user/pages/device_prompt', requireAuth, async (req, res) => {
               let info = dayNames[i] + '（' + day.fxDate + '）：' + dayText;
               info += '，' + day.tempMin + '°/' + day.tempMax + '°';
               info += '，湿度' + day.humidity + '%';
-              if (day.precip && parseFloat(day.precip) > 0) info += '，降水' + day.precip + 'mm';
+              if (day.precip !== undefined && day.precip !== null && day.precip !== '') info += '，降水' + day.precip + 'mm';
               info += '，' + day.windDirDay + day.windScaleDay + '级';
               if (i === 0) preview.weather_today = info;
               else if (i === 1) preview.weather_tomorrow = info;

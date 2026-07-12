@@ -487,7 +487,7 @@ async function handleWateringRequest(pool, deviceCode, payload) {
                   let info = dayNames[i] + '（' + day.fxDate + '）：' + dayText;
                   info += '，' + day.tempMin + '°/' + day.tempMax + '°';
                   info += '，湿度' + day.humidity + '%';
-                  if (day.precip && parseFloat(day.precip) > 0) {
+                  if (day.precip !== undefined && day.precip !== null && day.precip !== '') {
                     info += '，降水' + day.precip + 'mm';
                   }
                   info += '，' + day.windDirDay + day.windScaleDay + '级';
