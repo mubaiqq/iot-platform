@@ -21,6 +21,15 @@ test('both heartbeat paths persist sensor history', () => {
   assert.match(app, /INTERVAL 30 DAY/);
 });
 
+test('history metric cards show highest and lowest values instead of averages', () => {
+  for (const file of ['public/user/pages/data_history.html', 'public/admin/pages/history.html']) {
+    const src = read(file);
+    assert.match(src, /Math\.max\(\.\.\.vals|Math\.max\(\.\.\.a/, `${file} missing maximum value`);
+    assert.match(src, /Math\.min\(\.\.\.vals|Math\.min\(\.\.\.a/, `${file} missing minimum value`);
+    assert.doesNotMatch(src, /平均值/, `${file} still displays averages`);
+  }
+});
+
 test('data and firmware APIs exist', () => {
   const app = read('app.js');
   for (const route of ['/api/data/realtime', '/api/data/history', '/api/firmware/versions', '/api/admin/firmware', '/api/devices/:id/ota']) {
