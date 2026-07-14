@@ -306,7 +306,8 @@ async function searchLocation(q, manual=false) {
   try {
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 搜索'; }
     setSearchHint((manual ? '正在搜索“' : '自动搜索“') + q + '”...', 'searching');
-    const res = await fetch('/api/weather/search?location=' + encodeURIComponent(q));
+    const source = window._weatherSelect?._value || '';
+    const res = await fetch('/api/weather/search?location=' + encodeURIComponent(q) + '&source=' + encodeURIComponent(source));
     const data = await res.json();
     if (data.success && data.locations?.length > 0) {
       dd.innerHTML = data.locations.map(loc =>

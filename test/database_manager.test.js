@@ -13,7 +13,7 @@ test('admin database manager exposes protected inspect and migrate APIs', () => 
   }
   assert.match(app, /app\.get\('\/api\/admin\/database\/overview', requireAuth, requireAdmin/);
   assert.match(app, /app\.post\('\/api\/admin\/database\/migrate', requireAuth, requireAdmin/);
-  assert.match(app, /X-Requested-With/, 'schema update endpoint needs same-origin request protection');
+  assert.doesNotMatch(app, /X-Requested-With/, 'schema update endpoint must work through ordinary reverse proxies');
   assert.doesNotMatch(app, /DROP TABLE|TRUNCATE TABLE/, 'database manager must not expose destructive schema actions');
 });
 

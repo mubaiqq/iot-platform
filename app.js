@@ -40,33 +40,6 @@ app.use(express.json({ limit: '256kb' }));
 app.use(express.urlencoded({ extended: true, limit: '64kb' }));
 app.use(cookieParser());
 
-const DEVICE_HTTP_PATHS = new Set([
-  '/api/devices/heartbeat', '/api/esp32/register',
-  // Authentication is public by definition. Do not let incomplete proxy
-  // forwarded headers make login/register unusable; these routes have their
-  // own wide rate limits and do not rely on an existing session cookie.
-  '/api/login', '/api/register', '/api/captcha'
-]);
-function firstForwardedHeader(req, name) {
-  const value = req.get(name);
-  return value ? value.split(',')[0].trim() : '';
-}
-
-function enforceSameOrigin(req, res, next) {
-  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS' || !req.path.startsWith('/api/') || DEVICE_HTTP_PATHS.has(req.path)) return next();
-  const origin = req.get('Origin');
-  if (!origin) return next();
-  try {
-    // Reverse proxies terminate HTTPS before forwarding to Node. Compare with
-    // the browser-facing scheme/host, not the internal HTTP connection.
-    const protocol = firstForwardedHeader(req, 'X-Forwarded-Proto') || req.protocol;
-    const host = firstForwardedHeader(req, 'X-Forwarded-Host') || req.get('host');
-    if (new URL(origin).origin !== `${protocol}://${host}`) return res.status(403).json({ error: '请求来源验证失败' });
-  } catch (_) { return res.status(403).json({ error: '请求来源验证失败' }); }
-  next();
-}
-app.use(enforceSameOrigin);
-
 const authAttempts = new Map();
 function authRateLimit(req, res, next) {
   const key = `${req.path}:${req.ip}`;
@@ -384,7 +357,9 @@ function createSessionCookieOptions(req) {
   return {
     httpOnly: true,
     secure,
-    sameSite: secure ? 'none' : 'lax',
+    // Lax works for normal same-site browser requests behind any reverse proxy
+    // while preventing third-party sites from sending the session on POSTs.
+    sameSite: 'lax',
     expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
   };
 }
@@ -430,10 +405,7 @@ app.get('/api/admin/database/check', requireAuth, requireAdmin, async (_req, res
   catch (e) { console.error('[数据库管理] 结构检查失败:', e); res.status(500).json({ success: false, error: '数据库结构检查失败' }); }
 });
 
-app.post('/api/admin/database/migrate', requireAuth, requireAdmin, (req, res, next) => {
-  if (req.get('X-Requested-With') !== 'XMLHttpRequest') return res.status(403).json({ success: false, error: '请求来源验证失败' });
-  next();
-}, async (_req, res) => {
+app.post('/api/admin/database/migrate', requireAuth, requireAdmin, async (_req, res) => {
   try {
     const result = await applyAdditiveSchemaUpdates();
     res.json({ success: true, actions: result.actions, report: publicSchemaReport(result.report) });
@@ -1397,16 +1369,18 @@ app.get('/api/weather/search', requireAuth, async (req, res) => {
   try {
     const location = req.query.location?.trim();
     if (!location) return res.status(400).json({ error: '请输入城市名称' });
-    // Admin uses global key, user uses own key
+    const wantsOfficial = req.user.role === 'admin' || req.query.source === 'official';
+    const isVip = req.user.role === 'admin' || (req.user.vip_expire && new Date(req.user.vip_expire) > new Date());
+    if (wantsOfficial && !isVip) return res.status(403).json({ error: 'VIP已过期，官方天气不可用' });
     let apiKey;
-    if (req.user.role === 'admin') {
+    if (wantsOfficial) {
       const [rows] = await pool.query('SELECT setting_value FROM settings WHERE setting_key = "qweather_api_key"');
       apiKey = rows[0]?.setting_value;
     } else {
       const [rows] = await pool.query('SELECT setting_value FROM user_settings WHERE user_id = ? AND setting_key = "qweather_api_key"', [req.user.id]);
       apiKey = rows[0]?.setting_value;
     }
-    if (!apiKey) return res.status(400).json({ error: '未配置和风天气 API Key，请先在设置中添加' });
+    if (!apiKey) return res.status(400).json({ error: wantsOfficial ? '管理员尚未配置官方天气 API Key' : '未配置个人和风天气 API Key，请先在设置中添加' });
 
     const url = `https://geoapi.qweather.com/v2/city/lookup?location=${encodeURIComponent(location)}&key=${apiKey}&number=10&lang=zh`;
     const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
@@ -1483,12 +1457,15 @@ app.get('/api/admin/weather-key/status', requireAuth, requireAdmin, async (_req,
   } catch (_) { res.status(500).json({ error: '服务器错误' }); }
 });
 
-// Test QWeather API key
-app.post('/api/weather/test', requireAuth, requireAdmin, async (req, res) => {
+// Test QWeather API key. Administrators may test the saved global key;
+// normal users may test only the key they provide or their own saved key.
+app.post('/api/weather/test', requireAuth, async (req, res) => {
   try {
     let { api_key } = req.body;
     if (!api_key) {
-      const [rows] = await pool.query("SELECT setting_value FROM settings WHERE setting_key='qweather_api_key' LIMIT 1");
+      const [rows] = req.user.role === 'admin'
+        ? await pool.query("SELECT setting_value FROM settings WHERE setting_key='qweather_api_key' LIMIT 1")
+        : await pool.query("SELECT setting_value FROM user_settings WHERE user_id = ? AND setting_key='qweather_api_key' LIMIT 1", [req.user.id]);
       api_key = rows[0]?.setting_value;
     }
     if (!api_key) return res.status(400).json({ error: '请提供 API Key' });

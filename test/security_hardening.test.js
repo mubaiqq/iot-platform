@@ -45,15 +45,13 @@ test('account security revokes persisted tokens and provides logout-all', () => 
   assert.match(passwordRoute, /DELETE FROM login_tokens WHERE user_id = \?/);
 });
 
-test('baseline HTTP hardening adds limits, headers, same-origin checks and auth throttling', () => {
+test('baseline HTTP hardening adds limits, headers, same-site cookies and auth throttling', () => {
   const app = read('app.js');
   assert.match(app, /app\.disable\('x-powered-by'\)/);
   assert.match(app, /express\.json\(\{ limit: '256kb' \}\)/);
   assert.match(app, /express\.urlencoded\(\{ extended: true, limit: '64kb' \}\)/);
   for (const header of ['X-Content-Type-Options', 'X-Frame-Options', 'Referrer-Policy', 'Permissions-Policy']) assert.ok(app.includes(header));
-  assert.match(app, /function enforceSameOrigin\(req, res, next\)/);
-  assert.match(app, /req\.method === 'GET' \|\| req\.method === 'HEAD' \|\| req\.method === 'OPTIONS'/);
-  assert.match(app, /DEVICE_HTTP_PATHS/);
+  assert.match(app, /sameSite:\s*'lax'/);
   assert.match(app, /function authRateLimit\(/);
   assert.match(app, /app\.post\('\/api\/login', authRateLimit/);
   assert.match(app, /app\.post\('\/api\/register', authRateLimit/);
@@ -87,6 +85,22 @@ test('saved weather and LLM credentials can be tested without returning secrets 
   const weather = read('public/admin/pages/weather_settings.html');
   assert.match(weather, /\/api\/admin\/weather-key\/status/);
   assert.doesNotMatch(weather, /\/api\/settings\/qweather_api_key/);
+});
+
+test('normal users can test their own QWeather key without administrator permission', () => {
+  const app = read('app.js');
+  assert.match(app, /app\.post\('\/api\/weather\/test', requireAuth, async \(req, res\)/);
+  assert.match(app, /user_settings WHERE user_id = \? AND setting_key='qweather_api_key'/);
+});
+
+test('VIP users can search weather locations with the administrator key when official weather is selected', () => {
+  const app = read('app.js');
+  const searchRoute = app.slice(app.indexOf("app.get('/api/weather/search'"), app.indexOf('// Get current weather'));
+  assert.match(searchRoute, /req\.query\.source === 'official'/);
+  assert.match(searchRoute, /vip_expire/);
+  assert.match(searchRoute, /SELECT setting_value FROM settings WHERE setting_key = "qweather_api_key"/);
+  const page = read('public/user/pages/device_setting.html');
+  assert.match(page, /source=' \+ encodeURIComponent\(source\)/);
 });
 
 test('LLM requests reject literal local/private targets and disable redirects', () => {
