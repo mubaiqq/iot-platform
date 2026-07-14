@@ -100,6 +100,127 @@ function splitSqlStatements(sql) {
     .filter(Boolean);
 }
 
+function splitTopLevelDefinitions(body) {
+  const parts = [];
+  let current = '', depth = 0, quote = '';
+  for (const ch of body) {
+    if (quote) {
+      current += ch;
+      if (ch === quote) quote = '';
+      continue;
+    }
+    if (ch === '`' || ch === "'") { quote = ch; current += ch; continue; }
+    if (ch === '(') depth++;
+    if (ch === ')') depth--;
+    if (ch === ',' && depth === 0) { if (current.trim()) parts.push(current.trim()); current = ''; }
+    else current += ch;
+  }
+  if (current.trim()) parts.push(current.trim());
+  return parts;
+}
+
+function buildSchemaManifest() {
+  const sql = fs.readFileSync(SCHEMA_PATH, 'utf8').replace(/--.*$/gm, '');
+  const tables = [];
+  const re = /CREATE TABLE IF NOT EXISTS\s+`?([A-Za-z0-9_]+)`?\s*\(([\s\S]*?)\)\s*(ENGINE=[^;]+);/gi;
+  let match;
+  while ((match = re.exec(sql))) {
+    const columns = [], indexes = [];
+    for (const definition of splitTopLevelDefinitions(match[2])) {
+      const column = definition.match(/^`?([A-Za-z0-9_]+)`?\s+(.+)$/s);
+      const upper = definition.toUpperCase();
+      if (column && !/^(PRIMARY|UNIQUE|KEY|CONSTRAINT|FOREIGN|CHECK)\b/.test(upper)) {
+        columns.push({ name: column[1], definition: column[2].trim() });
+        continue;
+      }
+      const primary = definition.match(/^PRIMARY\s+KEY\s*\(([^)]+)\)$/i);
+      if (primary) {
+        indexes.push({ name: 'PRIMARY', definition: `PRIMARY KEY (${primary[1]})`, unique: true, columns: [...primary[1].matchAll(/`?([A-Za-z0-9_]+)`?(?:\(\d+\))?/g)].map(m => m[1]) });
+        continue;
+      }
+      const index = definition.match(/^(UNIQUE\s+KEY|KEY)\s+`?([A-Za-z0-9_]+)`?\s*\(([^)]+)\)$/i);
+      if (index) indexes.push({ name: index[2], definition: `${index[1]} \`${index[2]}\` (${index[3]})`, unique: /^UNIQUE/i.test(index[1]), columns: [...index[3].matchAll(/`?([A-Za-z0-9_]+)`?(?:\(\d+\))?/g)].map(m => m[1]) });
+    }
+    tables.push({ name: match[1], createSql: match[0], columns, indexes });
+  }
+  return tables;
+}
+
+async function inspectDatabaseSchema() {
+  const manifest = buildSchemaManifest();
+  const [[dbRow]] = await pool.query('SELECT DATABASE() AS name, VERSION() AS version');
+  const database = dbRow.name;
+  const [tableRows] = await pool.query('SELECT TABLE_NAME,TABLE_ROWS,DATA_LENGTH,INDEX_LENGTH,ENGINE,TABLE_COLLATION FROM information_schema.TABLES WHERE TABLE_SCHEMA=? ORDER BY TABLE_NAME', [database]);
+  const [columnRows] = await pool.query('SELECT TABLE_NAME,COLUMN_NAME,COLUMN_TYPE,IS_NULLABLE,COLUMN_DEFAULT,COLUMN_KEY,EXTRA,COLUMN_COMMENT FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? ORDER BY TABLE_NAME,ORDINAL_POSITION', [database]);
+  const [indexRows] = await pool.query('SELECT TABLE_NAME,INDEX_NAME,NON_UNIQUE,SEQ_IN_INDEX,COLUMN_NAME,SUB_PART FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=? ORDER BY TABLE_NAME,INDEX_NAME,SEQ_IN_INDEX', [database]);
+  const tableMap = new Map(tableRows.map(row => [row.TABLE_NAME, row]));
+  const columnsByTable = new Map(), indexesByTable = new Map();
+  for (const row of columnRows) { if (!columnsByTable.has(row.TABLE_NAME)) columnsByTable.set(row.TABLE_NAME, []); columnsByTable.get(row.TABLE_NAME).push(row); }
+  for (const row of indexRows) {
+    if (!indexesByTable.has(row.TABLE_NAME)) indexesByTable.set(row.TABLE_NAME, new Map());
+    const map = indexesByTable.get(row.TABLE_NAME);
+    if (!map.has(row.INDEX_NAME)) map.set(row.INDEX_NAME, { unique: Number(row.NON_UNIQUE) === 0, columns: [] });
+    map.get(row.INDEX_NAME).columns.push(`${row.COLUMN_NAME}${row.SUB_PART ? `(${row.SUB_PART})` : ''}`);
+  }
+  const missingTables = [], missingColumns = [], missingIndexes = [];
+  for (const expected of manifest) {
+    if (!tableMap.has(expected.name)) { missingTables.push(expected.name); continue; }
+    const currentColumns = new Set((columnsByTable.get(expected.name) || []).map(row => row.COLUMN_NAME));
+    const currentIndexes = indexesByTable.get(expected.name) || new Map();
+    for (const column of expected.columns) if (!currentColumns.has(column.name)) missingColumns.push({ table: expected.name, column: column.name, definition: column.definition });
+    for (const index of expected.indexes) {
+      const current = currentIndexes.get(index.name);
+      if (!current || current.unique !== index.unique || current.columns.join(',') !== index.columns.join(',')) {
+        missingIndexes.push({ table: expected.name, index: index.name, definition: index.definition, conflicting: !!current });
+      }
+    }
+  }
+  return {
+    database, version: dbRow.version,
+    expectedTables: manifest.length,
+    currentTables: tableRows.length,
+    healthy: missingTables.length === 0 && missingColumns.length === 0 && missingIndexes.length === 0,
+    missingTables, missingColumns, missingIndexes,
+    totalSize: tableRows.reduce((sum, row) => sum + Number(row.DATA_LENGTH || 0) + Number(row.INDEX_LENGTH || 0), 0),
+    tables: tableRows.map(row => ({
+      name: row.TABLE_NAME, rows: Number(row.TABLE_ROWS || 0), dataSize: Number(row.DATA_LENGTH || 0), indexSize: Number(row.INDEX_LENGTH || 0),
+      engine: row.ENGINE, collation: row.TABLE_COLLATION, columns: (columnsByTable.get(row.TABLE_NAME) || []).length
+    })),
+    columnsByTable, manifest
+  };
+}
+
+function publicSchemaReport(report) {
+  const { columnsByTable, manifest, ...safe } = report;
+  return safe;
+}
+
+let databaseMigrationPromise = null;
+async function applyAdditiveSchemaUpdates() {
+  if (databaseMigrationPromise) return databaseMigrationPromise;
+  databaseMigrationPromise = (async () => {
+    const before = await inspectDatabaseSchema();
+    const expected = new Map(before.manifest.map(table => [table.name, table]));
+    const actions = [];
+    for (const tableName of before.missingTables) {
+      await pool.query(expected.get(tableName).createSql);
+      actions.push(`创建数据表 ${tableName}`);
+    }
+    for (const item of before.missingColumns) {
+      await pool.query(`ALTER TABLE \`${item.table}\` ADD COLUMN \`${item.column}\` ${item.definition}`);
+      actions.push(`补充字段 ${item.table}.${item.column}`);
+    }
+    for (const item of before.missingIndexes) {
+      if (item.conflicting) continue;
+      await pool.query(`ALTER TABLE \`${item.table}\` ADD ${item.definition}`);
+      actions.push(`补充索引 ${item.table}.${item.index}`);
+    }
+    return { actions, report: await inspectDatabaseSchema() };
+  })();
+  try { return await databaseMigrationPromise; }
+  finally { databaseMigrationPromise = null; }
+}
+
 async function ensureCommercialSchema() {
   const sql = fs.readFileSync(SCHEMA_PATH, 'utf8');
   const wanted = ['CREATE TABLE IF NOT EXISTS sensor_data_history', 'CREATE TABLE IF NOT EXISTS firmware_versions'];
@@ -221,6 +342,41 @@ function requireAdmin(req, res, next) {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: '无权限' });
   next();
 }
+
+// ========== Admin database manager ==========
+app.get('/api/admin/database/overview', requireAuth, requireAdmin, async (_req, res) => {
+  try { res.json({ success: true, report: publicSchemaReport(await inspectDatabaseSchema()) }); }
+  catch (e) { console.error('[数据库管理] 概览失败:', e); res.status(500).json({ success: false, error: '数据库概览获取失败' }); }
+});
+
+app.get('/api/admin/database/check', requireAuth, requireAdmin, async (_req, res) => {
+  try { res.json({ success: true, report: publicSchemaReport(await inspectDatabaseSchema()) }); }
+  catch (e) { console.error('[数据库管理] 结构检查失败:', e); res.status(500).json({ success: false, error: '数据库结构检查失败' }); }
+});
+
+app.post('/api/admin/database/migrate', requireAuth, requireAdmin, (req, res, next) => {
+  if (req.get('X-Requested-With') !== 'XMLHttpRequest') return res.status(403).json({ success: false, error: '请求来源验证失败' });
+  next();
+}, async (_req, res) => {
+  try {
+    const result = await applyAdditiveSchemaUpdates();
+    res.json({ success: true, actions: result.actions, report: publicSchemaReport(result.report) });
+  } catch (e) { console.error('[数据库管理] 自动补齐失败:', e); res.status(500).json({ success: false, error: '数据库自动补齐失败' }); }
+});
+
+app.get('/api/admin/database/tables/:table', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const table = String(req.params.table || '');
+    if (!/^[A-Za-z0-9_]+$/.test(table)) return res.status(400).json({ success: false, error: '数据表名称无效' });
+    const report = await inspectDatabaseSchema();
+    if (!report.tables.some(item => item.name === table)) return res.status(404).json({ success: false, error: '数据表不存在' });
+    const columns = (report.columnsByTable.get(table) || []).map(row => ({
+      name: row.COLUMN_NAME, type: row.COLUMN_TYPE, nullable: row.IS_NULLABLE === 'YES', default: row.COLUMN_DEFAULT,
+      key: row.COLUMN_KEY, extra: row.EXTRA, comment: row.COLUMN_COMMENT
+    }));
+    res.json({ success: true, table: report.tables.find(item => item.name === table), columns });
+  } catch (e) { console.error('[数据库管理] 表结构读取失败:', e); res.status(500).json({ success: false, error: '数据表结构获取失败' }); }
+});
 
 
 // ========== Install API/Page ==========
@@ -2416,7 +2572,7 @@ async function startServer() {
   try {
     if (await initDatabasePool()) {
       console.log('[数据库] 已连接');
-      await ensureCommercialSchema();
+      await applyAdditiveSchemaUpdates();
       await cleanupSensorHistory();
       setInterval(cleanupSensorHistory, 60 * 60 * 1000).unref();
       initGlobalMqtt(pool);

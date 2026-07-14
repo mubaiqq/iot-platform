@@ -1,35 +1,31 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>数据库</title>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>数据库管理</title>
 <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',-apple-system,sans-serif;background:#f5f6fa;color:#1e293b;padding:20px 18px 80px;min-height:100vh}
-.page-header{margin-bottom:20px}
-.page-header h1{font-size:18px;font-weight:700;color:#1e293b;margin-bottom:3px}
-.page-header p{font-size:12px;color:#8892a4}
-.placeholder{
-  background:#fff;border-radius:14px;border:1px solid #eef0f4;
-  padding:60px 20px;text-align:center;
-}
-.placeholder i{font-size:48px;color:#e2e8f0;margin-bottom:16px}
-.placeholder h2{font-size:16px;color:#94a3b8;font-weight:600;margin-bottom:8px}
-.placeholder p{font-size:13px;color:#b0b8c8}
+*{box-sizing:border-box}body{margin:0;padding:18px;background:#f5f6fa;color:#1e293b;font-family:Inter,-apple-system,sans-serif}.head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}.head h1{font-size:18px;margin:0 0 4px}.head p{font-size:11px;color:#94a3b8;margin:0}.actions{display:flex;gap:8px}.btn{border:0;border-radius:10px;padding:9px 13px;background:#fff;color:#475569;font-size:12px;cursor:pointer}.btn.primary{background:#2563eb;color:#fff}.btn.success{background:#16a34a;color:#fff}.btn:disabled{opacity:.6;cursor:not-allowed}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}.stat,.panel{background:#fff;border-radius:14px;padding:15px}.stat i{color:#2563eb;font-size:15px}.stat b{display:block;font-size:20px;margin:8px 0 2px}.stat span{font-size:10px;color:#94a3b8}.health{display:flex;align-items:center;gap:10px;margin-bottom:12px}.health-dot{width:10px;height:10px;border-radius:50%;background:#f59e0b}.health.ok .health-dot{background:#16a34a}.health strong{font-size:13px}.health small{margin-left:auto;color:#94a3b8}.issues{display:grid;gap:7px;margin:10px 0}.issue{padding:9px 11px;border-radius:9px;background:#fff7ed;color:#9a3412;font-size:11px}.section-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.section-title h2{font-size:14px;margin:0}.search{width:210px;border:0;background:#f1f5f9;border-radius:9px;padding:8px 10px;font-size:16px}.table-wrap{overflow:auto}.db-table{width:100%;border-collapse:collapse;font-size:11px}.db-table th{text-align:left;color:#94a3b8;font-weight:600;padding:9px}.db-table td{padding:10px 9px;border-top:1px solid #f1f5f9}.db-table button{border:0;background:#eff6ff;color:#2563eb;border-radius:7px;padding:5px 8px;cursor:pointer}.empty{text-align:center;color:#94a3b8;padding:35px}.drawer{position:fixed;right:-540px;top:0;width:min(540px,100%);height:100%;background:#fff;z-index:10;padding:18px;transition:.25s;box-shadow:-8px 0 30px rgba(15,23,42,.1);overflow:auto}.drawer.show{right:0}.drawer-head{display:flex;justify-content:space-between;align-items:center}.drawer-head button{border:0;background:#f1f5f9;width:32px;height:32px;border-radius:50%}.cols{margin-top:15px}.col{padding:11px 0;border-bottom:1px solid #f1f5f9}.col b{font-size:12px}.col code{font-size:10px;color:#2563eb;margin-left:6px}.col div{font-size:10px;color:#94a3b8;margin-top:4px}.toast{position:fixed;left:50%;bottom:25px;transform:translate(-50%,20px);background:#1e293b;color:#fff;padding:10px 16px;border-radius:10px;font-size:12px;opacity:0;pointer-events:none;transition:.2s;z-index:20}.toast.show{opacity:1;transform:translate(-50%,0)}@media(max-width:720px){body{padding:12px}.head{display:block}.actions{margin-top:12px}.stats{grid-template-columns:repeat(2,1fr)}.section-title{align-items:flex-start}.search{width:145px}button,input{font-size:16px!important}.db-table{min-width:610px}}
 </style>
-</head>
-<body>
-<div class="page-header">
-  <h1><i class="fas fa-database" style="color:#3b82f6;margin-right:8px"></i>数据库</h1>
-  <p>系统设置 · 数据库</p>
-</div>
-<div class="placeholder">
-  <i class="fas fa-database"></i>
-  <h2>数据库</h2>
-  <p>功能开发中，敬请期待...</p>
-</div>
-</body>
-</html>
+</head><body>
+<div class="head"><div><h1><i class="fas fa-database" style="color:#2563eb;margin-right:7px"></i>数据库管理</h1><p>查看当前数据库，对比最新结构，并安全补齐缺少的数据表、字段和索引</p></div><div class="actions"><button class="btn" id="checkBtn" onclick="checkSchema()"><i class="fas fa-stethoscope"></i> 检查结构</button><button class="btn primary" id="migrateBtn" onclick="migrateSchema()"><i class="fas fa-wand-magic-sparkles"></i> 自动补齐</button></div></div>
+<div class="stats"><div class="stat"><i class="fas fa-table-list"></i><b id="tableCount">-</b><span>当前数据表</span></div><div class="stat"><i class="fas fa-hard-drive"></i><b id="totalSize">-</b><span>数据库占用</span></div><div class="stat"><i class="fas fa-code-branch"></i><b id="dbVersion">-</b><span>数据库版本</span></div><div class="stat"><i class="fas fa-circle-check"></i><b id="schemaStatus">检查中</b><span>结构状态</span></div></div>
+<div class="panel"><div class="health" id="health"><span class="health-dot"></span><strong id="healthText">正在读取数据库...</strong><small id="dbName"></small></div><div class="issues" id="issues"></div></div>
+<div class="panel" style="margin-top:12px"><div class="section-title"><h2>数据表列表</h2><input class="search" id="search" placeholder="搜索数据表" oninput="renderTables()"></div><div class="table-wrap"><table class="db-table"><thead><tr><th>数据表</th><th>字段</th><th>行数（估算）</th><th>数据大小</th><th>索引大小</th><th>引擎</th><th></th></tr></thead><tbody id="tableBody"><tr><td colspan="7" class="empty">正在加载...</td></tr></tbody></table></div></div>
+<div class="drawer" id="drawer"><div class="drawer-head"><div><h2 id="drawerTitle" style="margin:0;font-size:16px">表结构</h2><p id="drawerMeta" style="font-size:10px;color:#94a3b8"></p></div><button onclick="closeDrawer()"><i class="fas fa-xmark"></i></button></div><div class="cols" id="columns"></div></div><div class="toast" id="toast"></div>
+<script>
+let report=null;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function bytes(n){n=Number(n||0);if(n<1024)return n+' B';if(n<1048576)return(n/1024).toFixed(1)+' KB';if(n<1073741824)return(n/1048576).toFixed(1)+' MB';return(n/1073741824).toFixed(2)+' GB'}
+function showToast(msg,type){const t=document.getElementById('toast');t.style.background=type==='error'?'#dc2626':type==='success'?'#16a34a':'#1e293b';t.textContent=msg;t.classList.add('show');clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.remove('show'),2400)}
+async function request(url,opt){const r=await fetch(url,opt),x=await r.json();if(!r.ok||!x.success)throw Error(x.error||'请求失败');return x}
+function render(data){report=data;tableCount.textContent=data.currentTables+'/'+data.expectedTables;totalSize.textContent=bytes(data.totalSize);dbVersion.textContent=String(data.version||'-').split('-')[0];schemaStatus.textContent=data.healthy?'正常':'待补齐';dbName.textContent=data.database;health.classList.toggle('ok',data.healthy);healthText.textContent=data.healthy?'数据库结构与当前程序一致':'发现数据库结构差异';const items=[];data.missingTables.forEach(x=>items.push('缺少数据表：'+x));data.missingColumns.forEach(x=>items.push('缺少字段：'+x.table+'.'+x.column));data.missingIndexes.forEach(x=>items.push('缺少索引：'+x.table+'.'+x.index));issues.innerHTML=items.map(x=>'<div class="issue"><i class="fas fa-triangle-exclamation"></i> '+esc(x)+'</div>').join('');renderTables()}
+function renderTables(){if(!report)return;const q=search.value.trim().toLowerCase(),rows=report.tables.filter(x=>x.name.toLowerCase().includes(q));tableBody.innerHTML=rows.map(x=>`<tr><td><b>${esc(x.name)}</b></td><td>${x.columns}</td><td>${x.rows.toLocaleString()}</td><td>${bytes(x.dataSize)}</td><td>${bytes(x.indexSize)}</td><td>${esc(x.engine||'-')}</td><td><button class="view-structure" data-table="${esc(x.name)}"><i class="fas fa-eye"></i> 结构</button></td></tr>`).join('')||'<tr><td colspan="7" class="empty">没有匹配的数据表</td></tr>'}
+async function load(){try{render((await request('/api/admin/database/overview')).report)}catch(e){showToast(e.message,'error');healthText.textContent='数据库信息读取失败'}}
+async function checkSchema(){const b=checkBtn;b.disabled=true;b.innerHTML='<i class="fas fa-spinner fa-spin"></i> 检查中';try{render((await request('/api/admin/database/check')).report);b.className='btn success';b.innerHTML='<i class="fas fa-check"></i> 检查完成';showToast(report.healthy?'数据库结构正常':'发现需要补齐的结构',report.healthy?'success':'info')}catch(e){b.className='btn';b.innerHTML='<i class="fas fa-xmark"></i> 检查失败';showToast(e.message,'error')}setTimeout(()=>{b.disabled=false;b.className='btn';b.innerHTML='<i class="fas fa-stethoscope"></i> 检查结构'},2000)}
+async function migrateSchema(){const ok=await parent.showConfirm('自动补齐数据库','将按照当前程序的最新结构创建缺少的数据表、字段和索引。只做增加，不会删除现有数据，是否继续？',{okText:'开始补齐',icon:'database'});if(!ok)return;const b=migrateBtn;b.disabled=true;b.innerHTML='<i class="fas fa-spinner fa-spin"></i> 补齐中';try{const x=await request('/api/admin/database/migrate',{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest'}});render(x.report);b.className='btn success';b.innerHTML='<i class="fas fa-check"></i> 补齐成功';showToast(x.actions.length?'已完成 '+x.actions.length+' 项数据库更新':'数据库已经是最新结构','success')}catch(e){b.className='btn';b.style.background='#dc2626';b.innerHTML='<i class="fas fa-xmark"></i> 补齐失败';showToast(e.message,'error')}setTimeout(()=>{b.disabled=false;b.className='btn primary';b.style.background='';b.innerHTML='<i class="fas fa-wand-magic-sparkles"></i> 自动补齐'},2200)}
+async function viewTable(name){try{const x=await request('/api/admin/database/tables/'+encodeURIComponent(name));drawerTitle.textContent=name;drawerMeta.textContent=x.table.engine+' · '+x.columns.length+' 个字段 · '+bytes(x.table.dataSize+x.table.indexSize);columns.innerHTML=x.columns.map(c=>`<div class="col"><b>${esc(c.name)}</b><code>${esc(c.type)}</code><div>${c.nullable?'允许 NULL':'非空'}${c.key?' · '+esc(c.key):''}${c.default!==null?' · 默认 '+esc(c.default):''}${c.extra?' · '+esc(c.extra):''}${c.comment?' · '+esc(c.comment):''}</div></div>`).join('');drawer.classList.add('show')}catch(e){showToast(e.message,'error')}}
+function closeDrawer(){drawer.classList.remove('show')}
+tableBody.addEventListener('click',e=>{const button=e.target.closest('.view-structure');if(button)viewTable(button.dataset.table)});
+load();
+</script></body></html>

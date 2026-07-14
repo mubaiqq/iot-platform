@@ -31,7 +31,7 @@ test('data and firmware APIs exist', () => {
 
 test('startup migration makes one-click updates database-safe', () => {
   const app = read('app.js');
-  assert.match(app, /await ensureCommercialSchema\(\)/, 'startup does not run schema migration');
+  assert.match(app, /await applyAdditiveSchemaUpdates\(\)/, 'startup does not run full additive schema migration');
   assert.match(app, /CREATE TABLE IF NOT EXISTS sensor_data_history/, 'history table migration missing');
   assert.match(app, /CREATE TABLE IF NOT EXISTS firmware_versions/, 'firmware table migration missing');
   assert.match(app, /SHOW COLUMNS FROM devices LIKE 'firmware_version'/, 'devices firmware column migration missing');
