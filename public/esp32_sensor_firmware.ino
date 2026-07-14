@@ -1,6 +1,6 @@
 // ============================================
-// 木白云IoT - 土壤湿度传感器固件 v2
-// 功能：AP配网 + MQTT注册 + 土壤湿度滤波采集 + 数据上报
+// 木白云IoT - 土壤湿度传感器固件 v1.2.3
+// 功能：AP配网 + MQTT注册 + 土壤湿度滤波采集 + 数据上报 + HTTPS OTA
 // 接线：土壤湿度 AO -> GPIO34，传感器供电 -> GPIO25
 // ============================================
 
@@ -12,10 +12,15 @@
 #include <DNSServer.h>
 #include <esp_task_wdt.h>
 #include <esp_system.h>
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
+#include <Update.h>
+#include <mbedtls/sha256.h>
 
 // ========== 配置区域 ==========
 const char* MQTT_SERVER = "mqtt.mcoud.cn";
 const int MQTT_PORT = 1883;
+const char* FIRMWARE_VERSION = "1.2.3";
 #define HEARTBEAT_INTERVAL 30000  // 兼容保留：当前固件按 sleepSeconds 深睡眠周期上报
 #define DEFAULT_SLEEP_SECONDS 30   // 默认每次上报后休眠 30 秒
 
@@ -187,7 +192,7 @@ input:focus{border-color:#059669}.btn{width:100%;height:44px;border:none;border-
   <div style="font-size:16px;font-weight:600">配置成功！</div>
   <div style="font-size:13px;color:#64748b;margin-top:4px">设备正在连接WiFi和平台...</div>
   <div style="font-size:12px;color:#64748b;margin-top:8px">设备码：<b id="devCode"></b></div>
-  <div style="font-size:12px;color:#166534;margin-top:8px;font-weight:700">请复制设备码，到平台“添加设备”中绑定传感器</div>
+  <div style="font-size:12px;color:#166534;margin-top:8px;font-weight:700">复制设备码去平台绑定，如已填写用户名则忽略。</div>
 </div>
 <script>
 var selectedSSID = "";
@@ -268,6 +273,41 @@ void startAP() {
   Serial.println("[配网] 访问: http://" + WiFi.softAPIP().toString());
 }
 
+void stopAP() {
+  if (!apStarted) return;
+  dnsServer.stop(); server.stop();
+  WiFi.softAPdisconnect(true); WiFi.mode(WIFI_STA);
+  apStarted = false;
+  Serial.println("[配网] STA已恢复，配网热点已关闭");
+}
+
+void publishOTAStatus(const char* status, const String& version, const String& message, int versionId = 0) {
+  if (!mqtt.connected()) return;
+  DynamicJsonDocument doc(256);
+  doc["event"] = "ota_status"; doc["status"] = status; doc["version"] = version; doc["version_id"] = versionId; doc["message"] = message;
+  String out; serializeJson(doc, out);
+  String topic = "device/" + deviceCode + "/status"; mqtt.publish(topic.c_str(), out.c_str());
+}
+
+void performOTA(const String& url, const String& version, const String& expectedSha256, int versionId) {
+  if (url.length() == 0 || version.length() == 0 || expectedSha256.length() != 64 || version == FIRMWARE_VERSION) { publishOTAStatus("failed", version, "升级参数无效或版本相同", versionId); return; }
+  publishOTAStatus("downloading", version, "开始下载固件", versionId);
+  WiFiClientSecure secureClient; secureClient.setInsecure(); HTTPClient http;
+  http.setConnectTimeout(10000); http.setTimeout(30000);
+  if (!http.begin(secureClient, url)) { publishOTAStatus("failed", version, "无法打开下载地址", versionId); return; }
+  int code = http.GET(); int length = http.getSize();
+  if (code != HTTP_CODE_OK || length <= 0) { publishOTAStatus("failed", version, "固件下载失败", versionId); http.end(); return; }
+  if (!Update.begin(length)) { publishOTAStatus("failed", version, "升级空间不足", versionId); http.end(); return; }
+  publishOTAStatus("installing", version, "正在校验并写入固件", versionId);
+  WiFiClient* stream = http.getStreamPtr(); mbedtls_sha256_context shaCtx; mbedtls_sha256_init(&shaCtx); mbedtls_sha256_starts_ret(&shaCtx, 0);
+  uint8_t buffer[1024]; size_t written = 0;
+  while (http.connected() && written < (size_t)length) { size_t available=stream->available(); if(!available){delay(1);esp_task_wdt_reset();continue;} size_t readLen=stream->readBytes(buffer,min(available,sizeof(buffer))); if(!readLen)break; mbedtls_sha256_update_ret(&shaCtx,buffer,readLen); if(Update.write(buffer,readLen)!=readLen)break; written+=readLen; esp_task_wdt_reset(); }
+  unsigned char digest[32]; mbedtls_sha256_finish_ret(&shaCtx,digest); mbedtls_sha256_free(&shaCtx); String actualSha; for(int i=0;i<32;i++){if(digest[i]<16)actualSha+="0";actualSha+=String(digest[i],HEX);} bool hashOK=actualSha.equalsIgnoreCase(expectedSha256);
+  bool ok = written == (size_t)length && hashOK && Update.end(true) && Update.isFinished(); http.end();
+  if (!ok) { Update.abort(); publishOTAStatus("failed", version, hashOK ? "固件写入失败" : "固件SHA-256校验失败", versionId); return; }
+  publishOTAStatus("success", version, "升级成功，设备即将重启", versionId); delay(1200); ESP.restart();
+}
+
 // ========== 读取土壤湿度（从旧平台代码迁移） ==========
 float readSoilMoisture(float* outRaw = nullptr) {
   pinMode(SENSOR_POWER_PIN, OUTPUT);
@@ -315,6 +355,7 @@ void sendHeartbeat() {
   String topic = "device/" + deviceCode + "/heartbeat";
   DynamicJsonDocument doc(512);
   doc["device_code"] = deviceCode;
+  doc["firmware_version"] = FIRMWARE_VERSION;
   JsonObject sensor = doc.createNestedObject("sensor_data");
   sensor["soil_moisture"] = soil;
   sensor["soil_raw"] = (int)round(rawValue);
@@ -347,6 +388,13 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       Serial.println("[MQTT] 注册已确认");
       shouldSleep = true;
     }
+    return;
+  }
+
+  if (doc.containsKey("command") && doc["command"] == "ota") {
+    String targetDevice=doc["device_code"]|""; String targetType=doc["target_type"]|"";
+    if(targetDevice!=deviceCode||targetType!="sensor"){publishOTAStatus("failed",doc["version"].as<String>(),"升级指令与当前设备不匹配",doc["version_id"]|0);return;}
+    performOTA(doc["url"].as<String>(), doc["version"].as<String>(), doc["sha256"].as<String>(), doc["version_id"] | 0);
     return;
   }
 
@@ -445,8 +493,9 @@ void handleSerialCommands() {
 // ========== 主程序 ==========
 void setup() {
   Serial.begin(115200);
+  Serial.println("\n[启动] 木白云IoT 传感器固件 v" + String(FIRMWARE_VERSION));
   setupWatchdog();
-  Serial.println("\n========== 木白云IoT 土壤湿度传感器 v2 ==========");
+  Serial.println("\n========== 木白云IoT 土壤湿度传感器 v" + String(FIRMWARE_VERSION) + " ==========");
   Serial.println("[serial] send FACTORY_RESET to clear config and restart");
 
   pinMode(SOIL_SENSOR_PIN, INPUT);
@@ -487,6 +536,7 @@ void setup() {
     return;
   }
   Serial.println("\n[WiFi] 已连接: " + WiFi.localIP().toString());
+  stopAP();
 
   mqtt.setServer(mqttHost.c_str(), MQTT_PORT);
   mqtt.setCallback(mqttCallback);
@@ -514,6 +564,7 @@ void loop() {
     return;
   }
   wifiReconnectAttempts = 0;
+  stopAP();
 
   // MQTT重连
   if (!mqtt.connected()) {

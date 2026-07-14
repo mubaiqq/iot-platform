@@ -100,16 +100,19 @@ async function initGlobalMqtt(pool) {
 function publishToDevice(deviceCode, data) {
   if (!globalMqttClient || !globalMqttClient.connected) {
     console.error('[MQTT] 全局连接未就绪，无法发布消息');
-    return;
+    return Promise.resolve(false);
   }
-  
-  const topic = `device/${deviceCode}/command`;
-  globalMqttClient.publish(topic, JSON.stringify(data), { qos: 1 }, (err) => {
-    if (err) {
-      console.error('[MQTT] 发布消息失败:', err.message);
-    } else {
-      console.log(`[MQTT] 已发布到 ${topic}:`, JSON.stringify(data));
-    }
+  return new Promise((resolve) => {
+    const topic = `device/${deviceCode}/command`;
+    globalMqttClient.publish(topic, JSON.stringify(data), { qos: 1 }, (err) => {
+      if (err) {
+        console.error('[MQTT] 发布消息失败:', err.message);
+        resolve(false);
+      } else {
+        console.log(`[MQTT] 已发布到 ${topic}:`, JSON.stringify(data));
+        resolve(true);
+      }
+    });
   });
 }
 
@@ -190,16 +193,33 @@ async function handleHeartbeat(pool, deviceCode, payload) {
     const data = JSON.parse(payload);
     // console.log(`[心跳] 设备 ${deviceCode}:`, data);
     
-    const [result] = await pool.query(
-      'UPDATE devices SET last_heartbeat = NOW(), status = "online", sensor_data = ? WHERE device_code = ?',
-      [JSON.stringify(data.sensor_data || {}), deviceCode]
+    const sensorData = data.sensor_data && typeof data.sensor_data === 'object' && !Array.isArray(data.sensor_data) ? data.sensor_data : {};
+    const firmwareVersion = typeof data.firmware_version === 'string' ? data.firmware_version.slice(0, 30) : null;
+    const [deviceRows] = await pool.query('SELECT id, device_type, settings FROM devices WHERE device_code = ? LIMIT 1', [deviceCode]);
+    if (!deviceRows.length) return;
+    const currentDevice = deviceRows[0];
+    await pool.query(
+      'UPDATE devices SET last_heartbeat = NOW(), status = "online", sensor_data = ?, firmware_version = COALESCE(?, firmware_version) WHERE id = ?',
+      [JSON.stringify(sensorData), firmwareVersion, currentDevice.id]
     );
-    
-    if (result.affectedRows === 0) {
-      // console.log(`[心跳] 设备 ${deviceCode} 不存在`);
-    } else {
-      // 传感器设备每次上线/心跳时补发数据库里的休眠与校准参数，避免设备睡眠期间错过即时 MQTT 下发。
-      const [rows] = await pool.query('SELECT device_type, settings FROM devices WHERE device_code = ? LIMIT 1', [deviceCode]);
+    if (Object.keys(sensorData).length > 0) {
+      await pool.query(
+        'INSERT INTO sensor_data_history (device_id, sensor_data, recorded_at) VALUES (?, ?, NOW())',
+        [currentDevice.id, JSON.stringify(sensorData)]
+      );
+    }
+
+    {
+      const rows = [currentDevice];
+      const [otaRows] = await pool.query("SELECT id, command_data FROM device_commands WHERE device_id = ? AND command_type = 'ota' AND status = 'pending' ORDER BY id DESC LIMIT 1", [currentDevice.id]);
+      if (otaRows.length) {
+        let otaCommand = otaRows[0].command_data;
+        if (typeof otaCommand === 'string') { try { otaCommand = JSON.parse(otaCommand); } catch (_) { otaCommand = null; } }
+        if (otaCommand && otaCommand.device_code === deviceCode && otaCommand.target_type === currentDevice.device_type) {
+          const sent = await publishToDevice(deviceCode, otaCommand);
+          if (sent) await pool.query("UPDATE device_commands SET status = 'sent' WHERE id = ? AND status = 'pending'", [otaRows[0].id]);
+        }
+      }
       if (rows.length && rows[0].device_type === 'sensor') {
         let settings = rows[0].settings || {};
         if (typeof settings === 'string') {
@@ -235,6 +255,24 @@ async function handleDeviceStatus(pool, deviceCode, payload) {
       pendingAcks.delete(key);
     }
     
+    if (event === 'ota_status') {
+      const deviceId = await getDeviceId(pool, deviceCode);
+      if (!deviceId) return;
+      if (data.status === 'success' && data.version) {
+        const [commands] = await pool.query("SELECT id,command_data FROM device_commands WHERE device_id = ? AND command_type = 'ota' AND status = 'sent' ORDER BY id DESC LIMIT 1", [deviceId]);
+        let command = commands[0]?.command_data;
+        if (typeof command === 'string') { try { command = JSON.parse(command); } catch (_) { command = null; } }
+        if (command && command.device_code === deviceCode && command.version === String(data.version) && Number(command.version_id) === Number(data.version_id)) {
+          await pool.query('UPDATE devices SET firmware_version = ? WHERE id = ?', [String(data.version).slice(0, 30), deviceId]);
+          await pool.query("UPDATE device_commands SET status = 'done' WHERE id = ? AND status = 'sent'", [commands[0].id]);
+        } else {
+          console.warn(`[OTA] 忽略不匹配的成功状态: device=${deviceCode}, version=${data.version}, version_id=${data.version_id}`);
+        }
+      }
+      await pool.query('INSERT INTO device_logs (device_id, log_type, content, result) VALUES (?, ?, ?, ?)', [deviceId, 'ota', `固件升级 ${data.version || ''}: ${data.status || 'unknown'} ${data.message || ''}`.trim(), JSON.stringify(data)]);
+      return;
+    }
+
     // === watering_started: 创建浇水开始日志 ===
     if (event === 'watering_started') {
       console.log(`[浇水开始] 收到 watering_started: request_id=${requestId}, 设备=${deviceCode}`);

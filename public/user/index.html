@@ -74,7 +74,6 @@
           <i class="fas fa-layer-group"></i><span>设备</span><em>常用</em><i class="fas fa-chevron-down chevron"></i>
         </div>
         <div class="nav-items">
-          <div class="nav-item" data-page="my_devices" data-title="我的设备" data-icon="fa-microchip"><i class="fas fa-microchip"></i><span>我的设备</span></div>
           <div class="nav-item" data-page="add_device" data-title="添加设备" data-icon="fa-circle-plus"><i class="fas fa-circle-plus"></i><span>添加设备</span></div>
         </div>
       </div>
@@ -85,7 +84,7 @@
         </div>
         <div class="nav-items">
           <div class="nav-item" data-page="llm_custom" data-title="自定义大模型" data-icon="fa-wand-magic-sparkles"><i class="fas fa-wand-magic-sparkles"></i><span>大模型配置</span></div>
-          <div class="nav-item" data-page="api_keys" data-title="API密钥" data-icon="fa-key"><i class="fas fa-key"></i><span>API密钥</span></div>
+          <div class="nav-item is-disabled" data-disabled="1" data-page="api_keys" data-title="API密钥" data-icon="fa-key" aria-disabled="true"><i class="fas fa-key"></i><span>API密钥</span><small class="nav-status">开发中</small></div>
           <div class="nav-item" data-page="weather" data-title="天气查询" data-icon="fa-cloud-sun"><i class="fas fa-cloud-sun"></i><span>天气查询</span></div>
         </div>
       </div>
@@ -96,8 +95,8 @@
         </div>
         <div class="nav-items">
           <div class="nav-item" data-page="data_realtime" data-title="实时数据" data-icon="fa-wave-square"><i class="fas fa-wave-square"></i><span>实时数据</span></div>
-          <div class="nav-item" data-page="data_history" data-title="历史查询" data-icon="fa-clock-rotate-left"><i class="fas fa-clock-rotate-left"></i><span>历史查询</span></div>
-          <div class="nav-item" data-page="data_export" data-title="数据导出" data-icon="fa-file-arrow-down"><i class="fas fa-file-arrow-down"></i><span>数据导出</span></div>
+          <div class="nav-item" data-page="data_history" data-title="历史数据" data-icon="fa-clock-rotate-left"><i class="fas fa-clock-rotate-left"></i><span>历史数据</span></div>
+          <div class="nav-item is-disabled" data-disabled="1" data-page="data_export" data-title="数据导出" data-icon="fa-file-arrow-down" aria-disabled="true"><i class="fas fa-file-arrow-down"></i><span>数据导出</span><small class="nav-status">开发中</small></div>
         </div>
       </div>
 
@@ -119,8 +118,8 @@
           <i class="fas fa-bell"></i><span>告警</span><i class="fas fa-chevron-down chevron"></i>
         </div>
         <div class="nav-items">
-          <div class="nav-item" data-page="alert_list" data-title="告警列表" data-icon="fa-triangle-exclamation"><i class="fas fa-triangle-exclamation"></i><span>告警列表</span></div>
-          <div class="nav-item" data-page="alert_rule" data-title="告警规则" data-icon="fa-sliders"><i class="fas fa-sliders"></i><span>告警规则</span></div>
+          <div class="nav-item is-disabled" data-disabled="1" data-page="alert_list" data-title="告警列表" data-icon="fa-triangle-exclamation" aria-disabled="true"><i class="fas fa-triangle-exclamation"></i><span>告警列表</span><small class="nav-status">开发中</small></div>
+          <div class="nav-item is-disabled" data-disabled="1" data-page="alert_rule" data-title="告警规则" data-icon="fa-sliders" aria-disabled="true"><i class="fas fa-sliders"></i><span>告警规则</span><small class="nav-status">开发中</small></div>
         </div>
       </div>
 
@@ -286,7 +285,6 @@ async function doLogout() {
 // Override PAGE_MAP for user center
 var PAGE_MAP={
   welcome:'/user/pages/welcome.html',
-  my_devices:'/user/pages/my_devices.html',
   add_device:'/user/pages/add_device.html',
   device_detail:'/user/pages/device_detail.html',
   data_realtime:'/user/pages/data_realtime.html',
@@ -306,7 +304,7 @@ var PAGE_MAP={
   esp32_docs:'/user/pages/esp32_docs.html'
 };
 function refreshDeviceViews(){
-  ['welcome','my_devices'].forEach(function(id){
+  ['welcome'].forEach(function(id){
     var f=document.querySelector('.content-frame[data-id="'+id+'"]');
     if(!f||!f.contentWindow)return;
     try{

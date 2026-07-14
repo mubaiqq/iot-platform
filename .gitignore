@@ -25,6 +25,8 @@ backups/
 # Upload/runtime data
 uploads/
 public/uploads/
+data/
+!data/.gitkeep
 
 # OS / editor
 .DS_Store

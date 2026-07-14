@@ -55,8 +55,8 @@ pre{margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1
 <body>
 <div id="toast"></div>
 
-<div class="page-title"><i class="fas fa-microchip" style="color:#3b82f6"></i> ESP32 固件代码 v2.1.2</div>
-<div class="page-desc">复制以下 v2.1.2 代码到 Arduino IDE，烧录到 ESP32 即可使用；v2.1.2 已兼容旧控制器 GPIO16 继电器接线，增加 water=false 安全停泵，并且计划任务不补执行错过时间</div>
+<div class="page-title"><i class="fas fa-microchip" style="color:#3b82f6"></i> ESP32 控制器固件代码 v1.2.3</div>
+<div class="page-desc">复制以下 v1.2.3 代码到 Arduino IDE；每次心跳上报版本，OTA绑定当前设备并校验SHA-256</div>
 
 <div class="info-card">
   <i class="fas fa-info-circle"></i> <strong>使用说明：</strong><br>
@@ -76,7 +76,7 @@ pre{margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1
 <!-- Main Code -->
 <div id="tab-main" class="code-section">
   <div class="code-header">
-    <div class="title"><i class="fas fa-file-code"></i> mubaiyun_iot_v2.1.2.ino</div>
+    <div class="title"><i class="fas fa-file-code"></i> mubaiyun_controller_v1.2.3.ino</div>
     <button class="btn-copy" onclick="copyCode()"><i class="fas fa-copy"></i> 复制代码</button>
   </div>
   <div class="code-body">

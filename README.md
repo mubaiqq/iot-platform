@@ -1,5 +1,7 @@
 # IoT Platform
 
+> 当前平台与固件版本：v1.2.3。实时/历史传感器数据与 OTA 使用说明见 [`docs/DATA-OTA-v1.2.3.md`](docs/DATA-OTA-v1.2.3.md)。
+
 木白云 IoT 平台源码。Node.js + Express + MySQL + MQTT，用于 ESP32 控制器/传感器设备管理、计划任务、AI 浇水判断、设备日志与后台管理。
 
 ## 主要功能

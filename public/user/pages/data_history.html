@@ -1,35 +1,47 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>历史查询</title>
-<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>历史数据</title>
+<script src="/vendor/echarts.min.js"></script>
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css"></noscript>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',-apple-system,sans-serif;background:#f5f6fa;color:#1e293b;padding:20px 18px 80px;min-height:100vh}
-.page-header{margin-bottom:20px}
-.page-header h1{font-size:18px;font-weight:700;color:#1e293b;margin-bottom:3px}
-.page-header p{font-size:12px;color:#8892a4}
-.placeholder{
-  background:#fff;border-radius:14px;border:1px solid #eef0f4;
-  padding:60px 20px;text-align:center;
-}
-.placeholder i{font-size:48px;color:#e2e8f0;margin-bottom:16px}
-.placeholder h2{font-size:16px;color:#94a3b8;font-weight:600;margin-bottom:8px}
-.placeholder p{font-size:13px;color:#b0b8c8}
+*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#172033;font-family:Inter,-apple-system,sans-serif;padding:18px;overflow-x:hidden}h1{font-size:19px;margin:0 0 4px}.sub{font-size:11px;color:#8a95a8}.toolbar,.panel{background:#fff;border-radius:16px;padding:14px;margin-top:13px}.toolbar{display:grid;grid-template-columns:minmax(210px,1.3fr) minmax(170px,.7fr);gap:10px}.field{min-width:0}.field label{display:block;font-size:10px;color:#8490a3;margin-bottom:5px}.custom-select{position:relative}.select-trigger{width:100%;height:40px;border:0;border-radius:11px;background:#f1f5f9;padding:0 12px;display:flex;align-items:center;justify-content:space-between;color:#334155;font-size:13px;cursor:pointer}.select-trigger i{font-size:10px;color:#94a3b8;transition:.2s}.custom-select.open .select-trigger i{transform:rotate(180deg)}.select-menu{position:absolute;z-index:30;left:0;right:0;top:46px;background:#fff;border-radius:12px;padding:5px;box-shadow:0 12px 30px rgba(30,41,59,.14);display:none;max-height:240px;overflow:auto}.custom-select.open .select-menu{display:block}.select-option{padding:10px;border-radius:8px;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:space-between}.select-option:hover,.select-option.active{background:#eef5ff;color:#2563eb}.metrics{display:flex;gap:8px;overflow-x:auto;margin-top:12px;padding:1px 0 3px;scrollbar-width:none}.metric-card{border:0;background:#fff;border-radius:13px;padding:11px 14px;min-width:125px;text-align:left;color:#334155;cursor:pointer;transition:.18s}.metric-card.active{background:#3478f6;color:#fff}.metric-card small{display:block;color:#8a95a8;font-size:10px;white-space:nowrap}.metric-card.active small{color:rgba(255,255,255,.76)}.metric-card b{display:block;font-size:16px;margin-top:4px}.metric-card .meta{font-size:9px;margin-top:3px;color:#a0a9b7}.metric-card.active .meta{color:rgba(255,255,255,.7)}.panel{position:relative}.chart-title{font-size:13px;font-weight:700;margin:0 0 4px}.chart-note{font-size:10px;color:#94a3b8}.chart{height:410px}.loading-tip{position:absolute;right:14px;top:14px;font-size:10px;color:#3b82f6;display:none}.empty-metrics{background:#fff;border-radius:13px;padding:14px;color:#94a3b8;font-size:12px}.toast{position:fixed;z-index:100;top:16px;left:50%;transform:translate(-50%,-15px);background:#ef4444;color:#fff;padding:9px 14px;border-radius:10px;font-size:12px;opacity:0;pointer-events:none;transition:.2s}.toast.show{opacity:1;transform:translate(-50%,0)}@media(max-width:600px){body{padding:12px}.toolbar{grid-template-columns:1fr 1fr;padding:11px}.select-trigger{font-size:16px}.select-option{font-size:14px}.metric-card{min-width:116px;padding:10px 12px}.chart{height:350px}.panel{padding:12px}}
 </style>
 </head>
 <body>
-<div class="page-header">
-  <h1><i class="fas fa-clock-rotate-left" style="color:#3b82f6;margin-right:8px"></i>历史查询</h1>
-  <p>数据中心 · 历史查询</p>
+<h1><i class="fas fa-chart-line" style="color:#3478f6"></i> 历史数据</h1>
+<div class="sub">查询条件自动保存并实时更新，点击数据卡片切换独立图表</div>
+<div class="toolbar">
+  <div class="field"><label>设备</label><div class="custom-select" id="deviceSelect"><button class="select-trigger" type="button"><span>正在加载设备...</span><i class="fas fa-chevron-down"></i></button><div class="select-menu"></div></div></div>
+  <div class="field"><label>时间范围</label><div class="custom-select" id="hoursSelect"><button class="select-trigger" type="button"><span>最近24小时</span><i class="fas fa-chevron-down"></i></button><div class="select-menu"></div></div></div>
 </div>
-<div class="placeholder">
-  <i class="fas fa-clock-rotate-left"></i>
-  <h2>历史查询</h2>
-  <p>功能开发中，敬请期待...</p>
-</div>
-</body>
-</html>
+<div class="metrics" id="metrics"></div>
+<div class="panel"><div class="loading-tip" id="loadingTip"><i class="fas fa-rotate fa-spin"></i> 更新中</div><div class="chart-title" id="chartTitle">历史趋势</div><div class="chart-note" id="chartNote">百分比数据纵轴固定为 0–100</div><div class="chart" id="chart"></div></div>
+<div class="toast" id="toast"></div>
+<script>
+const STORE_KEY='iot_history_filters_v2';
+const defs={
+ soil_moisture:{name:'土壤湿度',unit:'%',icon:'fa-droplet',color:'#3b82f6',min:0,max:100},
+ air_humidity:{name:'空气湿度',unit:'%',icon:'fa-water',color:'#06b6d4',min:0,max:100},
+ temperature:{name:'温度',unit:'℃',icon:'fa-temperature-half',color:'#f59e0b',min:-20,max:60},
+ light:{name:'光照',unit:'lux',icon:'fa-sun',color:'#8b5cf6',min:0,max:1000}
+};
+const hoursOptions=[{value:'6',label:'最近6小时'},{value:'24',label:'最近24小时'},{value:'168',label:'最近7天'},{value:'720',label:'最近30天'}];
+let saved={deviceId:'',hours:'24',metric:''};try{saved={...saved,...JSON.parse(localStorage.getItem(STORE_KEY)||'{}')}}catch(e){}
+let devices=[],points=[],available=[],chart=echarts.init(document.getElementById('chart')),loadSeq=0;
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(el.t);el.t=setTimeout(()=>el.classList.remove('show'),2200)}
+function save(){localStorage.setItem(STORE_KEY,JSON.stringify(saved))}
+function setupSelect(id,items,value,onChange){const root=document.getElementById(id),trigger=root.querySelector('.select-trigger'),text=trigger.querySelector('span'),menu=root.querySelector('.select-menu');function render(){menu.innerHTML=items.map(x=>`<div class="select-option ${String(x.value)===String(value)?'active':''}" data-value="${esc(x.value)}"><span>${esc(x.label)}</span>${String(x.value)===String(value)?'<i class="fas fa-check"></i>':''}</div>`).join('');const found=items.find(x=>String(x.value)===String(value));text.textContent=found?found.label:'请选择'}render();trigger.onclick=e=>{e.stopPropagation();document.querySelectorAll('.custom-select.open').forEach(x=>{if(x!==root)x.classList.remove('open')});root.classList.toggle('open')};menu.onclick=e=>{const opt=e.target.closest('.select-option');if(!opt)return;value=opt.dataset.value;root.classList.remove('open');render();onChange(value)};return{setItems(next,nextValue){items=next;value=nextValue;render()}}}
+document.addEventListener('click',()=>document.querySelectorAll('.custom-select.open').forEach(x=>x.classList.remove('open')));
+const hoursControl=setupSelect('hoursSelect',hoursOptions,saved.hours,v=>{saved.hours=v;save();loadHistory()});
+let deviceControl=setupSelect('deviceSelect',[],'',()=>{});
+async function init(){try{const r=await fetch('/api/devices',{cache:'no-store'}),d=await r.json();devices=d.devices||[];if(!devices.length){deviceControl.setItems([{value:'',label:'暂无设备'}],'');renderEmpty('暂无设备');return}if(!devices.some(x=>String(x.id)===String(saved.deviceId)))saved.deviceId=String(devices[0].id);deviceControl=setupSelect('deviceSelect',devices.map(x=>({value:String(x.id),label:(x.device_name||x.device_code)+' · '+x.device_code})),saved.deviceId,v=>{saved.deviceId=v;saved.metric='';save();loadHistory()});save();loadHistory()}catch(e){toast('设备加载失败')}}
+async function loadHistory(){if(!saved.deviceId)return;const seq=++loadSeq;loadingTip.style.display='block';try{const r=await fetch(`/api/data/history?device_id=${encodeURIComponent(saved.deviceId)}&hours=${encodeURIComponent(saved.hours)}`,{cache:'no-store'}),d=await r.json();if(!d.success)throw Error(d.error);if(seq!==loadSeq)return;points=d.points||[];available=Object.keys(defs).filter(k=>points.some(p=>p.sensor_data&&p.sensor_data[k]!=null&&Number.isFinite(Number(p.sensor_data[k]))));if(!available.includes(saved.metric))saved.metric=available[0]||'';save();renderMetrics();renderChart()}catch(e){if(seq===loadSeq){toast(e.message||'历史数据加载失败');renderEmpty(e.message||'加载失败')}}finally{if(seq===loadSeq)loadingTip.style.display='none'}}
+function renderMetrics(){if(!available.length){metrics.innerHTML='<div class="empty-metrics">当前时间范围内暂无传感器数据</div>';return}metrics.innerHTML=available.map(k=>{const d=defs[k],vals=points.map(p=>Number(p.sensor_data[k])).filter(Number.isFinite),avg=vals.reduce((a,b)=>a+b,0)/vals.length,last=vals[vals.length-1];return `<button class="metric-card ${saved.metric===k?'active':''}" data-key="${k}"><small><i class="fas ${d.icon}"></i> ${d.name}</small><b>${avg.toFixed(1)}${d.unit}</b><div class="meta">平均值 · 最新 ${last.toFixed(1)}${d.unit}</div></button>`}).join('');metrics.querySelectorAll('.metric-card').forEach(b=>b.onclick=()=>{saved.metric=b.dataset.key;save();renderMetrics();renderChart()})}
+function renderEmpty(msg){chart.clear();chart.setOption({title:{text:msg,left:'center',top:'middle',textStyle:{fontSize:13,color:'#94a3b8'}}});chartTitle.textContent='历史趋势';chartNote.textContent='等待可用数据'}
+function renderChart(){if(!saved.metric||!available.length){renderEmpty('当前时间范围内暂无传感器数据');return}const d=defs[saved.metric],data=points.map(p=>[new Date(p.recorded_at),p.sensor_data?.[saved.metric]??null]);chartTitle.textContent=d.name+'趋势';chartNote.textContent=d.unit==='%'?'纵轴固定 0–100%，细微变化不会被过度放大':`纵轴固定 ${d.min}–${d.max}${d.unit}，不同单位独立显示`;chart.clear();chart.setOption({animation:false,color:[d.color],tooltip:{trigger:'axis',valueFormatter:v=>v==null?'--':Number(v).toFixed(1)+d.unit},grid:{left:48,right:18,top:28,bottom:54},xAxis:{type:'time',axisLine:{lineStyle:{color:'#dce3ec'}},axisLabel:{fontSize:10,color:'#8490a3'}},yAxis:{type:'value',min:d.min,max:d.max,scale:false,name:d.unit,nameTextStyle:{fontSize:10,color:'#94a3b8'},axisLabel:{fontSize:10,color:'#8490a3'},splitLine:{lineStyle:{color:'#eef2f7'}}},dataZoom:[{type:'inside'},{type:'slider',height:17,bottom:7,borderColor:'transparent',backgroundColor:'#f1f5f9',fillerColor:'rgba(52,120,246,.12)'}],series:[{name:d.name,type:'line',smooth:true,showSymbol:false,connectNulls:true,data,lineStyle:{width:2},areaStyle:{opacity:.035}}]},true)}
+window.addEventListener('resize',()=>chart.resize());document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadHistory()});setInterval(()=>{if(!document.hidden)loadHistory()},30000);init();
+</script>
+</body></html>

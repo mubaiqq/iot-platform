@@ -76,11 +76,43 @@ CREATE TABLE IF NOT EXISTS devices (
   last_heartbeat DATETIME DEFAULT NULL,
   settings JSON DEFAULT NULL,
   sensor_data JSON DEFAULT NULL,
+  firmware_version VARCHAR(30) DEFAULT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uk_code (device_code),
   KEY idx_user (user_id),
   CONSTRAINT devices_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS sensor_data_history (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  device_id INT NOT NULL,
+  sensor_data JSON NOT NULL,
+  recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_device_time (device_id, recorded_at),
+  KEY idx_recorded_at (recorded_at),
+  CONSTRAINT sensor_history_device_fk FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS firmware_versions (
+  id INT NOT NULL AUTO_INCREMENT,
+  target_type ENUM('controller','sensor') NOT NULL,
+  version VARCHAR(30) NOT NULL,
+  release_notes TEXT NOT NULL,
+  file_name VARCHAR(255) NOT NULL,
+  file_path VARCHAR(500) NOT NULL,
+  file_size BIGINT NOT NULL,
+  sha256 CHAR(64) NOT NULL,
+  download_token CHAR(64) NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_by INT DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_target_version (target_type, version),
+  UNIQUE KEY uk_download_token (download_token),
+  KEY idx_target_created (target_type, created_at),
+  CONSTRAINT firmware_creator_fk FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS device_commands (

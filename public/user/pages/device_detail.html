@@ -261,6 +261,13 @@ function renderSensorView(d, sd, online) {
         <div class="app-text"><div class="app-title">传感器设置</div><div class="app-desc">名称、休眠时间、校准参数</div></div>
         <span class="app-value">${d.device_name || '未设置'}</span><i class="fas fa-chevron-right app-arrow"></i>
       </div>
+      <div class="app-row" onclick="openAbout()">
+        <div class="app-icon blue"><i class="fas fa-circle-info"></i></div>
+        <div class="app-text"><div class="app-title">关于</div><div class="app-desc">v${d.firmware_version || '1.2.2'} · 检查更新</div></div>
+        <i class="fas fa-chevron-right app-arrow"></i>
+      </div>
+    </div>
+    <div class="app-card danger-card" style="margin-top:12px">
       <div class="app-row sensor-delete-row" onclick="deleteDevice()">
         <div class="app-icon red"><i class="fas fa-trash"></i></div>
         <div class="app-text"><div class="app-title">删除设备</div><div class="app-desc">删除后无法恢复</div></div>
@@ -378,6 +385,11 @@ function renderControllerView(d, s, sd, online) {
         <div class="app-row" onclick="openLog()">
           <div class="app-icon gray"><i class="fas fa-clock-rotate-left"></i></div>
           <div class="app-text"><div class="app-title">操作日志</div><div class="app-desc">查看设备操作历史</div></div>
+          <i class="fas fa-chevron-right app-arrow"></i>
+        </div>
+        <div class="app-row" onclick="openAbout()">
+          <div class="app-icon blue"><i class="fas fa-circle-info"></i></div>
+          <div class="app-text"><div class="app-title">关于</div><div class="app-desc">v${d.firmware_version || '1.2.2'} · 检查更新</div></div>
           <i class="fas fa-chevron-right app-arrow"></i>
         </div>
       </div>
@@ -573,6 +585,7 @@ function openPrompt() { try { parent.openModalPost('/user/pages/device_prompt', 
 function openSchedule() { try { parent.openModalPost('/user/pages/device_schedule', '计划任务', {device_id: deviceId}); } catch(e) {} }
 function openLog() { try { parent.openModalPost('/user/pages/device_log', '操作日志', {device_id: deviceId}); } catch(e) {} }
 function openSensorSetting() { try { parent.openModalPost('/user/pages/sensor_setting', '传感器设置', {device_id: deviceId}); } catch(e) {} }
+function openAbout() { try { parent.openModalPost('/user/pages/device_about', '关于', {device_id: deviceId}); } catch(e) {} }
 
 async function editSensorName() {
   const current = device.device_name || '';
@@ -604,11 +617,11 @@ async function deleteDevice() {
       try {
         // 关闭当前设备详情标签
         parent.closeTab('device_' + deviceId);
-        // 切换到设备列表标签并刷新
-        parent.activateTab('my_devices');
-        var listFrame = parent.document.querySelector('.content-frame[data-id="my_devices"]');
-        if (listFrame && listFrame.contentWindow && listFrame.contentWindow.loadDevices) {
-          listFrame.contentWindow.loadDevices();
+        // 首页已经是设备列表，返回工作台并刷新
+        parent.activateTab('welcome');
+        var listFrame = parent.document.querySelector('.content-frame[data-id="welcome"]');
+        if (listFrame && listFrame.contentWindow && listFrame.contentWindow.loadDashboard) {
+          listFrame.contentWindow.loadDashboard();
         }
       } catch(e) {
         window.location.href = '/user';

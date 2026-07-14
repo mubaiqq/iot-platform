@@ -16,6 +16,7 @@ var PAGE_MAP={
   account:'/admin/pages/account.html',
   mqtt:'/admin/pages/mqtt.html',
   database:'/admin/pages/database.html',
+  firmware:'/admin/pages/firmware_manage.html',
   about:'/admin/pages/about.html'
 };
 var tabs=[],activeTab=null,contextTabId=null;
@@ -68,6 +69,11 @@ function toggleGroup(el){el.closest('.nav-group').classList.toggle('collapsed')}
 /* Nav — use event delegation with click */
 document.getElementById('sidebarNav').addEventListener('click',function(e){
   var item=e.target.closest('.nav-item');if(!item)return;
+  if(item.classList.contains('is-disabled')||item.dataset.disabled==='1'){
+    e.preventDefault();
+    if(typeof showToast==='function')showToast((item.dataset.title||'该功能')+'正在开发中','info');
+    return;
+  }
   var page=item.dataset.page,title=item.dataset.title,icon=item.dataset.icon;if(!page)return;
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active')});
   item.classList.add('active');

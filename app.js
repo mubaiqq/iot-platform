@@ -7,10 +7,18 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 const svgCaptcha = require('svg-captcha');
+const multer = require('multer');
 const { initGlobalMqtt, publishToDevice, waitForDeviceAck } = require('./mqtt_handler');
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
+const FIRMWARE_DIR = path.join(__dirname, 'data', 'firmware');
+fs.mkdirSync(FIRMWARE_DIR, { recursive: true });
+const firmwareUpload = multer({
+  dest: path.join(FIRMWARE_DIR, '.tmp'),
+  limits: { fileSize: 16 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, cb) => cb(null, /\.bin$/i.test(file.originalname))
+});
 app.set('trust proxy', 1);
 
 // Middleware
@@ -81,6 +89,30 @@ function splitSqlStatements(sql) {
     .split(';')
     .map(s => s.trim())
     .filter(Boolean);
+}
+
+async function ensureCommercialSchema() {
+  const sql = fs.readFileSync(SCHEMA_PATH, 'utf8');
+  const wanted = ['CREATE TABLE IF NOT EXISTS sensor_data_history', 'CREATE TABLE IF NOT EXISTS firmware_versions'];
+  for (const marker of wanted) {
+    const start = sql.indexOf(marker);
+    if (start < 0) continue;
+    const end = sql.indexOf(';', start);
+    await pool.query(sql.slice(start, end + 1));
+  }
+  const [columns] = await pool.query("SHOW COLUMNS FROM devices LIKE 'firmware_version'");
+  if (!columns.length) await pool.query('ALTER TABLE devices ADD COLUMN firmware_version VARCHAR(30) DEFAULT NULL AFTER sensor_data');
+}
+
+async function cleanupSensorHistory() {
+  if (!pool) return;
+  try {
+    let affected = 0;
+    do {
+      const [result] = await pool.query('DELETE FROM sensor_data_history WHERE recorded_at < NOW() - INTERVAL 30 DAY LIMIT 10000');
+      affected = result.affectedRows;
+    } while (affected === 10000);
+  } catch (e) { console.error('[数据清理] 失败:', e.message); }
 }
 
 async function installDatabase(cfg) {
@@ -1554,7 +1586,7 @@ app.delete('/api/admin/devices/:id', requireAuth, requireAdmin, async (req, res)
 app.get('/api/devices', requireAuth, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, device_code, device_name, device_type, device_model, status, last_seen, last_heartbeat, sensor_data, settings, created_at FROM devices WHERE user_id = ? ORDER BY created_at DESC',
+      'SELECT id, device_code, device_name, device_type, device_model, status, last_seen, last_heartbeat, sensor_data, firmware_version, settings, created_at FROM devices WHERE user_id = ? ORDER BY created_at DESC',
       [req.user.id]
     );
     const now = Date.now();
@@ -1576,7 +1608,7 @@ app.get('/api/devices', requireAuth, async (req, res) => {
 app.get('/api/devices/:id', requireAuth, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, device_code, device_name, device_type, device_model, status, last_seen, last_heartbeat, sensor_data, settings, created_at FROM devices WHERE id = ? AND user_id = ?',
+      'SELECT id, device_code, device_name, device_type, device_model, status, last_seen, last_heartbeat, sensor_data, firmware_version, settings, created_at FROM devices WHERE id = ? AND user_id = ?',
       [req.params.id, req.user.id]
     );
     if (rows.length === 0) return res.json({ success: false, error: '设备不存在' });
@@ -1645,20 +1677,177 @@ app.delete('/api/devices/:id', requireAuth, async (req, res) => {
   }
 });
 
+// ========== Data center API ==========
+app.get('/api/data/realtime', requireAuth, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, device_code, device_name, device_type, sensor_data, firmware_version, last_heartbeat FROM devices WHERE user_id = ? ORDER BY created_at DESC',
+      [req.user.id]
+    );
+    const now = Date.now();
+    res.json({ success: true, server_time: new Date().toISOString(), devices: rows.map(d => ({
+      ...d,
+      sensor_data: typeof d.sensor_data === 'string' ? JSON.parse(d.sensor_data) : (d.sensor_data || {}),
+      status: d.last_heartbeat && now - new Date(d.last_heartbeat).getTime() < 35000 ? 'online' : 'offline'
+    })) });
+  } catch (e) { res.status(500).json({ success: false, error: '实时数据获取失败' }); }
+});
+
+app.get('/api/data/history', requireAuth, async (req, res) => {
+  try {
+    const deviceId = parseInt(req.query.device_id, 10);
+    const hours = Math.max(1, Math.min(720, parseInt(req.query.hours, 10) || 24));
+    const [devices] = await pool.query('SELECT id, device_name, device_code FROM devices WHERE id = ? AND user_id = ?', [deviceId, req.user.id]);
+    if (!devices.length) return res.status(404).json({ success: false, error: '设备不存在' });
+    const [rows] = await pool.query(
+      'SELECT id, sensor_data, recorded_at FROM sensor_data_history WHERE device_id = ? AND recorded_at >= NOW() - INTERVAL ? HOUR ORDER BY recorded_at ASC LIMIT 5000',
+      [deviceId, hours]
+    );
+    res.json({ success: true, device: devices[0], retention_days: 30, points: rows.map(r => ({
+      id: r.id, recorded_at: r.recorded_at,
+      sensor_data: typeof r.sensor_data === 'string' ? JSON.parse(r.sensor_data) : (r.sensor_data || {})
+    })) });
+  } catch (e) { res.status(500).json({ success: false, error: '历史数据获取失败' }); }
+});
+
+// 管理员数据中心使用平台全局设备数据，不能复用按 user_id 隔离的用户接口。
+app.get('/api/admin/data/realtime', requireAuth, requireAdmin, async (_req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT d.id,d.device_code,d.device_name,d.device_type,d.sensor_data,d.firmware_version,d.last_heartbeat,
+              u.id AS user_id,u.username,u.email
+       FROM devices d LEFT JOIN users u ON u.id=d.user_id ORDER BY d.last_heartbeat DESC,d.created_at DESC`
+    );
+    const now = Date.now();
+    res.json({ success: true, server_time: new Date().toISOString(), devices: rows.map(d => ({
+      ...d,
+      sensor_data: typeof d.sensor_data === 'string' ? JSON.parse(d.sensor_data) : (d.sensor_data || {}),
+      status: d.last_heartbeat && now - new Date(d.last_heartbeat).getTime() < 35000 ? 'online' : 'offline'
+    })) });
+  } catch (e) { res.status(500).json({ success: false, error: '实时数据获取失败' }); }
+});
+
+app.get('/api/admin/data/history', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const deviceId = parseInt(req.query.device_id, 10);
+    const hours = Math.max(1, Math.min(720, parseInt(req.query.hours, 10) || 24));
+    const [devices] = await pool.query(
+      `SELECT d.id,d.device_name,d.device_code,d.device_type,u.username,u.email
+       FROM devices d LEFT JOIN users u ON u.id=d.user_id WHERE d.id=?`, [deviceId]
+    );
+    if (!devices.length) return res.status(404).json({ success: false, error: '设备不存在' });
+    const [rows] = await pool.query(
+      'SELECT id,sensor_data,recorded_at FROM sensor_data_history WHERE device_id=? AND recorded_at>=NOW()-INTERVAL ? HOUR ORDER BY recorded_at ASC LIMIT 5000',
+      [deviceId, hours]
+    );
+    res.json({ success: true, device: devices[0], retention_days: 30, points: rows.map(r => ({
+      id: r.id, recorded_at: r.recorded_at,
+      sensor_data: typeof r.sensor_data === 'string' ? JSON.parse(r.sensor_data) : (r.sensor_data || {})
+    })) });
+  } catch (e) { res.status(500).json({ success: false, error: '历史数据获取失败' }); }
+});
+
+// ========== Firmware / OTA API ==========
+app.get('/api/firmware/versions', requireAuth, async (req, res) => {
+  try {
+    const target = req.query.target_type;
+    const params = [];
+    let where = 'WHERE is_active = 1';
+    if (target === 'controller' || target === 'sensor') { where += ' AND target_type = ?'; params.push(target); }
+    const [rows] = await pool.query(`SELECT id,target_type,version,release_notes,file_name,file_size,sha256,created_at FROM firmware_versions ${where} ORDER BY CAST(SUBSTRING_INDEX(version, '.', 1) AS UNSIGNED) DESC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(version, '.', 2), '.', -1) AS UNSIGNED) DESC, CAST(SUBSTRING_INDEX(version, '.', -1) AS UNSIGNED) DESC, created_at DESC`, params);
+    res.json({ success: true, versions: rows });
+  } catch (e) { res.status(500).json({ success: false, error: '版本历史获取失败' }); }
+});
+
+app.get('/api/firmware/download/:token', async (req, res) => {
+  try {
+    const deviceCode = String(req.query.device_code || '');
+    const signature = String(req.query.signature || '');
+    const expectedSignature = crypto.createHmac('sha256', req.params.token).update(deviceCode).digest('hex');
+    if (!/^[a-f0-9]{64}$/i.test(signature) || !crypto.timingSafeEqual(Buffer.from(signature.toLowerCase()), Buffer.from(expectedSignature))) return res.status(403).send('Invalid firmware authorization');
+    const [rows] = await pool.query('SELECT f.file_path,f.file_name,f.sha256 FROM firmware_versions f JOIN devices d ON d.device_type=f.target_type WHERE f.download_token = ? AND f.is_active = 1 AND d.device_code = ? LIMIT 1', [req.params.token, deviceCode]);
+    if (!rows.length || !fs.existsSync(rows[0].file_path)) return res.status(404).send('Firmware not found');
+    res.setHeader('X-Firmware-SHA256', rows[0].sha256);
+    res.download(rows[0].file_path, rows[0].file_name);
+  } catch (e) { res.status(500).send('Firmware download failed'); }
+});
+
+app.get('/api/admin/firmware', requireAuth, requireAdmin, async (_req, res) => {
+  const [rows] = await pool.query("SELECT id,target_type,version,release_notes,file_name,file_size,sha256,is_active,created_at FROM firmware_versions ORDER BY target_type, CAST(SUBSTRING_INDEX(version, '.', 1) AS UNSIGNED) DESC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(version, '.', 2), '.', -1) AS UNSIGNED) DESC, CAST(SUBSTRING_INDEX(version, '.', -1) AS UNSIGNED) DESC, created_at DESC");
+  res.json({ success: true, versions: rows });
+});
+
+app.post('/api/admin/firmware', requireAuth, requireAdmin, firmwareUpload.single('firmware'), async (req, res) => {
+  let temp = req.file?.path;
+  try {
+    const target = req.body.target_type;
+    const version = String(req.body.version || '').trim().replace(/^v/i, '');
+    const notes = String(req.body.release_notes || '').trim();
+    if (!req.file || !['controller','sensor'].includes(target) || !/^\d+\.\d+\.\d+$/.test(version) || !notes) throw new Error('请完整填写设备类型、版本号、说明并上传.bin固件');
+    const data = fs.readFileSync(temp);
+    if (data.length < 1024 || data[0] !== 0xE9) throw new Error('文件不是有效的ESP32固件');
+    const sha256 = crypto.createHash('sha256').update(data).digest('hex');
+    const token = crypto.randomBytes(32).toString('hex');
+    const finalPath = path.join(FIRMWARE_DIR, `${target}-${version}-${sha256.slice(0,12)}.bin`);
+    fs.renameSync(temp, finalPath); temp = null;
+    const [result] = await pool.query('INSERT INTO firmware_versions (target_type,version,release_notes,file_name,file_path,file_size,sha256,download_token,created_by) VALUES (?,?,?,?,?,?,?,?,?)', [target,version,notes,path.basename(req.file.originalname),finalPath,data.length,sha256,token,req.user.id]);
+    res.json({ success: true, id: result.insertId, sha256 });
+  } catch (e) {
+    if (temp && fs.existsSync(temp)) fs.unlinkSync(temp);
+    res.status(400).json({ success: false, error: e.code === 'ER_DUP_ENTRY' ? '该类型和版本已存在' : e.message });
+  }
+});
+
+app.delete('/api/admin/firmware/:id', requireAuth, requireAdmin, async (req, res) => {
+  await pool.query('UPDATE firmware_versions SET is_active = 0 WHERE id = ?', [req.params.id]);
+  res.json({ success: true });
+});
+
+app.post('/api/devices/:id/ota', requireAuth, async (req, res) => {
+  try {
+    const [devices] = await pool.query('SELECT id,device_code,device_type,firmware_version,last_heartbeat FROM devices WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    if (!devices.length) return res.status(404).json({ success: false, error: '设备不存在' });
+    const [versions] = await pool.query('SELECT * FROM firmware_versions WHERE id = ? AND target_type = ? AND is_active = 1', [req.body.version_id, devices[0].device_type]);
+    if (!versions.length) return res.status(400).json({ success: false, error: '固件版本不匹配或已停用' });
+    const v = versions[0];
+    const origin = `${req.protocol}://${req.get('host')}`;
+    const downloadSignature = crypto.createHmac('sha256', v.download_token).update(devices[0].device_code).digest('hex');
+    const otaCommand = { command: 'ota', device_code: devices[0].device_code, target_type: devices[0].device_type, version: v.version, url: `${origin}/api/firmware/download/${v.download_token}?device_code=${encodeURIComponent(devices[0].device_code)}&signature=${downloadSignature}`, sha256: v.sha256, version_id: v.id };
+    await pool.query("UPDATE device_commands SET status = 'done' WHERE device_id = ? AND command_type = 'ota' AND status != 'done'", [devices[0].id]);
+    await pool.query("INSERT INTO device_commands (device_id,command_type,command_data,status) VALUES (?,'ota',?,'pending')", [devices[0].id, JSON.stringify(otaCommand)]);
+    // Sleeping sensors are only sent OTA after their next heartbeat. For controllers,
+    // publish immediately only when the device is currently online; broker acceptance
+    // alone does not prove that an offline device received a non-retained command.
+    const heartbeatAge = devices[0].last_heartbeat ? Date.now() - new Date(devices[0].last_heartbeat).getTime() : Infinity;
+    const canSendNow = devices[0].device_type === 'controller' && heartbeatAge >= 0 && heartbeatAge < 35000;
+    const sent = canSendNow ? await publishToDevice(devices[0].device_code, otaCommand) : false;
+    if (sent) await pool.query("UPDATE device_commands SET status = 'sent' WHERE device_id = ? AND command_type = 'ota' AND status = 'pending' ORDER BY id DESC LIMIT 1", [devices[0].id]);
+    res.json({ success: true, message: sent ? '升级指令已发送' : (devices[0].device_type === 'sensor' ? '升级任务已保存，将在传感器下次心跳时执行' : '设备暂时离线，升级任务已保存'), version: v.version });
+  } catch (e) { res.status(500).json({ success: false, error: '升级指令发送失败' }); }
+});
+
 // Device heartbeat (public - no auth, device sends this)
 app.post('/api/devices/heartbeat', async (req, res) => {
   try {
-    const { device_code, timestamp, sensor_data } = req.body;
+    const { device_code, timestamp, sensor_data, firmware_version } = req.body;
     if (!device_code) return res.json({ success: false, error: '缺少设备码' });
     const code = device_code.trim();
+    const reportedVersion = typeof firmware_version === 'string' ? firmware_version.slice(0, 30) : null;
     const now = new Date();
     const hbTime = timestamp ? new Date(timestamp) : now;
-    const sensorStr = sensor_data ? JSON.stringify(sensor_data) : null;
-    const [result] = await pool.query(
-      'UPDATE devices SET last_heartbeat = ?, last_seen = ?, sensor_data = IFNULL(?, sensor_data) WHERE device_code = ?',
-      [hbTime, hbTime, sensorStr, code]
+    const sensorStr = sensor_data && typeof sensor_data === 'object' && !Array.isArray(sensor_data) ? JSON.stringify(sensor_data) : null;
+    const [deviceRows] = await pool.query('SELECT id FROM devices WHERE device_code = ? LIMIT 1', [code]);
+    if (!deviceRows.length) return res.json({ success: false, error: '设备未注册' });
+    await pool.query(
+      'UPDATE devices SET last_heartbeat = ?, last_seen = ?, sensor_data = IFNULL(?, sensor_data), firmware_version = COALESCE(?, firmware_version) WHERE id = ?',
+      [hbTime, hbTime, sensorStr, reportedVersion, deviceRows[0].id]
     );
-    if (result.affectedRows === 0) return res.json({ success: false, error: '设备未注册' });
+    if (sensorStr && Object.keys(sensor_data).length > 0) {
+      await pool.query(
+        'INSERT INTO sensor_data_history (device_id, sensor_data, recorded_at) VALUES (?, ?, ?)',
+        [deviceRows[0].id, sensorStr, hbTime]
+      );
+    }
     res.json({ success: true, server_time: now.toISOString() });
   } catch (e) {
     res.status(500).json({ success: false, error: '心跳失败' });
@@ -1669,7 +1858,15 @@ app.post('/api/devices/heartbeat', async (req, res) => {
 function serveModalPage(filePath, postData, res) {
   try {
     let html = fs.readFileSync(path.join(__dirname, filePath), 'utf8');
-    html = html.replace('__POST_DATA__', JSON.stringify(postData));
+    // JSON is embedded in a script tag. Escape HTML-significant characters so
+    // a user-controlled device name cannot terminate the script element.
+    const safeJson = JSON.stringify(postData)
+      .replace(/</g, '\\u003c')
+      .replace(/>/g, '\\u003e')
+      .replace(/&/g, '\\u0026')
+      .replace(/\u2028/g, '\\u2028')
+      .replace(/\u2029/g, '\\u2029');
+    html = html.replace('__POST_DATA__', safeJson);
     res.send(html);
   } catch (e) {
     res.status(500).send('页面加载失败');
@@ -2179,6 +2376,14 @@ app.delete('/api/esp32/pending/:id', requireAuth, async (req, res) => {
   }
 });
 
+app.post('/user/pages/device_about', requireAuth, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT id,device_code,device_name,device_type,firmware_version FROM devices WHERE id = ? AND user_id = ?', [req.body.device_id, req.user.id]);
+    if (!rows.length) return res.status(404).send('设备不存在');
+    serveModalPage('public/user/pages/device_about.html', { device: rows[0] }, res);
+  } catch (e) { res.status(500).send('加载失败'); }
+});
+
 // ESP32代码页面
 app.get('/user/pages/esp32_code', requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'public/user/pages/esp32_code.html')));
 // ESP32固件源码（纯文本）
@@ -2196,6 +2401,9 @@ async function startServer() {
   try {
     if (await initDatabasePool()) {
       console.log('[数据库] 已连接');
+      await ensureCommercialSchema();
+      await cleanupSensorHistory();
+      setInterval(cleanupSensorHistory, 60 * 60 * 1000).unref();
       initGlobalMqtt(pool);
       pool.query('DELETE FROM login_tokens WHERE created_at < DATE_SUB(NOW(), INTERVAL 365 DAY)').then(([r]) => {
         if (r.affectedRows > 0) console.log('[清理] 已清理 ' + r.affectedRows + ' 条过期token');
