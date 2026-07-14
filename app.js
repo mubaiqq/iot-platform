@@ -13,6 +13,8 @@ const { initGlobalMqtt, publishToDevice, waitForDeviceAck } = require('./mqtt_ha
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const FIRMWARE_DIR = path.join(__dirname, 'data', 'firmware');
+const OTA_SIGNING_KEY_PATH = process.env.OTA_SIGNING_KEY_PATH || path.join(__dirname, 'data', 'ota-signing-private.pem');
+let otaSigningPrivateKey = null;
 fs.mkdirSync(FIRMWARE_DIR, { recursive: true });
 const firmwareUpload = multer({
   dest: path.join(FIRMWARE_DIR, '.tmp'),
@@ -31,6 +33,13 @@ const DB_CONFIG_PATH = process.env.DB_CONFIG_PATH || path.join(__dirname, 'data'
 const SCHEMA_PATH = path.join(__dirname, 'docker/mysql/init/001-schema.sql');
 let pool = null;
 let dbReady = false;
+
+function signOTACommand(command) {
+  if (!fs.existsSync(OTA_SIGNING_KEY_PATH)) throw new Error('OTA签名私钥不存在，已拒绝下发升级');
+  if (!otaSigningPrivateKey) otaSigningPrivateKey = fs.readFileSync(OTA_SIGNING_KEY_PATH);
+  const canonical = [command.device_code, command.target_type, command.version, command.sha256, String(command.version_id)].join('|');
+  return crypto.sign('sha256', Buffer.from(canonical), otaSigningPrivateKey).toString('base64');
+}
 
 function getEnvDbConfig() {
   if (!process.env.DB_HOST) return null;
@@ -1700,7 +1709,7 @@ app.get('/api/data/history', requireAuth, async (req, res) => {
     const [devices] = await pool.query('SELECT id, device_name, device_code FROM devices WHERE id = ? AND user_id = ?', [deviceId, req.user.id]);
     if (!devices.length) return res.status(404).json({ success: false, error: '设备不存在' });
     const [rows] = await pool.query(
-      'SELECT id, sensor_data, recorded_at FROM sensor_data_history WHERE device_id = ? AND recorded_at >= NOW() - INTERVAL ? HOUR ORDER BY recorded_at ASC LIMIT 5000',
+      'SELECT id,sensor_data,recorded_at FROM (SELECT id,sensor_data,recorded_at FROM sensor_data_history FORCE INDEX (idx_device_time) WHERE device_id=? AND recorded_at>=NOW()-INTERVAL ? HOUR ORDER BY recorded_at DESC,id DESC LIMIT 5000) recent ORDER BY recorded_at ASC,id ASC',
       [deviceId, hours]
     );
     res.json({ success: true, device: devices[0], retention_days: 30, points: rows.map(r => ({
@@ -1737,7 +1746,7 @@ app.get('/api/admin/data/history', requireAuth, requireAdmin, async (req, res) =
     );
     if (!devices.length) return res.status(404).json({ success: false, error: '设备不存在' });
     const [rows] = await pool.query(
-      'SELECT id,sensor_data,recorded_at FROM sensor_data_history WHERE device_id=? AND recorded_at>=NOW()-INTERVAL ? HOUR ORDER BY recorded_at ASC LIMIT 5000',
+      'SELECT id,sensor_data,recorded_at FROM (SELECT id,sensor_data,recorded_at FROM sensor_data_history FORCE INDEX (idx_device_time) WHERE device_id=? AND recorded_at>=NOW()-INTERVAL ? HOUR ORDER BY recorded_at DESC,id DESC LIMIT 5000) recent ORDER BY recorded_at ASC,id ASC',
       [deviceId, hours]
     );
     res.json({ success: true, device: devices[0], retention_days: 30, points: rows.map(r => ({
@@ -1779,6 +1788,8 @@ app.get('/api/admin/firmware', requireAuth, requireAdmin, async (_req, res) => {
 
 app.post('/api/admin/firmware', requireAuth, requireAdmin, firmwareUpload.single('firmware'), async (req, res) => {
   let temp = req.file?.path;
+  let finalPath = null;
+  let ownsFinalPath = false;
   try {
     const target = req.body.target_type;
     const version = String(req.body.version || '').trim().replace(/^v/i, '');
@@ -1788,12 +1799,15 @@ app.post('/api/admin/firmware', requireAuth, requireAdmin, firmwareUpload.single
     if (data.length < 1024 || data[0] !== 0xE9) throw new Error('文件不是有效的ESP32固件');
     const sha256 = crypto.createHash('sha256').update(data).digest('hex');
     const token = crypto.randomBytes(32).toString('hex');
-    const finalPath = path.join(FIRMWARE_DIR, `${target}-${version}-${sha256.slice(0,12)}.bin`);
+    finalPath = path.join(FIRMWARE_DIR, `${target}-${version}-${sha256.slice(0,12)}.bin`);
+    if (fs.existsSync(finalPath)) throw Object.assign(new Error('该类型和版本已存在'), { code: 'ER_DUP_ENTRY' });
     fs.renameSync(temp, finalPath); temp = null;
+    ownsFinalPath = true;
     const [result] = await pool.query('INSERT INTO firmware_versions (target_type,version,release_notes,file_name,file_path,file_size,sha256,download_token,created_by) VALUES (?,?,?,?,?,?,?,?,?)', [target,version,notes,path.basename(req.file.originalname),finalPath,data.length,sha256,token,req.user.id]);
     res.json({ success: true, id: result.insertId, sha256 });
   } catch (e) {
     if (temp && fs.existsSync(temp)) fs.unlinkSync(temp);
+    if (ownsFinalPath && finalPath && fs.existsSync(finalPath)) fs.unlinkSync(finalPath);
     res.status(400).json({ success: false, error: e.code === 'ER_DUP_ENTRY' ? '该类型和版本已存在' : e.message });
   }
 });
@@ -1813,6 +1827,7 @@ app.post('/api/devices/:id/ota', requireAuth, async (req, res) => {
     const origin = `${req.protocol}://${req.get('host')}`;
     const downloadSignature = crypto.createHmac('sha256', v.download_token).update(devices[0].device_code).digest('hex');
     const otaCommand = { command: 'ota', device_code: devices[0].device_code, target_type: devices[0].device_type, version: v.version, url: `${origin}/api/firmware/download/${v.download_token}?device_code=${encodeURIComponent(devices[0].device_code)}&signature=${downloadSignature}`, sha256: v.sha256, version_id: v.id };
+    otaCommand.ota_signature = signOTACommand(otaCommand);
     await pool.query("UPDATE device_commands SET status = 'done' WHERE device_id = ? AND command_type = 'ota' AND status != 'done'", [devices[0].id]);
     await pool.query("INSERT INTO device_commands (device_id,command_type,command_data,status) VALUES (?,'ota',?,'pending')", [devices[0].id, JSON.stringify(otaCommand)]);
     // Sleeping sensors are only sent OTA after their next heartbeat. For controllers,

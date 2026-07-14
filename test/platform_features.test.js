@@ -36,6 +36,10 @@ test('startup migration makes one-click updates database-safe', () => {
   assert.match(app, /CREATE TABLE IF NOT EXISTS firmware_versions/, 'firmware table migration missing');
   assert.match(app, /SHOW COLUMNS FROM devices LIKE 'firmware_version'/, 'devices firmware column migration missing');
   assert.match(app, /device_type === 'controller' && heartbeatAge/, 'offline or sleeping devices must keep OTA pending');
+  assert.equal((app.match(/ORDER BY recorded_at DESC,id DESC LIMIT 5000\) recent ORDER BY recorded_at ASC,id ASC/g) || []).length, 2, 'history APIs must return the newest 5000 points in chronological order');
+  assert.match(app, /otaCommand\.ota_signature = signOTACommand\(otaCommand\)/, 'server must sign OTA commands');
+  assert.match(app, /if \(fs\.existsSync\(finalPath\)\) throw Object\.assign/, 'duplicate uploads must not overwrite existing firmware');
+  assert.match(app, /if \(ownsFinalPath && finalPath && fs\.existsSync\(finalPath\)\) fs\.unlinkSync\(finalPath\)/, 'failed firmware inserts must remove only request-owned files');
   assert.match(read('scripts/update.sh'), /docker compose up -d --build/, 'Docker updater does not restart migrated app');
   assert.match(read('scripts/update-host.sh'), /pm2 (restart|start)/, 'host updater does not restart migrated app');
 });
@@ -48,6 +52,9 @@ test('firmware shuts down provisioning AP and supports OTA', () => {
     assert.match(src, /firmware_version/, `${file} heartbeat missing firmware version`);
     assert.match(src, /command.*ota|"ota"/, `${file} missing OTA command`);
     assert.match(src, /Update\.begin/, `${file} missing Update OTA implementation`);
+    assert.match(src, /verifyOTACommandSignature/, `${file} does not authenticate OTA commands`);
+    assert.match(src, /OTA_SIGNING_PUBLIC_KEY/, `${file} missing embedded OTA public key`);
+    assert.match(src, /!isNewerFirmwareVersion\(version\)/, `${file} permits signed downgrade replay`);
     assert.match(src, /v1\.2\.3/, `${file} version not updated`);
   }
 });

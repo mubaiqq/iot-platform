@@ -18,11 +18,18 @@
 #include <WiFiClientSecure.h>
 #include <Update.h>
 #include <mbedtls/sha256.h>
+#include <mbedtls/pk.h>
+#include <mbedtls/base64.h>
 
 // ========== 配置区域 ==========
 const char* MQTT_SERVER = "mqtt.mcoud.cn";
 const int MQTT_PORT = 1883;
 const char* FIRMWARE_VERSION = "1.2.3";
+const char OTA_SIGNING_PUBLIC_KEY[] = R"KEY(-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEVIKcfGg2ukVtbBbU4OSVwyyZGtwV
+/YRNeFHsQE9OAQPPono4I5uw5NSWUMn5SIL8eVKVHSG/gX/GrmGcPKKYtA==
+-----END PUBLIC KEY-----
+)KEY";
 #define RELAY_PIN 16
 #define RELAY_ACTIVE_LEVEL HIGH
 #define RELAY_INACTIVE_LEVEL LOW
@@ -61,6 +68,8 @@ void handleSerialCommands();
 void factoryReset();
 void stopAP();
 void performOTA(const String& url, const String& version, const String& expectedSha256, int versionId);
+bool verifyOTACommandSignature(const String& targetDevice, const String& targetType, const String& version, const String& sha256, int versionId, const String& signature);
+bool isNewerFirmwareVersion(const String& candidate);
 
 WiFiClient espClient;
 PubSubClient mqtt(espClient);
@@ -483,9 +492,31 @@ void publishOTAStatus(const char* status, const String& version, const String& m
   mqtt.publish(topic.c_str(), out.c_str());
 }
 
+bool verifyOTACommandSignature(const String& targetDevice, const String& targetType, const String& version, const String& sha256, int versionId, const String& signature) {
+  if (signature.length() < 80 || signature.length() > 128) return false;
+  String canonical = targetDevice + "|" + targetType + "|" + version + "|" + sha256 + "|" + String(versionId);
+  unsigned char hash[32];
+  mbedtls_sha256_ret((const unsigned char*)canonical.c_str(), canonical.length(), hash, 0);
+  unsigned char decoded[96]; size_t decodedLen = 0;
+  if (mbedtls_base64_decode(decoded, sizeof(decoded), &decodedLen, (const unsigned char*)signature.c_str(), signature.length()) != 0) return false;
+  mbedtls_pk_context key; mbedtls_pk_init(&key);
+  int parsed = mbedtls_pk_parse_public_key(&key, (const unsigned char*)OTA_SIGNING_PUBLIC_KEY, strlen(OTA_SIGNING_PUBLIC_KEY) + 1);
+  int verified = parsed == 0 ? mbedtls_pk_verify(&key, MBEDTLS_MD_SHA256, hash, sizeof(hash), decoded, decodedLen) : -1;
+  mbedtls_pk_free(&key);
+  return verified == 0;
+}
+
+bool isNewerFirmwareVersion(const String& candidate) {
+  int c1, c2, c3, f1, f2, f3;
+  if (sscanf(candidate.c_str(), "%d.%d.%d", &c1, &c2, &c3) != 3 || sscanf(FIRMWARE_VERSION, "%d.%d.%d", &f1, &f2, &f3) != 3) return false;
+  if (c1 != f1) return c1 > f1;
+  if (c2 != f2) return c2 > f2;
+  return c3 > f3;
+}
+
 void performOTA(const String& url, const String& version, const String& expectedSha256, int versionId) {
-  if (url.length() == 0 || version.length() == 0 || expectedSha256.length() != 64 || version == FIRMWARE_VERSION) {
-    publishOTAStatus("failed", version, "升级参数无效或版本相同", versionId); return;
+  if (url.length() == 0 || version.length() == 0 || expectedSha256.length() != 64 || !isNewerFirmwareVersion(version)) {
+    publishOTAStatus("failed", version, "升级参数无效或版本不高于当前版本", versionId); return;
   }
   if (isWatering || waitingForAI) { publishOTAStatus("failed", version, "设备正在浇水或等待AI，拒绝升级", versionId); return; }
   publishOTAStatus("downloading", version, "开始下载固件", versionId);
@@ -789,10 +820,17 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   if (doc.containsKey("command") && doc["command"] == "ota") {
     String targetDevice = doc["device_code"] | "";
     String targetType = doc["target_type"] | "";
+    String version = doc["version"] | "";
+    String sha256 = doc["sha256"] | "";
+    int versionId = doc["version_id"] | 0;
+    String otaSignature = doc["ota_signature"] | "";
     if (targetDevice != deviceCode || targetType != "controller") {
-      publishOTAStatus("failed", doc["version"].as<String>(), "升级指令与当前设备不匹配", doc["version_id"] | 0); return;
+      publishOTAStatus("failed", version, "升级指令与当前设备不匹配", versionId); return;
     }
-    performOTA(doc["url"].as<String>(), doc["version"].as<String>(), doc["sha256"].as<String>(), doc["version_id"] | 0);
+    if (!verifyOTACommandSignature(targetDevice, targetType, version, sha256, versionId, otaSignature)) {
+      publishOTAStatus("failed", version, "升级指令签名无效", versionId); return;
+    }
+    performOTA(doc["url"].as<String>(), version, sha256, versionId);
     return;
   }
 
