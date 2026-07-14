@@ -40,7 +40,13 @@ app.use(express.json({ limit: '256kb' }));
 app.use(express.urlencoded({ extended: true, limit: '64kb' }));
 app.use(cookieParser());
 
-const DEVICE_HTTP_PATHS = new Set(['/api/devices/heartbeat', '/api/esp32/register']);
+const DEVICE_HTTP_PATHS = new Set([
+  '/api/devices/heartbeat', '/api/esp32/register',
+  // Authentication is public by definition. Do not let incomplete proxy
+  // forwarded headers make login/register unusable; these routes have their
+  // own wide rate limits and do not rely on an existing session cookie.
+  '/api/login', '/api/register', '/api/captcha'
+]);
 function firstForwardedHeader(req, name) {
   const value = req.get(name);
   return value ? value.split(',')[0].trim() : '';
