@@ -95,6 +95,13 @@ body{font-family:'Inter',sans-serif;background:#f5f6fa;color:#1e293b;padding:16p
 const DATA = __POST_DATA__;
 const deviceId = DATA.device.id;
 const content = document.getElementById('content');
+function esc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function safeResult(log) {
+  try { return typeof log.result === 'string' ? JSON.parse(log.result) : (log.result || {}); }
+  catch (_) { return { error: true, ai_response: log.result }; }
+}
 
 // 加载日志
 async function loadLogs() {
@@ -115,7 +122,7 @@ async function loadLogs() {
     let html = '<div class="log-list">';
     
     data.logs.forEach((log, index) => {
-      const result = typeof log.result === 'string' ? JSON.parse(log.result) : (log.result || {});
+      const result = safeResult(log);
       const isError = result.error || result.success === false;
       const isWatering = log.log_type === 'watering_judge';
       
@@ -157,7 +164,7 @@ async function loadLogs() {
             ${log.executed_at ? '<span class="exec-tag"><i class="fas fa-check-circle"></i>执行完成 ' + new Date(log.executed_at).toLocaleString('zh-CN', {hour:'2-digit',minute:'2-digit',second:'2-digit'}) + '</span>' : ''}
             <div class="log-time">${time}</div>
           </div>
-          <div class="log-content">${shortContent}${log.executed_duration ? ' · 执行时长 ' + log.executed_duration + '秒' : ''}</div>
+          <div class="log-content">${esc(shortContent)}${log.executed_duration ? ' · 执行时长 ' + esc(log.executed_duration) + '秒' : ''}</div>
           <div class="log-actions">
             ${isWatering && !isError ? `<button class="btn-sm btn-result" onclick="showResult(${index})"><i class="fas fa-brain"></i> AI判断结果</button>` : ''}
             <button class="btn-sm btn-detail" onclick="showDetail(${index})"><i class="fas fa-code"></i> 详细</button>
@@ -177,7 +184,7 @@ async function loadLogs() {
     content.innerHTML = `
       <div class="empty">
         <i class="fas fa-exclamation-circle"></i>
-        <p>加载失败: ${e.message}</p>
+        <p>加载失败: ${esc(e.message)}</p>
       </div>
     `;
   }
@@ -186,7 +193,7 @@ async function loadLogs() {
 // 显示AI判断结果
 function showResult(index) {
   const log = window._logs[index];
-  const result = typeof log.result === 'string' ? JSON.parse(log.result) : (log.result || {});
+  const result = safeResult(log);
   
   const html = `
     <div class="result-card">
@@ -196,15 +203,15 @@ function showResult(index) {
       <div class="result-text">
         <div class="label">AI判断结果</div>
         <div class="value">${result.should_water ? '💧 需要浇水' : '☀️ 无需浇水'}</div>
-        <div class="reason">${result.reason || '无原因说明'}</div>
+        <div class="reason">${esc(result.reason || '无原因说明')}</div>
       </div>
     </div>
     <div class="detail-section">
       <div class="detail-title"><i class="fas fa-info-circle"></i> 判断依据</div>
       <div class="detail-content">判断时间：${new Date(log.created_at).toLocaleString('zh-CN')}
-设备：${log.device_name || '--'}
+设备：${esc(log.device_name || '--')}
 判断结果：${result.should_water ? '需要浇水' : '无需浇水'}
-原因：${result.reason || '无'}</div>
+原因：${esc(result.reason || '无')}</div>
     </div>
   `;
   
@@ -214,26 +221,26 @@ function showResult(index) {
 // 显示详细信息
 function showDetail(index) {
   const log = window._logs[index];
-  const result = typeof log.result === 'string' ? JSON.parse(log.result) : (log.result || {});
+  const result = safeResult(log);
   
   const html = `
     <div class="detail-section">
       <div class="detail-title"><i class="fas fa-file-alt"></i> 完整提示词</div>
-      <div class="detail-content">${log.prompt_content || result.prompt_content || '无记录'}</div>
+      <div class="detail-content">${esc(log.prompt_content || result.prompt_content || '无记录')}</div>
     </div>
     <div class="detail-section">
       <div class="detail-title"><i class="fas fa-robot"></i> AI响应</div>
-      <div class="detail-content">${result.ai_response || log.ai_response || JSON.stringify(result, null, 2)}</div>
+      <div class="detail-content">${esc(result.ai_response || log.ai_response || JSON.stringify(result, null, 2))}</div>
     </div>
     <div class="detail-section">
       <div class="detail-title"><i class="fas fa-database"></i> 原始数据</div>
-      <div class="detail-content">${JSON.stringify({
+      <div class="detail-content">${esc(JSON.stringify({
         id: log.id,
         device_id: log.device_id,
         log_type: log.log_type,
         content: log.content,
         created_at: log.created_at
-      }, null, 2)}</div>
+      }, null, 2))}</div>
     </div>
   `;
   

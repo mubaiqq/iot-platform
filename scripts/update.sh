@@ -18,6 +18,9 @@ fi
 
 cd "$INSTALL_DIR"
 
+mkdir -p data
+$SUDO chown -R "${APP_UID:-1000}:${APP_GID:-1000}" data 2>/dev/null || true
+
 echo "[update] 拉取最新代码..."
 $SUDO git fetch origin "$BRANCH"
 $SUDO git reset --hard "origin/$BRANCH"

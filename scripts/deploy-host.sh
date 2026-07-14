@@ -175,9 +175,8 @@ print_result() {
   echo "访问地址: http://服务器IP:${APP_PORT}"
   echo "首次安装: 打开上面的地址，填写宿主机 MySQL 信息后完成初始化。"
   echo "如果 MySQL 就在同一台服务器上，数据库 Host 通常填: 127.0.0.1"
-  echo "默认管理员: admin"
-  echo "默认密码: admin123"
-  echo "请登录后立即修改默认密码，并在后台配置天气/API/大模型等参数。"
+  echo "管理员账号: admin"
+  echo "请在首次安装页面设置强密码，并在后台配置天气/API/大模型等参数。"
   echo
   echo "常用命令:"
   echo "  pm2 status ${APP_NAME}"

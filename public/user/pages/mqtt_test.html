@@ -247,8 +247,8 @@ function copyCode() {
   navigator.clipboard.writeText(deviceCode).then(() => showToast('已复制', 'success'));
 }
 
-function resetCode() {
-  if (!confirm('重置设备码？当前设备码将失效。')) return;
+async function resetCode() {
+  if (!await showConfirm('重置设备码？当前设备码将失效。')) return;
   deviceCode = genCode();
   localStorage.setItem(LS_KEY, deviceCode);
   updateCodeDisplay();
@@ -263,6 +263,21 @@ function showToast(msg, type='') {
   t.className = 'toast show' + (type ? ' ' + type : '');
   clearTimeout(t._tid);
   t._tid = setTimeout(() => t.className = 'toast', 2500);
+}
+
+function showConfirm(message) {
+  if (parent && parent !== window && typeof parent.showConfirm === 'function') return parent.showConfirm('重置设备码', message, {type:'danger', okText:'重置'});
+  return new Promise(resolve => {
+    const mask = document.createElement('div');
+    mask.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.35);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px';
+    mask.innerHTML = '<div style="width:min(360px,100%);background:#fff;border-radius:14px;padding:20px"><b>重置设备码</b><p style="font-size:13px;color:#64748b;margin:10px 0 18px"></p><div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn btn-ghost cancel">取消</button><button class="btn btn-danger ok">重置</button></div></div>';
+    mask.querySelector('p').textContent = message;
+    document.body.appendChild(mask);
+    const done = value => { mask.remove(); resolve(value); };
+    mask.querySelector('.cancel').onclick = () => done(false);
+    mask.querySelector('.ok').onclick = () => done(true);
+    mask.onclick = e => { if (e.target === mask) done(false); };
+  });
 }
 
 // ========== Log ==========

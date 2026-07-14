@@ -155,11 +155,6 @@ CREATE TABLE IF NOT EXISTS esp32_pending_devices (
 
 SET FOREIGN_KEY_CHECKS = 1;
 
--- Default admin: admin / admin123. Change password immediately after first login.
-INSERT INTO users (id, username, email, password, role, status)
-VALUES (1, 'admin', 'admin@example.com', '$2b$10$i5qcr.EZzTHGcedmIrS.EeeNHyYcZlJpJUd9mwikx8XteWP.oLMtK', 'admin', 'active')
-ON DUPLICATE KEY UPDATE role = VALUES(role), status = VALUES(status);
-
 INSERT INTO settings (setting_key, setting_value) VALUES
 ('register_open', '1'),
 ('register_captcha', '1'),

@@ -1,5 +1,37 @@
 // mqtt_handler.js - 全局MQTT消息处理
 const mqtt = require('mqtt');
+const net = require('net');
+const dns = require('dns');
+
+function validateLlmUrl(value) {
+  let url;
+  try { url = new URL(String(value)); } catch (_) { throw new Error('大模型地址无效'); }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('大模型地址仅支持 http/https');
+  const hostname = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  if (hostname === 'localhost' || hostname.endsWith('.localhost')) throw new Error('大模型地址不能使用本机或私网地址');
+  if (net.isIP(hostname)) {
+    const privateV4 = /^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
+    const privateV6 = hostname === '::1' || hostname === '::' || /^f[cd]/i.test(hostname) || /^fe[89ab]/i.test(hostname);
+    // URL canonicalizes unusual IPv4 literals such as 0x7f000001 to 127.0.0.1.
+    if (privateV4.test(hostname) || privateV6) throw new Error('大模型地址不能使用本机或私网地址');
+  }
+  return url.toString();
+}
+
+function isPrivateAddress(address) {
+  const value = String(address || '').toLowerCase().replace(/^::ffff:/, '');
+  if (net.isIPv4(value)) return /^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(value);
+  if (net.isIPv6(value)) return value === '::1' || value === '::' || /^f[cd]/.test(value) || /^fe[89ab]/.test(value);
+  return true;
+}
+
+async function assertPublicLlmUrl(value) {
+  const normalized = validateLlmUrl(value);
+  const url = new URL(normalized);
+  const answers = await dns.promises.lookup(url.hostname, { all: true, verbatim: true });
+  if (!answers.length || answers.some(item => isPrivateAddress(item.address))) throw new Error('大模型地址不能解析到本机或私网地址');
+  return normalized;
+}
 
 let globalMqttClient = null;
 const pendingAcks = new Map();
@@ -630,6 +662,7 @@ async function handleWateringRequest(pool, deviceCode, payload) {
       // 与 /api/llm-test 保持一致：允许用户填写 base URL，自动补 /chat/completions
       let llmUrl = (llmConfig.api_url || '').replace(/\/+$/, '');
       if (!llmUrl.endsWith('/chat/completions')) llmUrl += '/chat/completions';
+      llmUrl = await assertPublicLlmUrl(llmUrl);
 
       const llmRes = await fetch(llmUrl, {
         method: 'POST',
@@ -637,6 +670,7 @@ async function handleWateringRequest(pool, deviceCode, payload) {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + llmConfig.api_key
         },
+        redirect: 'manual',
         body: JSON.stringify({
           model: llmConfig.model_id,
           messages: [

@@ -2,6 +2,8 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const net = require('net');
+const dns = require('dns');
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
@@ -22,11 +24,51 @@ const firmwareUpload = multer({
   fileFilter: (_req, file, cb) => cb(null, /\.bin$/i.test(file.originalname))
 });
 app.set('trust proxy', 1);
+app.disable('x-powered-by');
 
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  // The admin/user shells open same-origin pages in embedded panels.
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
+app.use(express.json({ limit: '256kb' }));
+app.use(express.urlencoded({ extended: true, limit: '64kb' }));
 app.use(cookieParser());
+
+const DEVICE_HTTP_PATHS = new Set(['/api/devices/heartbeat', '/api/esp32/register']);
+function enforceSameOrigin(req, res, next) {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS' || !req.path.startsWith('/api/') || DEVICE_HTTP_PATHS.has(req.path)) return next();
+  const origin = req.get('Origin');
+  if (!origin) return next();
+  try {
+    if (new URL(origin).origin !== `${req.protocol}://${req.get('host')}`) return res.status(403).json({ error: '请求来源验证失败' });
+  } catch (_) { return res.status(403).json({ error: '请求来源验证失败' }); }
+  next();
+}
+app.use(enforceSameOrigin);
+
+const authAttempts = new Map();
+function authRateLimit(req, res, next) {
+  const key = `${req.path}:${req.ip}`;
+  const now = Date.now();
+  const windowMs = 10 * 60 * 1000;
+  // Deliberately generous: blocks obvious bursts without disturbing normal use.
+  const max = req.path === '/api/captcha' ? 180 : 60;
+  let entry = authAttempts.get(key);
+  if (!entry || now - entry.startedAt >= windowMs) entry = { startedAt: now, count: 0 };
+  entry.count++;
+  authAttempts.set(key, entry);
+  if (entry.count > max) return res.status(429).json({ error: '请求过于频繁，请稍后再试' });
+  next();
+}
+setInterval(() => {
+  const cutoff = Date.now() - 10 * 60 * 1000;
+  for (const [key, entry] of authAttempts) if (entry.startedAt < cutoff) authAttempts.delete(key);
+}, 10 * 60 * 1000).unref();
 
 // ========== Database install/config ==========
 const DB_CONFIG_PATH = process.env.DB_CONFIG_PATH || path.join(__dirname, 'data', 'db-config.json');
@@ -247,6 +289,9 @@ async function cleanupSensorHistory() {
 
 async function installDatabase(cfg) {
   const database = cfg.database || 'iot_platform';
+  // Validate before creating a database or tables so a weak/missing password
+  // cannot leave a half-installed instance behind.
+  validateAdminPassword(cfg.adminPassword);
   const server = await mysql.createConnection({
     host: cfg.host,
     port: parseInt(cfg.port || '3306', 10),
@@ -268,6 +313,7 @@ async function installDatabase(cfg) {
     for (const stmt of splitSqlStatements(sql)) {
       await installPool.query(stmt);
     }
+    await ensureInitialAdmin(installPool, cfg.adminPassword);
   } finally {
     await installPool.end();
   }
@@ -282,6 +328,20 @@ async function installDatabase(cfg) {
   }, null, 2));
 
   await initDatabasePool();
+  return true;
+}
+
+function validateAdminPassword(adminPassword) {
+  if (typeof adminPassword !== 'string' || adminPassword.length < 12 || adminPassword.length > 128) throw new Error('管理员密码须为 12-128 位');
+  if (!/[a-z]/.test(adminPassword) || !/[A-Z]/.test(adminPassword) || !/\d/.test(adminPassword) || !/[^A-Za-z0-9]/.test(adminPassword)) throw new Error('管理员密码须包含大小写字母、数字和特殊字符');
+}
+
+async function ensureInitialAdmin(dbPool, adminPassword) {
+  const [[row]] = await dbPool.query('SELECT COUNT(*) AS count FROM users');
+  if (Number(row.count) > 0) return false;
+  validateAdminPassword(adminPassword);
+  const adminPasswordHash = await bcrypt.hash(adminPassword, 12);
+  await dbPool.query("INSERT INTO users (username, email, password, role, status) VALUES ('admin', 'admin@example.com', ?, 'admin', 'active')", [adminPasswordHash]);
   return true;
 }
 
@@ -389,21 +449,22 @@ app.get('/api/install/status', (req, res) => {
 app.post('/api/install', async (req, res) => {
   try {
     if (dbReady) return res.json({ success: true, message: '已安装' });
-    const { host, port, user, password, database } = req.body;
+    const { host, port, user, password, database, admin_password: adminPassword } = req.body;
     if (!host || !user || !database) {
       return res.status(400).json({ success: false, error: '请填写数据库地址、用户名和数据库名' });
     }
-    await installDatabase({ host: String(host).trim(), port: port || 3306, user: String(user).trim(), password: password || '', database: String(database).trim() });
+    await installDatabase({ host: String(host).trim(), port: port || 3306, user: String(user).trim(), password: password || '', database: String(database).trim(), adminPassword });
     try { initGlobalMqtt(pool); } catch (e) { console.error('[MQTT] 安装后初始化失败:', e.message); }
     res.json({ success: true, message: '安装完成' });
   } catch (e) {
     console.error('[安装] 失败:', e);
-    res.status(500).json({ success: false, error: e.message || '安装失败' });
+    const inputError = /^管理员密码须/.test(e.message || '');
+    res.status(inputError ? 400 : 500).json({ success: false, error: inputError ? e.message : '安装失败，请检查数据库配置后重试' });
   }
 });
 
 // ========== Captcha API ==========
-app.get('/api/captcha', (req, res) => {
+app.get('/api/captcha', authRateLimit, (req, res) => {
   const captcha = svgCaptcha.create({
     size: 4,
     ignoreChars: '0o1ilI',
@@ -423,8 +484,10 @@ app.get('/api/captcha', (req, res) => {
 });
 
 // ========== Settings API ==========
+const PUBLIC_SETTING_KEYS = new Set(['register_open', 'register_captcha']);
 app.get('/api/settings/:key', async (req, res) => {
   try {
+    if (!PUBLIC_SETTING_KEYS.has(req.params.key)) return res.status(404).json({ error: '设置不存在' });
     const [rows] = await pool.query('SELECT setting_value FROM settings WHERE setting_key = ?', [req.params.key]);
     res.json({ value: rows[0]?.setting_value || null });
   } catch (e) {
@@ -457,7 +520,7 @@ app.post('/api/settings', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // ========== Auth API ==========
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', authRateLimit, async (req, res) => {
   try {
     const { username, email, password, captcha } = req.body;
     
@@ -521,7 +584,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', authRateLimit, async (req, res) => {
   try {
     const { username, password } = req.body;
     
@@ -580,6 +643,14 @@ app.post('/api/logout', async (req, res) => {
   }
   res.clearCookie('session_token');
   res.json({ success: true });
+});
+
+app.post('/api/account/logout-all', requireAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM login_tokens WHERE user_id = ?', [req.user.id]);
+    res.clearCookie('session_token');
+    res.json({ success: true });
+  } catch (_) { res.status(500).json({ error: '退出失败' }); }
 });
 
 app.get('/api/me', requireAuth, async (req, res) => {
@@ -946,6 +1017,7 @@ app.put('/api/account/username', requireAuth, async (req, res) => {
     }
     
     await pool.query('UPDATE users SET username = ? WHERE id = ?', [username, userId]);
+    await pool.query('DELETE FROM login_tokens WHERE user_id = ?', [userId]);
     
     // Clear session to force re-login
     res.clearCookie('session_token');
@@ -983,6 +1055,7 @@ app.put('/api/account/password', requireAuth, async (req, res) => {
     // Hash new password and update
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await pool.query('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, userId]);
+    await pool.query('DELETE FROM login_tokens WHERE user_id = ?', [userId]);
     
     // Clear session to force re-login
     res.clearCookie('session_token');
@@ -1027,10 +1100,57 @@ app.put('/api/account/multi-login', requireAuth, async (req, res) => {
 });
 
 // ========== LLM Config API ==========
+function validateLlmUrl(value) {
+  let url;
+  try { url = new URL(String(value)); } catch (_) { throw new Error('大模型地址无效'); }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('大模型地址仅支持 http/https');
+  const hostname = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  if (hostname === 'localhost' || hostname.endsWith('.localhost')) throw new Error('大模型地址不能使用本机或私网地址');
+  if (net.isIP(hostname)) {
+    const privateV4 = /^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
+    const privateV6 = hostname === '::1' || hostname === '::' || /^f[cd]/i.test(hostname) || /^fe[89ab]/i.test(hostname);
+    // URL canonicalizes unusual IPv4 literals such as 0x7f000001 to 127.0.0.1.
+    if (privateV4.test(hostname) || privateV6) throw new Error('大模型地址不能使用本机或私网地址');
+  }
+  return url.toString();
+}
+
+function isPrivateAddress(address) {
+  const value = String(address || '').toLowerCase().replace(/^::ffff:/, '');
+  if (net.isIPv4(value)) return /^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(value);
+  if (net.isIPv6(value)) return value === '::1' || value === '::' || /^f[cd]/.test(value) || /^fe[89ab]/.test(value);
+  return true;
+}
+
+async function assertPublicLlmUrl(value) {
+  const normalized = validateLlmUrl(value);
+  const url = new URL(normalized);
+  const answers = await dns.promises.lookup(url.hostname, { all: true, verbatim: true });
+  if (!answers.length || answers.some(item => isPrivateAddress(item.address))) throw new Error('大模型地址不能解析到本机或私网地址');
+  return normalized;
+}
+
+async function requestLlmTest(config) {
+  let baseUrl = String(config.api_url || '').replace(/\/+$/, '');
+  if (!baseUrl.endsWith('/chat/completions')) baseUrl += '/chat/completions';
+  baseUrl = await assertPublicLlmUrl(baseUrl);
+  const resp = await fetch(baseUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.api_key}` },
+    body: JSON.stringify({ model: config.model_id, messages: [{ role: 'user', content: '你好' }], max_tokens: 200 }),
+    signal: AbortSignal.timeout(30000), redirect: 'manual'
+  });
+  const data = await resp.json();
+  if (data.error) return { success: false, error: data.error.message || JSON.stringify(data.error) };
+  const choice = data.choices?.[0];
+  const reply = choice?.message?.content || choice?.text || choice?.content || data.content || data.result || '[模型返回为空]';
+  return { success: true, reply };
+}
+
 // Admin: get all global configs (user_id IS NULL)
 app.get('/api/admin/llm-configs', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM llm_configs WHERE user_id IS NULL ORDER BY is_default DESC, id ASC');
+    const [rows] = await pool.query("SELECT id, user_id, name, api_url, model_id, is_default, created_at, updated_at, (api_key IS NOT NULL AND api_key <> '') AS has_api_key FROM llm_configs WHERE user_id IS NULL ORDER BY is_default DESC, id ASC");
     res.json({ configs: rows });
   } catch (e) {
     console.error(e);
@@ -1041,7 +1161,7 @@ app.get('/api/admin/llm-configs', requireAuth, requireAdmin, async (req, res) =>
 // User: get user's custom configs
 app.get('/api/user/llm-configs', requireAuth, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM llm_configs WHERE user_id = ? ORDER BY is_default DESC, id ASC', [req.user.id]);
+    const [rows] = await pool.query("SELECT id, user_id, name, api_url, model_id, is_default, created_at, updated_at, (api_key IS NOT NULL AND api_key <> '') AS has_api_key FROM llm_configs WHERE user_id = ? ORDER BY is_default DESC, id ASC", [req.user.id]);
     res.json({ configs: rows });
   } catch (e) {
     console.error(e);
@@ -1049,11 +1169,28 @@ app.get('/api/user/llm-configs', requireAuth, async (req, res) => {
   }
 });
 
+app.post('/api/admin/llm-configs/:id/test', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT api_url, api_key, model_id FROM llm_configs WHERE id=? AND user_id IS NULL', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ success: false, error: '配置不存在' });
+    res.json(await requestLlmTest(rows[0]));
+  } catch (e) { res.json({ success: false, error: e.message }); }
+});
+
+app.post('/api/user/llm-configs/:id/test', requireAuth, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT api_url, api_key, model_id FROM llm_configs WHERE id=? AND user_id=?', [req.params.id, req.user.id]);
+    if (!rows.length) return res.status(404).json({ success: false, error: '配置不存在' });
+    res.json(await requestLlmTest(rows[0]));
+  } catch (e) { res.json({ success: false, error: e.message }); }
+});
+
 // Admin: add global config
 app.post('/api/admin/llm-configs', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { name, api_url, api_key, model_id } = req.body;
     if (!name || !api_url || !api_key || !model_id) return res.status(400).json({ error: '所有字段必填' });
+    validateLlmUrl(api_url);
     // If first one, make it default
     const [existing] = await pool.query('SELECT COUNT(*) as cnt FROM llm_configs WHERE user_id IS NULL');
     const isDefault = existing[0].cnt === 0 ? 1 : 0;
@@ -1073,6 +1210,7 @@ app.post('/api/user/llm-configs', requireAuth, async (req, res) => {
   try {
     const { name, api_url, api_key, model_id } = req.body;
     if (!name || !api_url || !api_key || !model_id) return res.status(400).json({ error: '所有字段必填' });
+    validateLlmUrl(api_url);
     const [existing] = await pool.query('SELECT COUNT(*) as cnt FROM llm_configs WHERE user_id = ?', [req.user.id]);
     const isDefault = existing[0].cnt === 0 ? 1 : 0;
     const [result] = await pool.query(
@@ -1090,8 +1228,12 @@ app.post('/api/user/llm-configs', requireAuth, async (req, res) => {
 app.put('/api/admin/llm-configs/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { name, api_url, api_key, model_id } = req.body;
-    await pool.query('UPDATE llm_configs SET name=?, api_url=?, api_key=?, model_id=? WHERE id=? AND user_id IS NULL',
-      [name, api_url, api_key, model_id, req.params.id]);
+    validateLlmUrl(api_url);
+    const sql = api_key
+      ? 'UPDATE llm_configs SET name=?, api_url=?, api_key=?, model_id=? WHERE id=? AND user_id IS NULL'
+      : 'UPDATE llm_configs SET name=?, api_url=?, model_id=? WHERE id=? AND user_id IS NULL';
+    const params = api_key ? [name, api_url, api_key, model_id, req.params.id] : [name, api_url, model_id, req.params.id];
+    await pool.query(sql, params);
     res.json({ success: true });
   } catch (e) {
     console.error(e);
@@ -1103,8 +1245,12 @@ app.put('/api/admin/llm-configs/:id', requireAuth, requireAdmin, async (req, res
 app.put('/api/user/llm-configs/:id', requireAuth, async (req, res) => {
   try {
     const { name, api_url, api_key, model_id } = req.body;
-    await pool.query('UPDATE llm_configs SET name=?, api_url=?, api_key=?, model_id=? WHERE id=? AND user_id=?',
-      [name, api_url, api_key, model_id, req.params.id, req.user.id]);
+    validateLlmUrl(api_url);
+    const sql = api_key
+      ? 'UPDATE llm_configs SET name=?, api_url=?, api_key=?, model_id=? WHERE id=? AND user_id=?'
+      : 'UPDATE llm_configs SET name=?, api_url=?, model_id=? WHERE id=? AND user_id=?';
+    const params = api_key ? [name, api_url, api_key, model_id, req.params.id, req.user.id] : [name, api_url, model_id, req.params.id, req.user.id];
+    await pool.query(sql, params);
     res.json({ success: true });
   } catch (e) {
     console.error(e);
@@ -1176,29 +1322,7 @@ app.post('/api/llm-test', requireAuth, async (req, res) => {
   try {
     const { api_url, api_key, model_id } = req.body;
     if (!api_url || !api_key || !model_id) return res.status(400).json({ error: '缺少参数' });
-    // 自动拼接：如果用户填的地址已包含 /chat/completions 则不重复追加
-    let baseUrl = api_url.replace(/\/+$/, '');
-    if (!baseUrl.endsWith('/chat/completions')) baseUrl += '/chat/completions';
-    const resp = await fetch(baseUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api_key}` },
-      body: JSON.stringify({ model: model_id, messages: [{ role: 'user', content: '你好' }], max_tokens: 200 }),
-      signal: AbortSignal.timeout(30000)
-    });
-    const data = await resp.json();
-    console.log('[LLM Test] raw response:', JSON.stringify(data).slice(0, 500));
-    if (data.error) return res.json({ success: false, error: data.error.message || JSON.stringify(data.error) });
-    // 兼容多种返回格式
-    let reply = null;
-    if (data.choices && data.choices.length > 0) {
-      const c = data.choices[0];
-      reply = c.message?.content || c.text || c.content || null;
-    }
-    // 兼容部分 API 直接返回 content / result 字段
-    if (!reply && data.content) reply = data.content;
-    if (!reply && data.result) reply = data.result;
-    if (!reply) reply = '[模型返回为空，原始数据: ' + JSON.stringify(data).slice(0, 200) + ']';
-    res.json({ success: true, reply });
+    res.json(await requestLlmTest({ api_url, api_key, model_id }));
   } catch (e) {
     res.json({ success: false, error: e.message });
   }
@@ -1209,10 +1333,11 @@ app.post('/api/llm-models', requireAuth, async (req, res) => {
   try {
     const { api_url, api_key } = req.body;
     if (!api_url || !api_key) return res.status(400).json({ error: '缺少参数' });
-    const url = api_url.replace(/\/+$/, '') + '/models';
+    const url = await assertPublicLlmUrl(api_url.replace(/\/+$/, '') + '/models');
     const resp = await fetch(url, {
       headers: { 'Authorization': `Bearer ${api_key}` },
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(15000),
+      redirect: 'manual'
     });
     const data = await resp.json();
     if (data.error) return res.json({ success: false, error: data.error.message || JSON.stringify(data.error) });
@@ -1333,10 +1458,22 @@ app.get('/api/weather/now', requireAuth, async (req, res) => {
   }
 });
 
-// Test QWeather API key
-app.post('/api/weather/test', requireAuth, async (req, res) => {
+// Saved QWeather key status; never return the secret to the browser.
+app.get('/api/admin/weather-key/status', requireAuth, requireAdmin, async (_req, res) => {
   try {
-    const { api_key } = req.body;
+    const [rows] = await pool.query("SELECT setting_value FROM settings WHERE setting_key='qweather_api_key' LIMIT 1");
+    res.json({ configured: !!rows[0]?.setting_value });
+  } catch (_) { res.status(500).json({ error: '服务器错误' }); }
+});
+
+// Test QWeather API key
+app.post('/api/weather/test', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    let { api_key } = req.body;
+    if (!api_key) {
+      const [rows] = await pool.query("SELECT setting_value FROM settings WHERE setting_key='qweather_api_key' LIMIT 1");
+      api_key = rows[0]?.setting_value;
+    }
     if (!api_key) return res.status(400).json({ error: '请提供 API Key' });
     // Test by searching Beijing
     const url = `https://geoapi.qweather.com/v2/city/lookup?location=北京&key=${api_key}&number=1`;
@@ -1416,6 +1553,20 @@ app.post('/api/mqtt/test', requireAuth, requireAdmin, async (req, res) => {
 // Store active MQTT test sessions
 const mqttSessions = new Map();
 
+function getOwnedMqttSession(sessionId, userId) {
+  const session = mqttSessions.get(sessionId);
+  return session && Number(session.userId) === Number(userId) ? session : null;
+}
+
+async function validateUserMqttTopic(user, topic) {
+  if (typeof topic !== 'string' || !topic || topic.length > 256 || topic.includes('#') || topic.includes('+')) return false;
+  const match = topic.match(/^device\/([^/]+)\/(.+)$/);
+  if (!match) return false;
+  if (user.role === 'admin') return true; // Explicit cross-user policy for administrators.
+  const [rows] = await pool.query('SELECT id FROM devices WHERE user_id = ? AND device_code = ?', [user.id, match[1]]);
+  return rows.length > 0;
+}
+
 // Get admin MQTT config for users
 app.get('/api/mqtt/user-config', requireAuth, async (req, res) => {
   try {
@@ -1440,7 +1591,7 @@ app.post('/api/mqtt/connect', requireAuth, async (req, res) => {
     const proto = cfg.mqtt_protocol || 'mqtt';
     const port = cfg.mqtt_port || '1883';
     const url = `${proto}://${cfg.mqtt_broker}:${port}`;
-    const sessionId = 's_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const sessionId = crypto.randomBytes(24).toString('hex');
 
     const opts = { connectTimeout: 8000 };
     if (cfg.mqtt_username) opts.username = cfg.mqtt_username;
@@ -1453,7 +1604,7 @@ app.post('/api/mqtt/connect', requireAuth, async (req, res) => {
     const client = mqtt.connect(url, opts);
 
     const sseListeners = [];
-    const session = { client, sseListeners, createdAt: Date.now() };
+    const session = { client, sseListeners, userId: req.user.id, createdAt: Date.now() };
     mqttSessions.set(sessionId, session);
 
     // Auto-cleanup after 30 min
@@ -1510,7 +1661,7 @@ app.post('/api/mqtt/connect', requireAuth, async (req, res) => {
 
 // SSE stream for messages
 app.get('/api/mqtt/stream/:sessionId', requireAuth, (req, res) => {
-  const session = mqttSessions.get(req.params.sessionId);
+  const session = getOwnedMqttSession(req.params.sessionId, req.user.id);
   if (!session) return res.status(404).end();
 
   res.writeHead(200, {
@@ -1538,11 +1689,12 @@ app.get('/api/mqtt/stream/:sessionId', requireAuth, (req, res) => {
 });
 
 // Subscribe to topic
-app.post('/api/mqtt/subscribe', requireAuth, (req, res) => {
+app.post('/api/mqtt/subscribe', requireAuth, async (req, res) => {
   const { sessionId, topic, qos } = req.body;
-  const session = mqttSessions.get(sessionId);
-  if (!session) return res.json({ success: false, error: '会话已过期，请重新连接' });
-  const q = parseInt(qos) || 0;
+  const session = getOwnedMqttSession(sessionId, req.user.id);
+  if (!session) return res.status(404).json({ success: false, error: '会话已过期，请重新连接' });
+  if (!await validateUserMqttTopic(req.user, topic)) return res.status(403).json({ success: false, error: 'Topic无权限或格式无效' });
+  const q = Math.max(0, Math.min(1, parseInt(qos) || 0));
   session.client.subscribe(topic, { qos: q }, (err) => {
     if (err) return res.json({ success: false, error: err.message });
     res.json({ success: true, topic, qos: q });
@@ -1550,10 +1702,11 @@ app.post('/api/mqtt/subscribe', requireAuth, (req, res) => {
 });
 
 // Unsubscribe from topic
-app.post('/api/mqtt/unsubscribe', requireAuth, (req, res) => {
+app.post('/api/mqtt/unsubscribe', requireAuth, async (req, res) => {
   const { sessionId, topic } = req.body;
-  const session = mqttSessions.get(sessionId);
-  if (!session) return res.json({ success: false, error: '会话已过期' });
+  const session = getOwnedMqttSession(sessionId, req.user.id);
+  if (!session) return res.status(404).json({ success: false, error: '会话已过期' });
+  if (!await validateUserMqttTopic(req.user, topic)) return res.status(403).json({ success: false, error: 'Topic无权限或格式无效' });
   session.client.unsubscribe(topic, (err) => {
     if (err) return res.json({ success: false, error: err.message });
     res.json({ success: true });
@@ -1561,12 +1714,14 @@ app.post('/api/mqtt/unsubscribe', requireAuth, (req, res) => {
 });
 
 // Publish message
-app.post('/api/mqtt/publish', requireAuth, (req, res) => {
+app.post('/api/mqtt/publish', requireAuth, async (req, res) => {
   const { sessionId, topic, payload, qos, retain } = req.body;
-  const session = mqttSessions.get(sessionId);
-  if (!session) return res.json({ success: false, error: '会话已过期，请重新连接' });
-  const q = parseInt(qos) || 0;
-  session.client.publish(topic, payload || '', { qos: q, retain: !!retain }, (err) => {
+  const session = getOwnedMqttSession(sessionId, req.user.id);
+  if (!session) return res.status(404).json({ success: false, error: '会话已过期，请重新连接' });
+  if (retain) return res.status(400).json({ success: false, error: '禁止发布 retained 消息' });
+  if (!await validateUserMqttTopic(req.user, topic)) return res.status(403).json({ success: false, error: 'Topic无权限或格式无效' });
+  const q = Math.max(0, Math.min(1, parseInt(qos) || 0));
+  session.client.publish(topic, String(payload ?? ''), { qos: q, retain: false }, (err) => {
     if (err) return res.json({ success: false, error: err.message });
     res.json({ success: true });
   });
@@ -1575,8 +1730,8 @@ app.post('/api/mqtt/publish', requireAuth, (req, res) => {
 // Disconnect
 app.post('/api/mqtt/disconnect', requireAuth, (req, res) => {
   const { sessionId } = req.body;
-  const session = mqttSessions.get(sessionId);
-  if (!session) return res.json({ success: true });
+  const session = getOwnedMqttSession(sessionId, req.user.id);
+  if (!session) return res.status(404).json({ success: false, error: '会话不存在' });
   clearTimeout(session.timer);
   try { session.client.end(false); } catch(e) {}
   mqttSessions.delete(sessionId);
@@ -2217,13 +2372,18 @@ app.post('/user/pages/device_schedule', requireAuth, async (req, res) => {
 });
 
 // ========== Device Commands API ==========
+function deviceOwnerClause(user, alias = 'd') {
+  return user.role === 'admin' ? { sql: '1=1', params: [] } : { sql: `${alias}.user_id = ?`, params: [user.id] };
+}
+
 // 获取设备待执行指令
 app.get('/api/device-commands', requireAuth, async (req, res) => {
   try {
     const { device_id } = req.query;
+    const owner = deviceOwnerClause(req.user);
     const [rows] = await pool.query(
-      'SELECT * FROM device_commands WHERE device_id = ? AND status = "pending" ORDER BY created_at DESC',
-      [device_id]
+      `SELECT c.* FROM device_commands c JOIN devices d ON d.id = c.device_id WHERE c.device_id = ? AND c.status = "pending" AND ${owner.sql} ORDER BY c.created_at DESC`,
+      [device_id, ...owner.params]
     );
     res.json({ commands: rows });
   } catch (e) {
@@ -2236,7 +2396,9 @@ app.get('/api/device-commands', requireAuth, async (req, res) => {
 app.post('/api/device-commands/ack', requireAuth, async (req, res) => {
   try {
     const { command_id } = req.body;
-    await pool.query('UPDATE device_commands SET status = "done" WHERE id = ?', [command_id]);
+    const owner = deviceOwnerClause(req.user);
+    const [result] = await pool.query(`UPDATE device_commands c JOIN devices d ON d.id = c.device_id SET c.status = "done" WHERE c.id = ? AND ${owner.sql}`, [command_id, ...owner.params]);
+    if (!result.affectedRows) return res.status(404).json({ error: '指令不存在或无权限' });
     res.json({ success: true });
   } catch (e) {
     console.error(e);
@@ -2277,6 +2439,9 @@ app.get('/api/device-logs', requireAuth, async (req, res) => {
 app.post('/api/device-logs', requireAuth, async (req, res) => {
   try {
     const { device_id, log_type, content, result, prompt_content, ai_response } = req.body;
+    const owner = deviceOwnerClause(req.user);
+    const [devices] = await pool.query(`SELECT d.id FROM devices d WHERE d.id = ? AND ${owner.sql}`, [device_id, ...owner.params]);
+    if (!devices.length) return res.status(404).json({ error: '设备不存在或无权限' });
     await pool.query(
       'INSERT INTO device_logs (device_id, log_type, content, result, prompt_content, ai_response) VALUES (?, ?, ?, ?, ?, ?)',
       [device_id, log_type, content, result || null, prompt_content || null, ai_response || null]
@@ -2307,10 +2472,11 @@ app.post('/api/manual-watering', requireAuth, async (req, res) => {
     const device = devices[0];
     
     // 通过MQTT发送手动浇水指令（匹配ESP32固件格式）
-    publishToDevice(device.device_code, {
+    const sent = await publishToDevice(device.device_code, {
       water: action === 'start',
       duration: duration || 30
     });
+    if (!sent) return res.status(503).json({ success: false, error: 'MQTT未连接，指令发送失败' });
     
     res.json({ success: true, message: '手动浇水指令已发送' });
   } catch (e) {
@@ -2418,12 +2584,13 @@ app.post('/api/watering-judge', requireAuth, async (req, res) => {
       // 5. 调用大模型API
       let aiResult = null;
       try {
-        const llmRes = await fetch(llmConfig.api_url, {
+        const llmRes = await fetch(await assertPublicLlmUrl(llmConfig.api_url), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + llmConfig.api_key
           },
+          redirect: 'manual',
           body: JSON.stringify({
             model: llmConfig.model_id,
             messages: [
@@ -2540,7 +2707,8 @@ app.get('/api/esp32/pending', requireAuth, async (req, res) => {
 // 删除待绑定设备（添加设备成功后调用）
 app.delete('/api/esp32/pending/:id', requireAuth, async (req, res) => {
   try {
-    await pool.query('DELETE FROM esp32_pending_devices WHERE id = ?', [req.params.id]);
+    const [result] = await pool.query("DELETE p FROM esp32_pending_devices p LEFT JOIN devices d ON d.device_code = p.device_code WHERE p.id = ? AND (p.username = ? OR d.user_id = ? OR ? = 'admin')", [req.params.id, req.user.username, req.user.id, req.user.role]);
+    if (!result.affectedRows) return res.status(404).json({ success: false, error: '设备不存在或无权限' });
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
@@ -2573,6 +2741,7 @@ async function startServer() {
     if (await initDatabasePool()) {
       console.log('[数据库] 已连接');
       await applyAdditiveSchemaUpdates();
+      await ensureInitialAdmin(pool, process.env.ADMIN_PASSWORD);
       await cleanupSensorHistory();
       setInterval(cleanupSensorHistory, 60 * 60 * 1000).unref();
       initGlobalMqtt(pool);

@@ -132,6 +132,7 @@ h2 i{color:#3b82f6}
   .weather-temp-big{font-size:40px}
   .weather-emoji{font-size:46px}
 }
+@media(max-width:600px){input,select,textarea{font-size:16px!important}}
 </style>
 </head>
 <body>
@@ -190,6 +191,8 @@ function getEmoji(text) {
   return '🌈';
 }
 
+function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
 function showToast(msg, type = '') {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -201,7 +204,8 @@ function showToast(msg, type = '') {
 function showKeyStatus(msg, type) {
   const el = document.getElementById('keyStatus');
   const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
-  el.innerHTML = '<i class="fas ' + icon + '"></i> ' + msg;
+  el.innerHTML = '<i class="fas ' + icon + '"></i> <span></span>';
+  el.querySelector('span').textContent = msg;
   el.className = 'status-msg show ' + type;
   clearTimeout(el._tid);
   el._tid = setTimeout(() => el.className = 'status-msg', 3000);
@@ -214,12 +218,13 @@ function toggleKeyVis() {
   else { inp.type = 'password'; icon.className = 'fas fa-eye'; }
 }
 
-// Load saved key (admin uses global settings)
+// Load whether a saved key exists without exposing it.
 async function loadKey() {
   try {
-    const res = await fetch('/api/settings/qweather_api_key');
+    const res = await fetch('/api/admin/weather-key/status');
     const data = await res.json();
-    if (data.value) document.getElementById('apiKeyInput').value = data.value;
+    savedKeyConfigured = !!data.configured;
+    if (savedKeyConfigured) document.getElementById('apiKeyInput').placeholder = '已配置；留空不会修改';
   } catch (e) {}
 }
 
@@ -249,7 +254,7 @@ async function saveKey() {
 
 async function testKey() {
   const key = document.getElementById('apiKeyInput').value.trim();
-  if (!key) return showKeyStatus('请先输入 API Key', 'error');
+  if (!key && !savedKeyConfigured) return showKeyStatus('请先输入 API Key', 'error');
   const btn = document.getElementById('testKeyBtn');
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
@@ -275,6 +280,9 @@ async function testKey() {
 
 // --- City search (auto) ---
 let searchTimer = null;
+let searchSeq = 0;
+let weatherSeq = 0;
+let savedKeyConfigured = false;
 const cityInput = document.getElementById('cityInput');
 const dropdown = document.getElementById('cityDropdown');
 const clearBtn = document.getElementById('clearBtn');
@@ -306,28 +314,38 @@ function clearSearch() {
 async function searchCity() {
   const q = cityInput.value.trim();
   if (!q) return;
+  const seq = ++searchSeq;
   try {
     const res = await fetch('/api/weather/search?location=' + encodeURIComponent(q));
     const data = await res.json();
+    if (seq !== searchSeq || q !== cityInput.value.trim()) return;
     if (data.success && data.locations && data.locations.length > 0) {
-      dropdown.innerHTML = data.locations.map(loc => `
-        <div class="dropdown-item" onclick="selectCity('${loc.id}','${loc.name}')">
+      dropdown.innerHTML = data.locations.map((loc, i) => `
+        <div class="dropdown-item" data-location-id="${esc(loc.id)}" data-location-index="${i}">
           <i class="fas fa-map-marker-alt loc-icon"></i>
           <div class="loc-info">
-            <div class="loc-name">${loc.name}</div>
-            <div class="loc-detail">${loc.fullName || (loc.adm1 + ', ' + loc.country)}</div>
+            <div class="loc-name">${esc(loc.name)}</div>
+            <div class="loc-detail">${esc(loc.fullName || ((loc.adm1 || '') + ', ' + (loc.country || '')))}</div>
           </div>
         </div>
       `).join('');
+      dropdown._locations = data.locations;
       dropdown.classList.add('show');
     } else {
       dropdown.innerHTML = '<div class="dropdown-empty"><i class="fas fa-map-marker-alt"></i>未找到匹配城市</div>';
       dropdown.classList.add('show');
     }
   } catch (e) {
-    showToast('搜索失败', 'error');
+    if (seq === searchSeq) showToast('搜索失败', 'error');
   }
 }
+
+dropdown.addEventListener('click', e => {
+  const item = e.target.closest('[data-location-id]');
+  if (!item) return;
+  const loc = (dropdown._locations || [])[Number(item.dataset.locationIndex)];
+  selectCity(item.dataset.locationId, loc ? loc.name : '');
+});
 
 function selectCity(id, name) {
   cityInput.value = name;
@@ -336,20 +354,32 @@ function selectCity(id, name) {
 }
 
 async function queryWeather(locationId) {
+  const seq = ++weatherSeq;
   const card = document.getElementById('weatherCard');
   const content = document.getElementById('weatherContent');
   card.classList.add('show');
   content.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> 正在查询...</div>';
   try {
-    const res = await fetch('/api/weather/now?location=' + locationId);
+    const res = await fetch('/api/weather/now?location=' + encodeURIComponent(locationId));
     const data = await res.json();
+    if (seq !== weatherSeq) return;
     if (!data.success) {
-      content.innerHTML = '<div class="loading" style="color:#dc2626"><i class="fas fa-exclamation-circle"></i>' + (data.error || '查询失败') + '</div>';
+      content.innerHTML = '<div class="loading" style="color:#dc2626"><i class="fas fa-exclamation-circle"></i><span></span></div>';
+      content.querySelector('span').textContent = data.error || '查询失败';
       return;
     }
     renderWeather(data);
   } catch (e) {
-    content.innerHTML = '<div class="loading" style="color:#dc2626"><i class="fas fa-exclamation-circle"></i>网络错误</div>';
+    if (seq === weatherSeq) content.innerHTML = '<div class="loading" style="color:#dc2626"><i class="fas fa-exclamation-circle"></i>网络错误</div>';
+  }
+}
+
+function safeExternalUrl(value) {
+  try {
+    const url = new URL(value, window.location.origin);
+    return url.protocol === 'https:' ? url.href : '';
+  } catch (e) {
+    return '';
   }
 }
 
@@ -363,21 +393,22 @@ function renderWeather(data) {
   const todayText = todayFc.textDay
     ? (todayFc.textDay === todayFc.textNight ? todayFc.textDay : todayFc.textDay + '转' + todayFc.textNight)
     : n.text;
+  const fxLink = safeExternalUrl(data.fxLink);
 
   let html = `
     <div class="weather-hero">
       <div class="weather-emoji">${emoji}</div>
-      <div class="weather-text">${todayText}</div>
-      <div class="weather-temp-big">${n.temp}<span class="unit">°C</span></div>
-      ${data.fxLink ? '<a class="weather-link" href="'+data.fxLink+'" target="_blank"><i class="fas fa-external-link-alt"></i> 和风天气详情</a>' : ''}
+      <div class="weather-text">${esc(todayText)}</div>
+      <div class="weather-temp-big">${esc(n.temp)}<span class="unit">°C</span></div>
+      ${fxLink ? '<a class="weather-link" href="'+esc(fxLink)+'" target="_blank" rel="noopener noreferrer"><i class="fas fa-external-link-alt"></i> 和风天气详情</a>' : ''}
     </div>
     <div class="info-grid">
-      ${todayFc.tempMax ? `<div class="info-item"><div class="label">温度</div><div class="value">${todayFc.tempMin}~${todayFc.tempMax}°</div></div>` : ''}
-      <div class="info-item"><div class="label">体感</div><div class="value">${n.feelsLike}°</div></div>
-      <div class="info-item"><div class="label">湿度</div><div class="value">${n.humidity}%</div></div>
-      <div class="info-item"><div class="label">风力</div><div class="value">${n.windDir} ${n.windScale}级</div></div>
-      <div class="info-item"><div class="label">降水</div><div class="value">${n.precip}mm</div></div>
-      <div class="info-item"><div class="label">能见度</div><div class="value">${n.vis}km</div></div>
+      ${todayFc.tempMax ? `<div class="info-item"><div class="label">温度</div><div class="value">${esc(todayFc.tempMin)}~${esc(todayFc.tempMax)}°</div></div>` : ''}
+      <div class="info-item"><div class="label">体感</div><div class="value">${esc(n.feelsLike)}°</div></div>
+      <div class="info-item"><div class="label">湿度</div><div class="value">${esc(n.humidity)}%</div></div>
+      <div class="info-item"><div class="label">风力</div><div class="value">${esc(n.windDir)} ${esc(n.windScale)}级</div></div>
+      <div class="info-item"><div class="label">降水</div><div class="value">${esc(n.precip)}mm</div></div>
+      <div class="info-item"><div class="label">能见度</div><div class="value">${esc(n.vis)}km</div></div>
     </div>`;
 
   if (fc.length > 0) {
@@ -386,14 +417,14 @@ function renderWeather(data) {
     fc.forEach(d => {
       html += `
         <div class="forecast-card">
-          <div class="fc-date">${d.date}</div>
+          <div class="fc-date">${esc(d.date)}</div>
           <div class="fc-emoji">${getEmoji(d.textDay)}</div>
-          <div class="fc-text">${d.textDay === d.textNight ? d.textDay : d.textDay + '转' + d.textNight}</div>
-          <div class="fc-temp">${d.tempMax}° <span>/ ${d.tempMin}°</span></div>
+          <div class="fc-text">${d.textDay === d.textNight ? esc(d.textDay) : esc(d.textDay) + '转' + esc(d.textNight)}</div>
+          <div class="fc-temp">${esc(d.tempMax)}° <span>/ ${esc(d.tempMin)}°</span></div>
           <div class="fc-info">
-            💧${d.humidity}% 🌧${d.precip}mm<br>
-            💨${d.windDirDay} ${d.windScaleDay}级
-            ${d.sunrise ? '<br>🌅'+d.sunrise+' 🌇'+d.sunset : ''}
+            💧${esc(d.humidity)}% 🌧${esc(d.precip)}mm<br>
+            💨${esc(d.windDirDay)} ${esc(d.windScaleDay)}级
+            ${d.sunrise ? '<br>🌅'+esc(d.sunrise)+' 🌇'+esc(d.sunset) : ''}
           </div>
         </div>`;
     });

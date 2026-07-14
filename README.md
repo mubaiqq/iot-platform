@@ -1,6 +1,6 @@
 # IoT Platform
 
-> 当前平台与固件版本：v1.2.3。实时/历史传感器数据与 OTA 使用说明见 [`docs/DATA-OTA-v1.2.3.md`](docs/DATA-OTA-v1.2.3.md)。
+> 当前平台版本：v1.2.4；固件版本：v1.2.3。更新说明见 [`docs/RELEASE-v1.2.4.md`](docs/RELEASE-v1.2.4.md)，数据与 OTA 使用说明见 [`docs/DATA-OTA-v1.2.3.md`](docs/DATA-OTA-v1.2.3.md)。
 
 木白云 IoT 平台源码。Node.js + Express + MySQL + MQTT，用于 ESP32 控制器/传感器设备管理、计划任务、AI 浇水判断、设备日志与后台管理。
 
@@ -65,7 +65,7 @@ bash /tmp/iot-update-host.sh
 INSTALL_DIR=/你的部署目录 bash /tmp/iot-update-host.sh
 ```
 
-更新脚本会保留现有 `.env`、`data/`、`node_modules/`、`backups/`，更新源码和生产依赖，执行 `node -c app.js` / `node -c mqtt_handler.js`，然后用 PM2 重启并 `pm2 save`。
+更新脚本会保留现有 `.env`、`data/`、`node_modules/`、`backups/`，更新源码和生产依赖，执行语法检查和 `npm test`，全部通过后才用 PM2 重启并 `pm2 save`。
 
 ## Docker 一键部署（内置 MySQL 容器）
 
@@ -81,14 +81,7 @@ curl -fsSL https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/d
 http://服务器IP:32180
 ```
 
-默认管理员：
-
-```text
-账号：admin
-密码：admin123
-```
-
-登录后请立即修改默认密码，并进入后台配置天气 API、大模型 API、MQTT 等参数。
+管理员账号为 `admin`。Docker 一键部署会生成强密码并保存在部署目录的 `.env` 中；宿主机部署则由用户在首次安装页面设置强密码。管理员密码仅以 bcrypt 哈希写入数据库。
 
 Docker 部署内置 MySQL 容器并自动配置数据库，正常不需要再填写数据库信息。
 
@@ -158,8 +151,8 @@ curl -fsSL https://raw.githubusercontent.com/mubaiqq/iot-platform/main/scripts/u
 1. 拉取 GitHub 最新代码（失败时自动尝试源码包镜像）
 2. 保留 `.env`、`data/`、`node_modules/`、`backups/`
 3. 安装/更新 npm 生产依赖
-4. 执行 `node -c app.js` 和 `node -c mqtt_handler.js`
-5. 使用 PM2 重启 `iot-platform` 并 `pm2 save`
+4. 执行 JavaScript 语法检查和完整 `npm test`
+5. 检查全部通过后使用 PM2 重启 `iot-platform` 并 `pm2 save`
 
 ### 常用 Docker 命令
 
@@ -207,6 +200,6 @@ DEVELOPMENT.md
 ## 注意
 
 - 本仓库不包含 `node_modules/`、`backups/`、`.env`、上传文件等运行时内容。
-- Docker 首次启动会进入安装页面；填写 MySQL 信息后自动初始化数据库结构和默认管理员。
+- Docker 首次启动会使用内置 MySQL 自动初始化数据库结构，并以部署生成的强密码创建管理员；宿主机安装由安装页收集管理员密码。
 - 管理员全局 API Key / 用户自定义 API Key 均存数据库，不应提交到 GitHub。
 - 如需 Nginx / HTTPS，请自行反代到容器映射端口，默认是 `32180`。

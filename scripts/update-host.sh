@@ -87,6 +87,7 @@ fi
 
 node -c app.js
 node -c mqtt_handler.js
+npm test
 
 if [ -f .env ] && grep -q '^APP_PORT=' .env; then
   APP_PORT="$(grep '^APP_PORT=' .env | tail -1 | cut -d= -f2-)"

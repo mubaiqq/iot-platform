@@ -171,7 +171,8 @@ function showConfirm(msg) {
   return new Promise(resolve => {
     const mask = document.createElement('div');
     mask.className = 'confirm-mask';
-    mask.innerHTML = '<div class="confirm-box"><h3>确认删除</h3><p>'+msg+'</p><div class="confirm-actions"><button class="confirm-cancel">取消</button><button class="confirm-ok">删除</button></div></div>';
+    mask.innerHTML = '<div class="confirm-box"><h3>确认删除</h3><p></p><div class="confirm-actions"><button class="confirm-cancel">取消</button><button class="confirm-ok">删除</button></div></div>';
+    mask.querySelector('p').textContent = msg;
     document.body.appendChild(mask);
     mask.querySelector('.confirm-cancel').onclick = () => { mask.remove(); resolve(false); };
     mask.querySelector('.confirm-ok').onclick = () => { mask.remove(); resolve(true); };
@@ -187,7 +188,7 @@ async function loadDevice() {
     device = data.device;
     render();
   } catch(e) {
-    document.getElementById('main').innerHTML = '<div class="loading" style="color:#ef4444"><i class="fas fa-exclamation-circle" style="animation:none"></i>' + e.message + '</div>';
+    document.getElementById('main').innerHTML = '<div class="loading" style="color:#ef4444"><i class="fas fa-exclamation-circle" style="animation:none"></i>' + esc(e.message) + '</div>';
   }
 }
 
@@ -216,6 +217,8 @@ function render() {
 }
 
 function renderSensorView(d, sd, online) {
+  const name = esc(d.device_name || '未命名传感器');
+  const code = esc(d.device_code || '');
   const fields = [
     {key:'soil_moisture', metric:'soil', cls:'soil', icon:'fa-droplet', label:'土壤湿度', unit:'%', pctType:''},
     {key:'air_humidity', metric:'humid', cls:'humid', icon:'fa-wind', label:'空气湿度', unit:'%', pctType:''},
@@ -235,8 +238,8 @@ function renderSensorView(d, sd, online) {
   let html = `<div class="sensor-hero">
     <div class="sensor-hero-icon"><i class="fas fa-satellite-dish"></i></div>
     <div class="sensor-hero-main">
-      <div class="sensor-hero-name">${d.device_name || '未命名传感器'}</div>
-      <div class="sensor-hero-code">${d.device_code || ''} · 最近上报 ${lastSeen}</div>
+      <div class="sensor-hero-name">${name}</div>
+      <div class="sensor-hero-code">${code} · 最近上报 ${esc(lastSeen)}</div>
     </div>
     <div class="sensor-hero-status ${online?'on':'off'}"><span class="dot"></span>${online?'在线':'离线'}</div>
   </div>`;
@@ -244,7 +247,7 @@ function renderSensorView(d, sd, online) {
   if (hasData) {
     html += `<div class="sensor-overview count-${available.length}">` + available.map(f => `
       <div class="sensor-tile ${f.cls}">
-        <i class="fas ${f.icon}"></i><div><span class="sensor-tile-value" data-metric="${f.metric}">${val(sd[f.key])}</span><span class="sensor-tile-unit">${f.unit}</span></div><div class="sensor-tile-label">${f.label}</div><div class="sensor-tile-bar"><div class="sensor-tile-fill ${f.cls}" style="width:${pct(sd[f.key], f.pctType)}%"></div></div>
+        <i class="fas ${f.icon}"></i><div><span class="sensor-tile-value" data-metric="${f.metric}">${esc(val(sd[f.key]))}</span><span class="sensor-tile-unit">${f.unit}</span></div><div class="sensor-tile-label">${f.label}</div><div class="sensor-tile-bar"><div class="sensor-tile-fill ${f.cls}" style="width:${pct(sd[f.key], f.pctType)}%"></div></div>
       </div>`).join('') + `
     </div>`;
   } else {
@@ -259,11 +262,11 @@ function renderSensorView(d, sd, online) {
       <div class="app-row" onclick="openSensorSetting()">
         <div class="app-icon blue"><i class="fas fa-gear"></i></div>
         <div class="app-text"><div class="app-title">传感器设置</div><div class="app-desc">名称、休眠时间、校准参数</div></div>
-        <span class="app-value">${d.device_name || '未设置'}</span><i class="fas fa-chevron-right app-arrow"></i>
+        <span class="app-value">${esc(d.device_name || '未设置')}</span><i class="fas fa-chevron-right app-arrow"></i>
       </div>
       <div class="app-row" onclick="openAbout()">
         <div class="app-icon blue"><i class="fas fa-circle-info"></i></div>
-        <div class="app-text"><div class="app-title">关于</div><div class="app-desc">v${d.firmware_version || '1.2.2'} · 检查更新</div></div>
+        <div class="app-text"><div class="app-title">关于</div><div class="app-desc">v${esc(d.firmware_version || '1.2.2')} · 检查更新</div></div>
         <i class="fas fa-chevron-right app-arrow"></i>
       </div>
     </div>
@@ -389,7 +392,7 @@ function renderControllerView(d, s, sd, online) {
         </div>
         <div class="app-row" onclick="openAbout()">
           <div class="app-icon blue"><i class="fas fa-circle-info"></i></div>
-          <div class="app-text"><div class="app-title">关于</div><div class="app-desc">v${d.firmware_version || '1.2.2'} · 检查更新</div></div>
+          <div class="app-text"><div class="app-title">关于</div><div class="app-desc">v${esc(d.firmware_version || '1.2.2')} · 检查更新</div></div>
           <i class="fas fa-chevron-right app-arrow"></i>
         </div>
       </div>
@@ -589,7 +592,7 @@ function openAbout() { try { parent.openModalPost('/user/pages/device_about', '�
 
 async function editSensorName() {
   const current = device.device_name || '';
-  const newName = prompt('输入设备名称', current);
+  const newName = await showInput('输入设备名称', current);
   if (newName === null) return; // 取消
   try {
     const res = await fetch('/api/devices/' + deviceId, {
@@ -604,6 +607,21 @@ async function editSensorName() {
   } catch(e) {
     showToast(e.message, 'error');
   }
+}
+
+function showInput(title, value) {
+  return new Promise(resolve => {
+    const mask = document.createElement('div');
+    mask.className = 'confirm-mask';
+    mask.innerHTML = '<div class="confirm-box"><h3></h3><input class="duration-input" maxlength="50"><div class="confirm-actions"><button class="confirm-cancel">取消</button><button class="confirm-ok">保存</button></div></div>';
+    mask.querySelector('h3').textContent = title;
+    const input = mask.querySelector('input'); input.value = value;
+    document.body.appendChild(mask); input.focus(); input.select();
+    const done = v => { mask.remove(); resolve(v); };
+    mask.querySelector('.confirm-cancel').onclick = () => done(null);
+    mask.querySelector('.confirm-ok').onclick = () => done(input.value);
+    input.onkeydown = e => { if (e.key === 'Enter') done(input.value); if (e.key === 'Escape') done(null); };
+  });
 }
 
 async function deleteDevice() {

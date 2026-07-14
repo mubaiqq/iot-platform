@@ -87,6 +87,7 @@ MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-$(openssl rand -base64 24 | tr -d '/+
 DB_NAME=${DB_NAME:-iot_platform}
 DB_USER=${DB_USER:-iot_user}
 DB_PASSWORD=${DB_PASSWORD:-$(openssl rand -base64 24 | tr -d '/+=' | head -c 20)}
+ADMIN_PASSWORD=${ADMIN_PASSWORD:-Aa1_$(openssl rand -hex 16)}
 EOF
     echo "[deploy] 已生成 .env（包含内置 MySQL 配置）"
   else
@@ -115,11 +116,17 @@ EOF
       echo "DB_PASSWORD=${DB_PASSWORD:-$(openssl rand -base64 24 | tr -d '/+=' | head -c 20)}" >> .env
       echo "[deploy] 已追加 DB_PASSWORD"
     fi
+    if ! grep -q '^ADMIN_PASSWORD=' .env; then
+      echo "ADMIN_PASSWORD=${ADMIN_PASSWORD:-Aa1_$(openssl rand -hex 16)}" >> .env
+      echo "[deploy] 已生成首次安装管理员密码"
+    fi
   fi
 }
 
 start_stack() {
   cd "$INSTALL_DIR"
+  mkdir -p data
+  chown -R "${APP_UID:-1000}:${APP_GID:-1000}" data 2>/dev/null || true
   echo "[deploy] 构建并启动 Docker 服务..."
   echo "[deploy] 不再拉取 MySQL 镜像；启动后请访问安装页面填写已有 MySQL 信息。"
   $SUDO docker compose up -d --build
@@ -134,9 +141,9 @@ print_result() {
   echo "访问地址: http://服务器IP:${APP_PORT}"
   echo "首次安装: 打开上面的地址；内置 MySQL 已自动配置，通常无需再填写数据库信息。"
   echo "数据库数据卷: docker volume iot-platform_mysql_data（会随 compose 持久化）"
-  echo "默认管理员: admin"
-  echo "默认密码: admin123"
-  echo "请登录后立即修改默认密码，并在后台配置天气/API/大模型等参数。"
+  echo "管理员账号: admin"
+  echo "管理员密码已安全生成并保存在 ${INSTALL_DIR}/.env 的 ADMIN_PASSWORD 中。"
+  echo "请妥善保管，并在后台配置天气/API/大模型等参数。"
   echo
   echo "常用命令:"
   echo "  cd ${INSTALL_DIR} && docker compose ps"

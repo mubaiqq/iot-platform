@@ -166,6 +166,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f5f6fa;color:#1e29
   input,select,textarea{font-size:16px!important}
   .model-fetch-btn{font-size:10px;padding:0 8px}
 }
+@media(max-width:600px){input,select,textarea{font-size:16px!important}}
 </style>
 </head>
 <body>
@@ -279,6 +280,8 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f5f6fa;color:#1e29
 <script>
 const API_BASE = '/api/admin/llm-configs';
 let fetchedModels = [];
+let configsCache = [];
+function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
 function showToast(msg, type) {
   const el = document.getElementById('toastMsg');
@@ -326,7 +329,7 @@ async function fetchModels() {
 
 function showModelDropdown(models) {
   const dd = document.getElementById('modelDropdown');
-  dd.innerHTML = models.map(m => `<div class="model-dropdown-item" onclick="selectModel('${m}')">${m}</div>`).join('');
+  dd.innerHTML = models.map((m, i) => `<div class="model-dropdown-item" data-action="select-model" data-id="${i}">${esc(m)}</div>`).join('');
   dd.classList.add('show');
 }
 
@@ -336,7 +339,21 @@ function selectModel(id) {
 }
 
 // Close dropdown when clicking outside
-document.addEventListener('click', e => {
+document.addEventListener('click', async e => {
+  const actionEl = e.target.closest('[data-action]');
+  if (actionEl) {
+    const action = actionEl.dataset.action;
+    const id = Number(actionEl.dataset.id);
+    if (action === 'select-model') selectModel(fetchedModels[id]);
+    else {
+      const cfg = configsCache.find(c => Number(c.id) === id);
+      if (!cfg) return;
+      if (action === 'edit') editConfig(cfg);
+      if (action === 'test') testSaved(id);
+      if (action === 'default') setDefault(id);
+      if (action === 'delete') deleteConfig(id, cfg.name);
+    }
+  }
   if (!e.target.closest('.model-input-wrap')) {
     document.getElementById('modelDropdown').classList.remove('show');
   }
@@ -430,7 +447,8 @@ async function loadConfigs() {
   try {
     const res = await fetch(API_BASE);
     const data = await res.json();
-    renderConfigs(data.configs || []);
+    configsCache = data.configs || [];
+    renderConfigs(configsCache);
   } catch (e) {
     showToast('加载失败', 'error');
   }
@@ -447,10 +465,10 @@ function renderConfigs(configs) {
   empty.style.display = 'none';
   tbody.innerHTML = configs.map(c => `
     <tr>
-      <td><span class="config-name">${c.name}</span></td>
-      <td><span class="config-url" title="${c.api_url}">${c.api_url}</span></td>
-      <td><span class="config-model">${c.model_id}</span></td>
-      <td><span class="config-key">${maskKey(c.api_key)}</span></td>
+      <td><span class="config-name">${esc(c.name)}</span></td>
+      <td><span class="config-url" title="${esc(c.api_url)}">${esc(c.api_url)}</span></td>
+      <td><span class="config-model">${esc(c.model_id)}</span></td>
+      <td><span class="config-key">${esc(c.masked_api_key || c.api_key_masked || (c.has_api_key ? '已配置（已隐藏）' : maskKey(c.api_key)))}</span></td>
       <td>
         ${c.is_default
           ? '<span class="badge badge-default"><i class="fas fa-check"></i> 默认</span>'
@@ -458,12 +476,12 @@ function renderConfigs(configs) {
       </td>
       <td>
         <div class="actions">
-          <button class="btn-sm btn-sm-edit" onclick='editConfig(${JSON.stringify(c)})'><i class="fas fa-pen"></i> 编辑</button>
-          <button class="btn-sm btn-sm-test" onclick="testSaved(${c.id})"><i class="fas fa-vial"></i> 测试</button>
-          <button class="btn-sm btn-sm-default ${c.is_default?'active':''}" onclick="setDefault(${c.id})" ${c.is_default?'disabled':''}>
+          <button class="btn-sm btn-sm-edit" data-action="edit" data-id="${Number(c.id)}"><i class="fas fa-pen"></i> 编辑</button>
+          <button class="btn-sm btn-sm-test" data-action="test" data-id="${Number(c.id)}"><i class="fas fa-vial"></i> 测试</button>
+          <button class="btn-sm btn-sm-default ${c.is_default?'active':''}" data-action="default" data-id="${Number(c.id)}" ${c.is_default?'disabled':''}>
             <i class="fas fa-star"></i> ${c.is_default?'默认':'设为默认'}
           </button>
-          <button class="btn-sm btn-sm-delete" onclick="deleteConfig(${c.id},'${c.name}')"><i class="fas fa-trash"></i> 删除</button>
+          <button class="btn-sm btn-sm-delete" data-action="delete" data-id="${Number(c.id)}"><i class="fas fa-trash"></i> 删除</button>
         </div>
       </td>
     </tr>
@@ -475,7 +493,8 @@ function editConfig(c) {
   document.getElementById('editId').value = c.id;
   document.getElementById('editName').value = c.name;
   document.getElementById('editUrl').value = c.api_url;
-  document.getElementById('editKey').value = c.api_key;
+  document.getElementById('editKey').value = '';
+  document.getElementById('editKey').placeholder = (c.has_api_key || c.masked || c.api_key) ? '留空则保留现有 Key' : '请输入 API Key';
   document.getElementById('editModel').value = c.model_id;
   document.getElementById('editModal').classList.add('show');
 }
@@ -490,13 +509,15 @@ async function saveEdit() {
   const url = document.getElementById('editUrl').value.trim();
   const key = document.getElementById('editKey').value.trim();
   const model = document.getElementById('editModel').value.trim();
-  if (!name || !url || !key || !model) { showToast('所有字段必填', 'error'); return; }
+  if (!name || !url || !model) { showToast('名称、地址和模型必填', 'error'); return; }
+  const payload = { name, api_url: url, model_id: model };
+  if (key) payload.api_key = key;
 
   try {
     const res = await fetch(`${API_BASE}/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, api_url: url, api_key: key, model_id: model })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     if (data.success) {
@@ -514,17 +535,8 @@ async function saveEdit() {
 // ========== Test Saved ==========
 async function testSaved(id) {
   try {
-    const res = await fetch(API_BASE);
-    const data = await res.json();
-    const cfg = (data.configs || []).find(c => c.id === id);
-    if (!cfg) { showToast('未找到配置', 'error'); return; }
-
     showToast('正在测试...', 'success');
-    const testRes = await fetch('/api/llm-test', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ api_url: cfg.api_url, api_key: cfg.api_key, model_id: cfg.model_id })
-    });
+    const testRes = await fetch(`${API_BASE}/${id}/test`, { method: 'POST' });
     const testData = await testRes.json();
     if (testData.success) {
       showToast(`测试成功: ${testData.reply.slice(0, 50)}`, 'success');
@@ -545,9 +557,24 @@ async function setDefault(id) {
   } catch (e) { showToast('操作失败', 'error'); }
 }
 
+function showLocalConfirm(message) {
+  return new Promise(resolve => {
+    const mask = document.createElement('div'); mask.className = 'modal-overlay show';
+    mask.innerHTML = '<div class="modal-box"><div class="modal-header"><div class="modal-title">确认删除</div></div><div class="modal-body"><p></p></div><div class="modal-footer"><button class="btn btn-cancel">取消</button><button class="btn btn-save">删除</button></div></div>';
+    mask.querySelector('p').textContent = message; document.body.appendChild(mask);
+    const done = v => { mask.remove(); resolve(v); };
+    mask.querySelector('.btn-cancel').onclick = () => done(false);
+    mask.querySelector('.btn-save').onclick = () => done(true);
+    mask.onclick = e => { if (e.target === mask) done(false); };
+  });
+}
+
 // ========== Delete ==========
 async function deleteConfig(id, name) {
-  if (!confirm(`确定删除「${name}」？`)) return;
+  const ok = parent && typeof parent.showConfirm === 'function'
+    ? await parent.showConfirm('删除模型配置', `确定删除「${name}」？`, {type:'danger', okText:'删除'})
+    : await showLocalConfirm(`确定删除「${name}」？`);
+  if (!ok) return;
   try {
     const res = await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
     const data = await res.json();
