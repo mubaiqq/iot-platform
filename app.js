@@ -41,12 +41,21 @@ app.use(express.urlencoded({ extended: true, limit: '64kb' }));
 app.use(cookieParser());
 
 const DEVICE_HTTP_PATHS = new Set(['/api/devices/heartbeat', '/api/esp32/register']);
+function firstForwardedHeader(req, name) {
+  const value = req.get(name);
+  return value ? value.split(',')[0].trim() : '';
+}
+
 function enforceSameOrigin(req, res, next) {
   if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS' || !req.path.startsWith('/api/') || DEVICE_HTTP_PATHS.has(req.path)) return next();
   const origin = req.get('Origin');
   if (!origin) return next();
   try {
-    if (new URL(origin).origin !== `${req.protocol}://${req.get('host')}`) return res.status(403).json({ error: '请求来源验证失败' });
+    // Reverse proxies terminate HTTPS before forwarding to Node. Compare with
+    // the browser-facing scheme/host, not the internal HTTP connection.
+    const protocol = firstForwardedHeader(req, 'X-Forwarded-Proto') || req.protocol;
+    const host = firstForwardedHeader(req, 'X-Forwarded-Host') || req.get('host');
+    if (new URL(origin).origin !== `${protocol}://${host}`) return res.status(403).json({ error: '请求来源验证失败' });
   } catch (_) { return res.status(403).json({ error: '请求来源验证失败' }); }
   next();
 }
