@@ -2,6 +2,7 @@
 const mqtt = require('mqtt');
 const net = require('net');
 const dns = require('dns');
+const { publicOnlyDispatcher } = require('./lib/public_network');
 
 function validateLlmUrl(value) {
   let url;
@@ -671,6 +672,7 @@ async function handleWateringRequest(pool, deviceCode, payload) {
           'Authorization': 'Bearer ' + llmConfig.api_key
         },
         redirect: 'manual',
+        dispatcher: publicOnlyDispatcher,
         body: JSON.stringify({
           model: llmConfig.model_id,
           messages: [

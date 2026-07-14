@@ -126,7 +126,7 @@ EOF
 start_stack() {
   cd "$INSTALL_DIR"
   mkdir -p data
-  chown -R "${APP_UID:-1000}:${APP_GID:-1000}" data 2>/dev/null || true
+  $SUDO chown -R "${APP_UID:-1000}:${APP_GID:-1000}" data
   echo "[deploy] 构建并启动 Docker 服务..."
   echo "[deploy] 不再拉取 MySQL 镜像；启动后请访问安装页面填写已有 MySQL 信息。"
   $SUDO docker compose up -d --build

@@ -95,6 +95,7 @@ test('LLM requests reject literal local/private targets and disable redirects', 
     assert.match(src, /function validateLlmUrl\(/, `${file} missing URL validation`);
     assert.match(src, /dns\.promises\.lookup/, `${file} does not resolve hostnames before requests`);
     assert.match(src, /assertPublicLlmUrl/, `${file} does not reject private DNS answers`);
+    assert.match(src, /publicOnlyDispatcher/, `${file} does not validate the DNS answer used by the actual connection`);
     assert.match(src, /127\.0\.0\.1|0x7f000001/, `${file} missing loopback denial`);
     assert.match(src, /redirect: 'manual'/, `${file} permits redirects`);
   }

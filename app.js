@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 const svgCaptcha = require('svg-captcha');
 const multer = require('multer');
+const { publicOnlyDispatcher } = require('./lib/public_network');
 const { initGlobalMqtt, publishToDevice, waitForDeviceAck } = require('./mqtt_handler');
 
 const app = express();
@@ -1138,7 +1139,7 @@ async function requestLlmTest(config) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.api_key}` },
     body: JSON.stringify({ model: config.model_id, messages: [{ role: 'user', content: '你好' }], max_tokens: 200 }),
-    signal: AbortSignal.timeout(30000), redirect: 'manual'
+    signal: AbortSignal.timeout(30000), redirect: 'manual', dispatcher: publicOnlyDispatcher
   });
   const data = await resp.json();
   if (data.error) return { success: false, error: data.error.message || JSON.stringify(data.error) };
@@ -1337,7 +1338,8 @@ app.post('/api/llm-models', requireAuth, async (req, res) => {
     const resp = await fetch(url, {
       headers: { 'Authorization': `Bearer ${api_key}` },
       signal: AbortSignal.timeout(15000),
-      redirect: 'manual'
+      redirect: 'manual',
+      dispatcher: publicOnlyDispatcher
     });
     const data = await resp.json();
     if (data.error) return res.json({ success: false, error: data.error.message || JSON.stringify(data.error) });
@@ -2591,6 +2593,7 @@ app.post('/api/watering-judge', requireAuth, async (req, res) => {
             'Authorization': 'Bearer ' + llmConfig.api_key
           },
           redirect: 'manual',
+          dispatcher: publicOnlyDispatcher,
           body: JSON.stringify({
             model: llmConfig.model_id,
             messages: [
